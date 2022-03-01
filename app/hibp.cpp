@@ -157,9 +157,13 @@ int main(int argc, char* argv[]) {
     sha1.update(argv[2]);
     hibp::password needle(sha1.final());
 
-    std::cout << "needle = " << needle << "\n";
-    auto found = db.search(needle);
+    std::optional<hibp::password> found;
+    {
+        os::bch::Timer t("search took");
+        found = db.search(needle);
+    }
 
+    std::cout << "needle = " << needle << "\n";
     if (found)
       std::cout << "found  = " << *found << "\n";
     else
