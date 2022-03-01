@@ -28,41 +28,23 @@ else()
   set(PROJECT_STATIC_OPTIONS "")
 endif()
 
-set(SFML_BUILD_AUDIO OFF)
-set(SFML_BUILD_NETWORK OFF)
-add_subdirectory(SFML)
 
-add_library(sfml INTERFACE)
-target_include_directories(sfml INTERFACE SFML/include)
-target_link_directories(sfml INTERFACE SFML/build/lib)
-target_link_libraries(sfml INTERFACE sfml-graphics sfml-window sfml-system Threads::Threads)
+add_subdirectory(ext/fmt)
+target_compile_options(fmt INTERFACE -Wno-missing-noreturn)
 
-# imgui doesn't do cmake and doesn't need compiling
-add_library(imgui INTERFACE)
-target_include_directories(imgui INTERFACE imgui)
+add_subdirectory(ext/date)
 
-set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/imgui)
-set(IMGUI_SFML_FIND_SFML OFF)
-add_subdirectory(imgui-sfml)
+add_subdirectory(ext/fast_float)
 
-add_library(imgui-sfml INTERFACE)
-target_include_directories(imgui-sfml INTERFACE imgui-sfml)
-target_link_directories(imgui-sfml INTERFACE imgui-sfml/build)
-target_link_libraries(imgui-sfml INTERFACE ImGui-SFML sfml imgui)
+add_library(toolbelt INTERFACE)
+target_include_directories(toolbelt INTERFACE ext/toolbelt)
+target_link_libraries(toolbelt INTERFACE date fast_float)
 
-find_package(Threads REQUIRED)
-add_executable(softbody main.cpp include/video.cpp include/arial.cpp include/point_png.cpp)
-target_include_directories(softbody PRIVATE include)
-target_link_libraries(softbody PRIVATE imgui-sfml ${PROJECT_STATIC_OPTIONS})
-target_compile_options(softbody PRIVATE ${PROJECT_COMPILE_OPTIONS})
+add_library(sha1 INTERFACE)
+target_include_directories(sha1 INTERFACE ext/sha1)
 
-add_executable(dangling dangling.cpp)
-target_link_libraries(dangling PRIVATE imgui-sfml)
-
-add_executable(derived derived.cpp)
-
-add_executable(arch arch.cpp)
-target_link_libraries(arch PRIVATE imgui-sfml)
+add_executable(hibp app/hibp.cpp)
+target_link_libraries(hibp PRIVATE toolbelt sha1)
 
 add_subdirectory(test)
 

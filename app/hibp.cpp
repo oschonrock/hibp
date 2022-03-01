@@ -1,7 +1,7 @@
 #include "os/algo.hpp"
 #include "os/bch.hpp"
 #include "os/str.hpp"
-#include "sha1/sha1.hpp"
+#include "sha1.hpp"
 #include <array>
 #include <compare>
 #include <cstddef>
