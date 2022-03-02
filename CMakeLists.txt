@@ -44,7 +44,8 @@ add_library(sha1 INTERFACE)
 target_include_directories(sha1 INTERFACE ext/sha1)
 
 add_executable(hibp app/hibp.cpp)
-target_link_libraries(hibp PRIVATE toolbelt sha1)
+target_link_libraries(hibp PRIVATE toolbelt sha1 fmt)
+target_compile_options(hibp PRIVATE ${PROJECT_COMPILE_OPTIONS})
 
 add_subdirectory(test)
 
