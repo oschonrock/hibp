@@ -36,6 +36,10 @@ inline std::byte make_byte(char mschr, char lschr) {
     return make_nibble(mschr) << 4U | make_nibble(lschr);
 }
 
+inline std::byte make_byte(const char* two_chrs) {
+    return make_byte(*two_chrs, *(two_chrs + 1));
+}
+
 // `text` must be an uppper- or lowercase sha1 hexstr
 // with optional ":123" appended (123 is the count).
 inline pawned_pw convert_to_binary(const std::string& text) {
@@ -43,7 +47,7 @@ inline pawned_pw convert_to_binary(const std::string& text) {
 
     assert(text.length() >= ppw.hash.size() * 2);
     for (auto [i, b]: os::algo::enumerate(ppw.hash)) // note b is by reference!
-        b = make_byte(text[2 * i], text[2 * i + 1]);
+        b = make_byte(&text[2 * i]);
 
     if (text.size() > ppw.hash.size() * 2 + 1)
         ppw.count = os::str::parse_nonnegative_int(text.c_str() + ppw.hash.size() * 2 + 1,
@@ -52,32 +56,6 @@ inline pawned_pw convert_to_binary(const std::string& text) {
         ppw.count = -1;
 
     return ppw;
-}
-
-// convert text file to binary. high throughput > ~230MB/s dependant on disk
-inline void build_bin_db(std::istream& text_stream, std::ostream& binary_stream) {
-    std::ios_base::sync_with_stdio(false);
-    // std::getline is about 2x faster than `text_stream >> line` here
-
-    // Using std::fwrite is about 8x faster than std::ostream::write.
-    // But only if writing 1 password at a time. Instead buffer 100 of them.
-    constexpr std::size_t          obufcnt = 100;
-    std::array<pawned_pw, obufcnt> obuf{};
-    std::size_t                    obufpos = 0;
-    for (std::string line; std::getline(text_stream, line);) {
-
-        pawned_pw ppw = convert_to_binary(line);
-        if (obufpos == obuf.size()) {
-            binary_stream.write(reinterpret_cast<char*>(&obuf), // NOLINT reincast
-                                static_cast<std::streamsize>(sizeof(pawned_pw) * obuf.size()));
-            obufpos = 0;
-        }
-        std::memcpy(&obuf[obufpos], &ppw, sizeof(ppw));
-        ++obufpos;
-    }
-    if (obufpos > 0)
-        binary_stream.write(reinterpret_cast<char*>(&obuf), // NOLINT reincast
-                            static_cast<std::streamsize>(sizeof(pawned_pw) * obufpos));
 }
 
 } // namespace hibp
