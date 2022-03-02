@@ -1,10 +1,11 @@
 #pragma once
 
+#include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <string>
 #include <type_traits>
-
+#include <vector>
 
 template <typename ValueType>
 class flat_file_db {
@@ -13,9 +14,10 @@ class flat_file_db {
     static_assert(std::is_standard_layout_v<ValueType>);
 
   public:
-    explicit flat_file_db(std::string dbfilename)
+    explicit flat_file_db(std::string dbfilename, std::size_t buf_size = 1)
         : dbfilename_(std::move(dbfilename)), dbpath_(dbfilename_),
-          dbfsize_(std::filesystem::file_size(dbpath_)), db_(dbpath_, std::ios::binary) {
+          dbfsize_(std::filesystem::file_size(dbpath_)), db_(dbpath_, std::ios::binary),
+          buf_(buf_size) {
 
         if (dbfsize_ % sizeof(ValueType) != 0)
             throw std::domain_error("db file size is not a multiple of the record size");
@@ -32,13 +34,13 @@ class flat_file_db {
         using pointer           = ValueType*;
         using reference         = ValueType&;
 
-        iterator(std::ifstream& db, std::size_t pos) : db_(&db), pos_(pos) {}
+        iterator(flat_file_db<ValueType>& ffdb, std::size_t pos) : ffdb_(&ffdb), pos_(pos) {}
 
         // clang-format off
         value_type operator*() { return current(); }
         pointer operator->() { current(); return &cur_; }
         
-        bool operator==(const iterator& other) const { return db_ == other.db_ && pos_ == other.pos_; }
+        bool operator==(const iterator& other) const { return ffdb_ == other.ffdb_ && pos_ == other.pos_; }
         
         iterator& operator++() { set_pos(pos_ + 1); return *this; }
         iterator operator++(int) { iterator tmp = *this; ++(*this); return tmp; } // NOLINT why const?
@@ -57,10 +59,11 @@ class flat_file_db {
         }
 
       private:
-        std::ifstream* db_ = nullptr; // using a reference would not work for copy assignment etc
-        std::size_t    pos_{};
-        ValueType      cur_;
-        bool           cur_valid_ = false;
+        flat_file_db<ValueType>* ffdb_ =
+            nullptr; // using a reference would not work for copy assignment etc
+        std::size_t pos_{};
+        ValueType   cur_;
+        bool        cur_valid_ = false;
 
         void set_pos(std::size_t pos) {
             pos_       = pos;
@@ -69,23 +72,36 @@ class flat_file_db {
 
         ValueType& current() {
             if (!cur_valid_) {
-                db_->seekg(static_cast<long>(pos_ * sizeof(ValueType)));
-                db_->read(reinterpret_cast<char*>(&cur_), // NOLINT reinterpret_cast
-                          sizeof(ValueType));
+                ffdb_->get_record(pos_, cur_);
                 cur_valid_ = true;
             }
             return cur_;
         }
     };
 
-    iterator begin() { return iterator(db_, 0); }
-    iterator end() { return iterator(db_, dbsize_); }
+    void get_record(std::size_t pos, ValueType& rec) {
+        if (!(pos >= buf_start_ && pos < buf_end_)) {
+            // need to load it first
+            db_.seekg(static_cast<long>(pos * sizeof(ValueType)));
+            std::size_t nrecs = std::min(buf_.size(), dbsize_ - pos + 1);
+            db_.read(reinterpret_cast<char*>(buf_.data()), // NOLINT reinterpret_cast
+                     static_cast<std::streamsize>(sizeof(ValueType) * nrecs));
+            buf_start_ = pos;
+            buf_end_   = pos + nrecs;
+        }
+        rec = buf_[pos - buf_start_];
+    }
+
+    iterator begin() { return iterator(*this, 0); }
+    iterator end() { return iterator(*this, dbsize_); }
 
   private:
-    std::string           dbfilename_;
-    std::filesystem::path dbpath_;
-    std::size_t           dbfsize_;
-    std::size_t           dbsize_;
-    std::ifstream         db_;
+    std::string            dbfilename_;
+    std::filesystem::path  dbpath_;
+    std::size_t            dbfsize_;
+    std::size_t            dbsize_;
+    std::ifstream          db_;
+    std::size_t            buf_start_ = 0;
+    std::size_t            buf_end_   = 0; // one past the end
+    std::vector<ValueType> buf_;
 };
-

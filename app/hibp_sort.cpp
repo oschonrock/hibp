@@ -10,18 +10,16 @@
 int main(int argc, char* argv[]) {
 
     try {
-        if (argc < 2)
-            throw std::domain_error("USAGE: " + std::string(argv[0]) +
-                                    " dbfile.bin");
+        if (argc < 2) throw std::domain_error("USAGE: " + std::string(argv[0]) + " dbfile.bin");
 
-        flat_file_db<hibp::pawned_pw> db(argv[1]);
-        std::vector<hibp::pawned_pw> ppws;
+        flat_file_db<hibp::pawned_pw> db(argv[1], 1000);
+        std::vector<hibp::pawned_pw>  ppws;
 
         {
             os::bch::Timer t("reading took");
             std::cout << "reading...";
             std::flush(std::cout);
-            std::copy(db.begin(), db.begin() + 1'000'000, std::back_inserter(ppws));
+            std::copy(db.begin(), db.begin() + 100'000'000, std::back_inserter(ppws));
             std::cout << "done. ";
         }
 
@@ -32,6 +30,9 @@ int main(int argc, char* argv[]) {
             std::ranges::sort(ppws, {}, &hibp::pawned_pw::count);
             std::cout << "done. ";
         }
+
+        // for (auto&& ppw: ppws) std::cout << ppw << "\n";
+        
     } catch (const std::exception& e) {
         std::cerr << "something went wrong: " << e.what() << "\n";
     }
