@@ -112,44 +112,53 @@ class flat_file_db {
         using iterator_category = std::random_access_iterator_tag;
         using difference_type   = std::ptrdiff_t;
         using value_type        = ValueType;
-        using pointer           = ValueType*; // flawed! see below
+        using pointer           = ValueType*;
         using reference         = ValueType&;
 
         iterator(std::ifstream& db, std::size_t pos) : db_(&db), pos_(pos) {}
 
-        value_type operator*() {
-            auto obj = ValueType{};
-            db_->seekg(static_cast<long>(pos_ * sizeof(ValueType)));
-            db_->read(reinterpret_cast<char*>(&obj), sizeof(ValueType)); // NOLINT reinterpret_cast
-            return obj;
-        }
-
-        // operator-> disabled because doesn't work, as it would the address of a temporary
-        // would need to keep an instance of the value_type inside the iterator
-        // pointer operator->() { return &ValueType(*db_, pos_); }
-
         // clang-format off
+        value_type operator*() { return current(); }
+        pointer operator->() { current(); return &cur_; }
+        
         bool operator==(const iterator& other) const { return db_ == other.db_ && pos_ == other.pos_; }
         
-        iterator& operator++() { ++pos_; return *this; }
+        iterator& operator++() { set_pos(pos_ + 1); return *this; }
         iterator operator++(int) { iterator tmp = *this; ++(*this); return tmp; } // NOLINT why const?
-        iterator& operator--() { --pos_; return *this; }
+        iterator& operator--() { set_pos(pos_ - 1); return *this; }
         iterator operator--(int) { iterator tmp = *this; --(*this); return tmp; } // NOLINT why const?
 
-        iterator& operator+=(std::size_t offset) { pos_ += offset; return *this; }
-        iterator& operator-=(std::size_t offset) { pos_ += offset; return *this; }
+        iterator& operator+=(std::size_t offset) { set_pos(pos_ + offset); return *this; }
+        iterator& operator-=(std::size_t offset) { set_pos(pos_ - offset); return *this; }
         // clang-format on
 
         friend iterator operator+(iterator iter, std::size_t offset) { return iter += offset; }
         friend iterator operator+(std::size_t offset, iterator iter) { return iter += offset; }
         friend iterator operator-(iterator iter, std::size_t offset) { return iter -= offset; }
-        friend std::ptrdiff_t operator-(const iterator& a, const iterator& b) {
-            return static_cast<std::ptrdiff_t>(a.pos_ - b.pos_);
+        friend difference_type operator-(const iterator& a, const iterator& b) {
+            return static_cast<difference_type>(a.pos_ - b.pos_);
         }
 
       private:
         std::ifstream* db_ = nullptr; // using a reference would not work for copy assignment etc
         std::size_t    pos_{};
+        ValueType      cur_;
+        bool           cur_valid_ = false;
+
+        void set_pos(std::size_t pos) {
+            pos_       = pos;
+            cur_valid_ = false;
+        }
+
+        ValueType& current() {
+            if (!cur_valid_) {
+                db_->seekg(static_cast<long>(pos_ * sizeof(ValueType)));
+                db_->read(reinterpret_cast<char*>(&cur_), // NOLINT reinterpret_cast
+                          sizeof(ValueType));
+                cur_valid_ = true;
+            }
+            return cur_;
+        }
     };
 
     iterator begin() { return iterator(db_, 0); }
@@ -187,10 +196,11 @@ int main(int argc, char* argv[]) {
         {
             os::bch::Timer t("search took");
             if (auto iter = std::lower_bound(db.begin(), db.end(), needle);
-                iter != db.end() && *iter == needle)
+                iter != db.end() && *iter == needle) {
                 maybe_ppw = *iter;
-            else
+            } else {
                 maybe_ppw = std::nullopt;
+            }
         }
 
         std::cout << "needle = " << needle << "\n";
