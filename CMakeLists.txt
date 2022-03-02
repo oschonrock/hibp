@@ -43,9 +43,19 @@ target_link_libraries(toolbelt INTERFACE date fast_float)
 add_library(sha1 INTERFACE)
 target_include_directories(sha1 INTERFACE ext/sha1)
 
+add_library(hibp_lib INTERFACE)
+target_include_directories(hibp_lib INTERFACE include)
+target_link_libraries(toolbelt INTERFACE fmt)
+
 add_executable(hibp app/hibp.cpp)
-target_link_libraries(hibp PRIVATE toolbelt sha1 fmt)
 target_compile_options(hibp PRIVATE ${PROJECT_COMPILE_OPTIONS})
+target_include_directories(hibp PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(hibp PRIVATE toolbelt sha1 fmt hibp_lib)
+
+add_executable(hibp_sort app/hibp_sort.cpp)
+target_compile_options(hibp_sort PRIVATE ${PROJECT_COMPILE_OPTIONS})
+target_include_directories(hibp_sort PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(hibp_sort PRIVATE toolbelt sha1 fmt hibp_lib)
 
 add_subdirectory(test)
 
