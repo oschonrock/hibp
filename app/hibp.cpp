@@ -1,3 +1,4 @@
+#include "fmt/core.h"
 #include "os/algo.hpp"
 #include "os/bch.hpp"
 #include "os/str.hpp"
@@ -36,17 +37,15 @@ struct pawned_pw {
     std::strong_ordering operator<=>(const pawned_pw& rhs) const { return hash <=> rhs.hash; }
 
     friend std::ostream& operator<<(std::ostream& os, const pawned_pw& rhs) {
-        os << std::setfill('0') << std::hex << std::uppercase;
-        for (auto&& c: rhs.hash) os << std::setw(2) << static_cast<unsigned>(c);
-        os << std::dec << ":" << rhs.count;
-        return os;
+        for (auto&& b: rhs.hash) os << fmt::format("{:02X}", b);
+        return os << fmt::format(":{:d}", rhs.count);
     }
 
     std::array<std::byte, 20> hash;
     std::int32_t              count; // important to be definitive about size
 };
 
-// `line` must be an uppper- or lowercase sha1 hexstr
+// `text` must be an uppper- or lowercase sha1 hexstr
 // with optional ":123" appended (123 is the count).
 pawned_pw convert_to_binary(const std::string& text) {
     pawned_pw ppw; // NOLINT initlialisation not needed here
@@ -57,23 +56,23 @@ pawned_pw convert_to_binary(const std::string& text) {
 
     if (text.size() > ppw.hash.size() * 2 + 1)
         ppw.count = os::str::parse_nonnegative_int(text.c_str() + ppw.hash.size() * 2 + 1,
-                                                  text.c_str() + text.size(), -1);
+                                                   text.c_str() + text.size(), -1);
     else
         ppw.count = -1;
 
     return ppw;
 }
 
-// convert text file to binary. high throughput > ~230MB/s
+// convert text file to binary. high throughput > ~230MB/s dependant on disk
 void build_bin_db(std::istream& text_stream, std::ostream& binary_stream) {
     std::ios_base::sync_with_stdio(false);
     // std::getline is about 2x faster than `text_stream >> line` here
 
     // Using std::fwrite is about 8x faster than std::ostream::write.
     // But only if writing 1 password at a time. Instead buffer 100 of them.
-    constexpr std::size_t         obufcnt = 100;
+    constexpr std::size_t          obufcnt = 100;
     std::array<pawned_pw, obufcnt> obuf{};
-    std::size_t                   obufpos = 0;
+    std::size_t                    obufpos = 0;
     for (std::string line; std::getline(text_stream, line);) {
 
         pawned_pw ppw = convert_to_binary(line);
