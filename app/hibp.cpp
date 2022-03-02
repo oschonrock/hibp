@@ -112,7 +112,7 @@ class flat_file_db {
         using iterator_category = std::random_access_iterator_tag;
         using difference_type   = std::ptrdiff_t;
         using value_type        = ValueType;
-        using pointer           = ValueType*; // flawed!
+        using pointer           = ValueType*; // flawed! see below
         using reference         = ValueType&;
 
         iterator(std::ifstream& db, std::size_t pos) : db_(&db), pos_(pos) {}
@@ -124,7 +124,9 @@ class flat_file_db {
             return obj;
         }
 
-        //  pointer operator->() { return &ValueType(*db_, pos_); } // BAD! address of a temporary!
+        // operator-> disabled because doesn't work, as it would the address of a temporary
+        // would need to keep an instance of the value_type inside the iterator
+        // pointer operator->() { return &ValueType(*db_, pos_); }
 
         // clang-format off
         bool operator==(const iterator& other) const { return db_ == other.db_ && pos_ == other.pos_; }
@@ -146,7 +148,7 @@ class flat_file_db {
         }
 
       private:
-        std::ifstream* db_ = nullptr;
+        std::ifstream* db_ = nullptr; // using a reference would not work for copy assignment etc
         std::size_t    pos_{};
     };
 
