@@ -53,6 +53,8 @@ class flat_file {
           dbfsize_(std::filesystem::file_size(dbpath_)), db_(dbpath_, std::ios::binary),
           buf_(buf_size) {
 
+        static_assert(std::is_move_assignable_v<flat_file>);
+
         if (dbfsize_ % sizeof(ValueType) != 0)
             throw std::domain_error("db file size is not a multiple of the record size");
 
@@ -60,6 +62,16 @@ class flat_file {
 
         if (!db_.is_open()) throw std::domain_error("cannot open db: " + std::string(dbpath_));
     }
+
+    flat_file() = delete;
+
+    flat_file(const flat_file& other) = delete;
+    flat_file& operator=(const flat_file& other) = delete;
+
+    flat_file(flat_file&& other) noexcept = default;
+    flat_file& operator=(flat_file&& other) noexcept = default;
+
+    ~flat_file() = default;
 
     using value_type = ValueType;
 
@@ -72,10 +84,13 @@ class flat_file {
 
         iterator(flat_file<ValueType>& ffdb, std::size_t pos) : ffdb_(&ffdb), pos_(pos) {}
 
-        // clang-format off
         value_type operator*() { return current(); }
-        pointer operator->() { current(); return &cur_; }
-        
+        pointer    operator->() {
+            current();
+            return &cur_;
+        }
+
+        // clang-format off
         bool operator==(const iterator& other) const { return ffdb_ == other.ffdb_ && pos_ == other.pos_; }
         
         iterator& operator++() { set_pos(pos_ + 1); return *this; }
@@ -94,11 +109,13 @@ class flat_file {
             return static_cast<difference_type>(a.pos_ - b.pos_);
         }
 
-      private:
         flat_file<ValueType>* ffdb_ = nullptr;
-        std::size_t           pos_{};
-        ValueType             cur_;
-        bool                  cur_valid_ = false;
+
+      private:
+        std::size_t pos_{};
+
+        ValueType cur_;
+        bool      cur_valid_ = false;
 
         void set_pos(std::size_t pos) {
             pos_       = pos;
@@ -131,7 +148,6 @@ class flat_file {
 
     std::size_t filesize() const { return dbfsize_; }
     std::size_t number_records() const { return dbsize_; }
-
 
   private:
     std::string            dbfilename_;
