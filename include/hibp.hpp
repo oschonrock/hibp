@@ -1,6 +1,6 @@
 #pragma once
 
-#include "fmt/core.h"
+#include "fmt/format.h"
 #include "os/algo.hpp"
 #include "os/str.hpp"
 #include <array>

@@ -12,7 +12,8 @@ int main(int argc, char* argv[]) {
     try {
         if (argc < 2) throw std::domain_error("USAGE: " + std::string(argv[0]) + " dbfile.bin");
 
-        flat_file_db<hibp::pawned_pw> db(argv[1], 1000);
+        std::string in_filename(argv[1]);
+        flat_file<hibp::pawned_pw> db(in_filename, 1000);
         std::vector<hibp::pawned_pw>  ppws;
 
         {
@@ -31,8 +32,19 @@ int main(int argc, char* argv[]) {
             std::cout << "done. ";
         }
 
-        // for (auto&& ppw: ppws) std::cout << ppw << "\n";
-        
+        std::string out_filename = in_filename + ".partial.sorted";
+        flat_file_writer<hibp::pawned_pw> writer(out_filename);
+
+        std::cerr << "writing to " << out_filename << "\n";
+        {
+            os::bch::Timer t("writing took");
+            std::cout << "writing...";
+            std::flush(std::cout);
+            for (auto&& ppw: ppws) writer.write(ppw);
+            writer.flush();
+            std::cout << "done. ";
+        }
+
     } catch (const std::exception& e) {
         std::cerr << "something went wrong: " << e.what() << "\n";
     }

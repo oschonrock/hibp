@@ -9,27 +9,7 @@ int main(int argc, char* argv[]) {
             throw std::domain_error("USAGE: " + std::string(argv[0]) +
                                     " dbfile.bin plaintext_password");
 
-        flat_file_db<hibp::pawned_pw> db(argv[1]);
-
-        std::vector<hibp::pawned_pw> ppws;
-
-        {
-            os::bch::Timer t("copying took");
-            std::cout << "copying...";
-            std::flush(std::cout);
-            std::copy(db.begin(), db.begin() + 100'000'000, std::back_inserter(ppws));
-            std::cout << "done" << std::endl;
-        }
-
-        {
-            os::bch::Timer t("sorting took");
-            std::cout << "sorting...";
-            std::flush(std::cout);
-            std::ranges::sort(ppws, {}, &hibp::pawned_pw::count);
-            std::cout << "done" << std::endl;
-        }
-        // for (auto&& ppw : ppws) std::cout << ppw << "\n";
-        return 0;
+        flat_file<hibp::pawned_pw> db(argv[1]);
 
         SHA1 sha1;
         sha1.update(argv[2]);

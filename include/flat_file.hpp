@@ -1,20 +1,54 @@
 #pragma once
 
 #include <cstddef>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <string>
 #include <type_traits>
 #include <vector>
 
 template <typename ValueType>
-class flat_file_db {
+class flat_file_writer {
+
+  public:
+    explicit flat_file_writer(std::string dbfilename, std::size_t buf_size = 100)
+        : dbfilename_(std::move(dbfilename)), dbpath_(dbfilename_), db_(dbpath_, std::ios::binary),
+          buf_(buf_size) {
+        if (!db_.is_open()) throw std::domain_error("cannot open db: " + std::string(dbpath_));
+    }
+
+    void write(const ValueType& value) {
+        if (buf_pos_ == buf_.size()) flush();
+        std::memcpy(&buf_[buf_pos_], &value, sizeof(ValueType));
+        ++buf_pos_;
+    }
+
+    void flush() {
+        if (buf_pos_ != 0) {
+            db_.write(reinterpret_cast<char*>(&buf_), // NOLINT reincast
+                      static_cast<std::streamsize>(sizeof(ValueType) * buf_pos_));
+            buf_pos_ = 0;
+        }
+    }
+
+  private:
+    std::string            dbfilename_;
+    std::filesystem::path  dbpath_;
+    std::ofstream          db_;
+    std::size_t            buf_pos_ = 0;
+    std::vector<ValueType> buf_;
+};
+
+template <typename ValueType>
+class flat_file {
 
     static_assert(std::is_trivially_copyable_v<ValueType>);
     static_assert(std::is_standard_layout_v<ValueType>);
 
   public:
-    explicit flat_file_db(std::string dbfilename, std::size_t buf_size = 1)
+    explicit flat_file(std::string dbfilename, std::size_t buf_size = 1)
         : dbfilename_(std::move(dbfilename)), dbpath_(dbfilename_),
           dbfsize_(std::filesystem::file_size(dbpath_)), db_(dbpath_, std::ios::binary),
           buf_(buf_size) {
@@ -34,7 +68,7 @@ class flat_file_db {
         using pointer           = ValueType*;
         using reference         = ValueType&;
 
-        iterator(flat_file_db<ValueType>& ffdb, std::size_t pos) : ffdb_(&ffdb), pos_(pos) {}
+        iterator(flat_file<ValueType>& ffdb, std::size_t pos) : ffdb_(&ffdb), pos_(pos) {}
 
         // clang-format off
         value_type operator*() { return current(); }
@@ -59,7 +93,7 @@ class flat_file_db {
         }
 
       private:
-        flat_file_db<ValueType>* ffdb_ =
+        flat_file<ValueType>* ffdb_ =
             nullptr; // using a reference would not work for copy assignment etc
         std::size_t pos_{};
         ValueType   cur_;
@@ -81,7 +115,6 @@ class flat_file_db {
 
     void get_record(std::size_t pos, ValueType& rec) {
         if (!(pos >= buf_start_ && pos < buf_end_)) {
-            // need to load it first
             db_.seekg(static_cast<long>(pos * sizeof(ValueType)));
             std::size_t nrecs = std::min(buf_.size(), dbsize_ - pos + 1);
             db_.read(reinterpret_cast<char*>(buf_.data()), // NOLINT reinterpret_cast
