@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(SoftBody)
+project(hibp)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -43,21 +43,21 @@ target_link_libraries(toolbelt INTERFACE date fast_float)
 add_library(sha1 INTERFACE)
 target_include_directories(sha1 INTERFACE ext/sha1)
 
-add_library(hibp_lib INTERFACE)
-target_include_directories(hibp_lib INTERFACE include)
+add_library(hibp INTERFACE)
+target_include_directories(hibp INTERFACE include)
 target_link_libraries(toolbelt INTERFACE fmt)
 
-add_executable(hibp app/hibp.cpp)
-target_compile_options(hibp PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp PRIVATE toolbelt sha1 fmt hibp_lib)
+add_executable(hibp_search app/hibp_search.cpp)
+target_compile_options(hibp_search PRIVATE ${PROJECT_COMPILE_OPTIONS})
+target_link_libraries(hibp_search PRIVATE toolbelt sha1 hibp)
 
 add_executable(hibp_sort app/hibp_sort.cpp)
 target_compile_options(hibp_sort PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_sort PRIVATE toolbelt sha1 fmt hibp_lib)
+target_link_libraries(hibp_sort PRIVATE toolbelt hibp)
 
 add_executable(hibp_convert app/hibp_convert.cpp)
 target_compile_options(hibp_convert PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_convert PRIVATE toolbelt sha1 fmt hibp_lib)
+target_link_libraries(hibp_convert PRIVATE toolbelt sha1 hibp)
 
 
 add_subdirectory(test)
