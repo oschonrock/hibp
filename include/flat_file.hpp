@@ -27,7 +27,7 @@ class flat_file_writer {
 
     void flush() {
         if (buf_pos_ != 0) {
-            db_.write(reinterpret_cast<char*>(&buf_), // NOLINT reincast
+            db_.write(reinterpret_cast<char*>(buf_.data()), // NOLINT reincast
                       static_cast<std::streamsize>(sizeof(ValueType) * buf_pos_));
             buf_pos_ = 0;
         }
@@ -61,6 +61,8 @@ class flat_file {
         if (!db_.is_open()) throw std::domain_error("cannot open db: " + std::string(dbpath_));
     }
 
+    using value_type = ValueType;
+
     struct iterator {
         using iterator_category = std::random_access_iterator_tag;
         using difference_type   = std::ptrdiff_t;
@@ -93,11 +95,10 @@ class flat_file {
         }
 
       private:
-        flat_file<ValueType>* ffdb_ =
-            nullptr; // using a reference would not work for copy assignment etc
-        std::size_t pos_{};
-        ValueType   cur_;
-        bool        cur_valid_ = false;
+        flat_file<ValueType>* ffdb_ = nullptr;
+        std::size_t           pos_{};
+        ValueType             cur_;
+        bool                  cur_valid_ = false;
 
         void set_pos(std::size_t pos) {
             pos_       = pos;
@@ -127,6 +128,10 @@ class flat_file {
 
     iterator begin() { return iterator(*this, 0); }
     iterator end() { return iterator(*this, dbsize_); }
+
+    std::size_t filesize() const { return dbfsize_; }
+    std::size_t number_records() const { return dbsize_; }
+
 
   private:
     std::string            dbfilename_;
