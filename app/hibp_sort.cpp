@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdlib>
 #include <iostream>
+#include <list>
 #include <ranges>
 #include <stdexcept>
 #include <string>
@@ -19,11 +20,12 @@ int main(int argc, char* argv[]) {
         std::vector<std::string>   chunk_filenames;
         flat_file<hibp::pawned_pw> db(in_filename, 1'000);
 
-        const std::size_t max_memory_usage = 100'000'000; // ~1GB
+        const std::size_t max_memory_usage = 1'000'000'000; // ~1GB
         std::cerr << fmt::format("{:20s} = {:12d}\n", "max_memory_usage", max_memory_usage);
 
-        std::size_t records_to_sort = std::min(db.number_records(), 100'000'000UL); // limited for debug
-        // std::size_t records_to_sort = db.number_records();
+        // std::size_t records_to_sort =
+        //     std::min(db.number_records(), 100'000'000UL); // limited for debug
+        std::size_t records_to_sort = db.number_records();
         std::cerr << fmt::format("{:20s} = {:12d}\n", "records_to_sort", records_to_sort);
 
         std::size_t chunk_size =
@@ -63,8 +65,12 @@ int main(int argc, char* argv[]) {
                 : db(std::move(filename), bufsize), iter(db.begin()), end(db.end()) {}
         };
 
-        std::vector<partial> partials;
-        partials.reserve(chunk_filenames.size());
+        // Don't use a std::vector<partial>! This will use move assignment of partials(and therefore the
+        // flat_file) during re-allocaton which WILL INVALIDATE the iterators and cause UB!
+        // flat_file ALWAYS INVALIDATES its iterators during move assignment.
+        // This can be surprising and is UNLIKE other STL containers
+        // So we use a std::list<partials> or alternatively a std::vector<std::unique_ptr<partial>>
+        std::list<partial> partials;
         for (const auto& filename: chunk_filenames) partials.emplace_back(filename, 1000);
 
         std::cerr << fmt::format("\nmerging [{:12d},{:12d}) => {:s}\n", 0, records_to_sort,
@@ -75,14 +81,12 @@ int main(int argc, char* argv[]) {
                                                 [](auto& partial) { return partial.iter->count; });
             writer.write(*(min->iter));
             ++(min->iter);
-            if (min->iter == min->end) {
-                partials.erase(min, min + 1);
-                // fix iterators!
-                for (auto& partial: partials) {
-                    partial.iter.ffdb_ = &(partial.db);
-                    partial.end.ffdb_ = &(partial.db);
-                }
-            }
+            // during ::erase() a std::vector would, again, trigger UB, because of move
+            // assignment of flat_file which invalidates the iterators, because it leaves the ffdb_
+            // ptr back to the "parent" flat_file of the iterator dangling!
+            // this is the reason a std::deque<partial> would not work either, but a
+            // std::vector<std::unique_ptr<partial>> would be fine
+            if (min->iter == min->end) partials.erase(min);
         }
         writer.flush();
 

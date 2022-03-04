@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -71,7 +72,7 @@ class flat_file {
     flat_file(flat_file&& other) noexcept = default;
     flat_file& operator=(flat_file&& other) noexcept = default;
 
-    ~flat_file() = default;
+    ~flat_file() noexcept = default;
 
     using value_type = ValueType;
 
@@ -84,13 +85,10 @@ class flat_file {
 
         iterator(flat_file<ValueType>& ffdb, std::size_t pos) : ffdb_(&ffdb), pos_(pos) {}
 
-        value_type operator*() { return current(); }
-        pointer    operator->() {
-            current();
-            return &cur_;
-        }
-
         // clang-format off
+        value_type operator*() { return current(); }
+        pointer    operator->() { current(); return &cur_; }
+
         bool operator==(const iterator& other) const { return ffdb_ == other.ffdb_ && pos_ == other.pos_; }
         
         iterator& operator++() { set_pos(pos_ + 1); return *this; }
@@ -109,13 +107,11 @@ class flat_file {
             return static_cast<difference_type>(a.pos_ - b.pos_);
         }
 
-        flat_file<ValueType>* ffdb_ = nullptr;
-
       private:
+        flat_file*  ffdb_ = nullptr;
         std::size_t pos_{};
-
-        ValueType cur_;
-        bool      cur_valid_ = false;
+        ValueType   cur_;
+        bool        cur_valid_ = false;
 
         void set_pos(std::size_t pos) {
             pos_       = pos;
