@@ -9,7 +9,7 @@ int main(int argc, char* argv[]) {
             throw std::domain_error("USAGE: " + std::string(argv[0]) +
                                     " dbfile.bin plaintext_password");
 
-        flat_file<hibp::pawned_pw> db(argv[1]);
+        flat_file::database<hibp::pawned_pw> db(argv[1]);
 
         SHA1 sha1;
         sha1.update(argv[2]);

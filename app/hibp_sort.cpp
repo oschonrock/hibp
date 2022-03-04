@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <list>
 #include <ranges>
@@ -18,14 +19,14 @@ int main(int argc, char* argv[]) {
 
         std::string                in_filename(argv[1]);
         std::vector<std::string>   chunk_filenames;
-        flat_file<hibp::pawned_pw> db(in_filename, 1'000);
+        flat_file::database<hibp::pawned_pw> db(in_filename, 1'000);
 
-        const std::size_t max_memory_usage = 1'000'000'000; // ~1GB
+        const std::size_t max_memory_usage = 1'000'000; // ~1GB
         std::cerr << fmt::format("{:20s} = {:12d}\n", "max_memory_usage", max_memory_usage);
 
-        // std::size_t records_to_sort =
-        //     std::min(db.number_records(), 100'000'000UL); // limited for debug
-        std::size_t records_to_sort = db.number_records();
+        std::size_t records_to_sort =
+            std::min(db.number_records(), 1'000'000UL); // limited for debug
+        // std::size_t records_to_sort = db.number_records();
         std::cerr << fmt::format("{:20s} = {:12d}\n", "records_to_sort", records_to_sort);
 
         std::size_t chunk_size =
@@ -47,26 +48,25 @@ int main(int argc, char* argv[]) {
 
             std::vector<hibp::pawned_pw> ppws;
             std::copy(db.begin() + start, db.begin() + end, std::back_inserter(ppws));
-            std::ranges::sort(ppws, {}, &hibp::pawned_pw::count);
-            auto writer = flat_file_writer<hibp::pawned_pw>(chunk_filename);
+            std::ranges::sort(ppws, std::greater<>{}, &hibp::pawned_pw::count);
+            auto writer = flat_file::writer<hibp::pawned_pw>(chunk_filename);
             for (const auto& ppw: ppws) writer.write(ppw);
-            writer.flush();
-        }
+       }
 
         std::string sorted_filename = in_filename + ".sorted";
-        auto        writer          = flat_file_writer<hibp::pawned_pw>(sorted_filename);
+        auto        writer          = flat_file::writer<hibp::pawned_pw>(sorted_filename);
 
         struct partial {
-            flat_file<hibp::pawned_pw>           db;
-            flat_file<hibp::pawned_pw>::iterator iter;
-            flat_file<hibp::pawned_pw>::iterator end;
+            flat_file::database<hibp::pawned_pw>           db;
+            flat_file::database<hibp::pawned_pw>::iterator iter;
+            flat_file::database<hibp::pawned_pw>::iterator end;
 
             explicit partial(std::string filename, std::size_t bufsize = 1)
                 : db(std::move(filename), bufsize), iter(db.begin()), end(db.end()) {}
         };
 
-        // Don't use a std::vector<partial>! This will use move assignment of partials(and therefore the
-        // flat_file) during re-allocaton which WILL INVALIDATE the iterators and cause UB!
+        // Don't use a std::vector<partial>! This will use move assignment of partials(and therefore
+        // the flat_file) during re-allocaton which WILL INVALIDATE the iterators and cause UB!
         // flat_file ALWAYS INVALIDATES its iterators during move assignment.
         // This can be surprising and is UNLIKE other STL containers
         // So we use a std::list<partials> or alternatively a std::vector<std::unique_ptr<partial>>
@@ -77,7 +77,7 @@ int main(int argc, char* argv[]) {
                                  sorted_filename);
 
         while (!partials.empty()) {
-            auto min = std::ranges::min_element(partials, {},
+            auto min = std::ranges::min_element(partials, std::greater<>{},
                                                 [](auto& partial) { return partial.iter->count; });
             writer.write(*(min->iter));
             ++(min->iter);
@@ -88,7 +88,8 @@ int main(int argc, char* argv[]) {
             // std::vector<std::unique_ptr<partial>> would be fine
             if (min->iter == min->end) partials.erase(min);
         }
-        writer.flush();
+        for (const auto& filename: chunk_filenames)
+            std::filesystem::remove(std::filesystem::path(filename));
 
     } catch (const std::exception& e) {
         std::cerr << "something went wrong: " << e.what() << "\n";

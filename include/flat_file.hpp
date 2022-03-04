@@ -10,15 +10,27 @@
 #include <type_traits>
 #include <vector>
 
+namespace flat_file {
+
+namespace impl {
+
+struct ofstream_holder {
+    explicit ofstream_holder(std::string dbfilename)
+        : filename_(std::move(dbfilename)), path_(filename_), ofstream_(path_, std::ios::binary) {}
+
+    std::string           filename_;
+    std::filesystem::path path_;
+    std::ofstream         ofstream_;
+};
+
+} // namespace impl
+
 template <typename ValueType>
-class flat_file_writer {
+class stream_writer {
 
   public:
-    explicit flat_file_writer(std::string dbfilename, std::size_t buf_size = 100)
-        : dbfilename_(std::move(dbfilename)), dbpath_(dbfilename_), db_(dbpath_, std::ios::binary),
-          buf_(buf_size) {
-        if (!db_.is_open()) throw std::domain_error("cannot open db: " + std::string(dbpath_));
-    }
+    explicit stream_writer(std::ostream& os, std::size_t buf_size = 100)
+        : db_(os), buf_(buf_size) {}
 
     void write(const ValueType& value) {
         if (buf_pos_ == buf_.size()) flush();
@@ -34,27 +46,40 @@ class flat_file_writer {
         }
     }
 
+    stream_writer(const stream_writer& other) = delete;
+    stream_writer(stream_writer&& other)      = delete;
+    stream_writer& operator=(const stream_writer& other) = delete;
+    stream_writer& operator=(stream_writer&& other) = delete;
+    ~stream_writer() { flush(); }
+
   private:
-    std::string            dbfilename_;
-    std::filesystem::path  dbpath_;
-    std::ofstream          db_;
+    std::ostream&          db_;
     std::size_t            buf_pos_ = 0;
     std::vector<ValueType> buf_;
 };
 
 template <typename ValueType>
-class flat_file {
+class writer : private impl::ofstream_holder, public stream_writer<ValueType> {
+  public:
+    explicit writer(std::string dbfilename)
+        : ofstream_holder(std::move(dbfilename)), stream_writer<ValueType>(ofstream_) {
+        if (!ofstream_.is_open()) throw std::domain_error("cannot open db: " + std::string(path_));
+    }
+};
+
+template <typename ValueType>
+class database {
 
     static_assert(std::is_trivially_copyable_v<ValueType>);
     static_assert(std::is_standard_layout_v<ValueType>);
 
   public:
-    explicit flat_file(std::string dbfilename, std::size_t buf_size = 1)
+    explicit database(std::string dbfilename, std::size_t buf_size = 1)
         : dbfilename_(std::move(dbfilename)), dbpath_(dbfilename_),
           dbfsize_(std::filesystem::file_size(dbpath_)), db_(dbpath_, std::ios::binary),
           buf_(buf_size) {
 
-        static_assert(std::is_move_assignable_v<flat_file>);
+        static_assert(std::is_move_assignable_v<database>);
 
         if (dbfsize_ % sizeof(ValueType) != 0)
             throw std::domain_error("db file size is not a multiple of the record size");
@@ -63,16 +88,6 @@ class flat_file {
 
         if (!db_.is_open()) throw std::domain_error("cannot open db: " + std::string(dbpath_));
     }
-
-    flat_file() = delete;
-
-    flat_file(const flat_file& other) = delete;
-    flat_file& operator=(const flat_file& other) = delete;
-
-    flat_file(flat_file&& other) noexcept = default;
-    flat_file& operator=(flat_file&& other) noexcept = default;
-
-    ~flat_file() noexcept = default;
 
     using value_type = ValueType;
 
@@ -83,7 +98,7 @@ class flat_file {
         using pointer           = ValueType*;
         using reference         = ValueType&;
 
-        iterator(flat_file<ValueType>& ffdb, std::size_t pos) : ffdb_(&ffdb), pos_(pos) {}
+        iterator(database<ValueType>& ffdb, std::size_t pos) : ffdb_(&ffdb), pos_(pos) {}
 
         // clang-format off
         value_type operator*() { return current(); }
@@ -108,7 +123,7 @@ class flat_file {
         }
 
       private:
-        flat_file*  ffdb_ = nullptr;
+        database*   ffdb_ = nullptr;
         std::size_t pos_{};
         ValueType   cur_;
         bool        cur_valid_ = false;
@@ -155,3 +170,5 @@ class flat_file {
     std::size_t            buf_end_   = 0; // one past the end
     std::vector<ValueType> buf_;
 };
+
+} // namespace flat_file
