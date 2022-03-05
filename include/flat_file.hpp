@@ -274,7 +274,7 @@ std::string database<ValueType>::sort(Comp comp, Proj proj) {
         impl::sort_into_chunks(*this, records_to_sort, number_of_chunks, chunk_size, comp, proj);
 
     std::string sorted_filename = filename() + ".sorted";
-	
+
     if (number_of_chunks == 1) {
         std::filesystem::rename(chunk_filenames[0], sorted_filename);
         std::cerr << fmt::format("\nrenaming {:s} => {:s}\n", chunk_filenames[0], sorted_filename);
