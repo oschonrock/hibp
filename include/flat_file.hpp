@@ -162,6 +162,8 @@ struct database<ValueType>::const_iterator {
     }
     // clang-format on
 
+    std::string filename() { return ffdb_->filename(); } // breaks encapsulation?
+
   private:
     database*   ffdb_ = nullptr;
     std::size_t pos_{};
@@ -182,25 +184,35 @@ struct database<ValueType>::const_iterator {
     }
 };
 
-namespace impl {
-
 template <typename ValueType, typename Comp = std::less<>, typename Proj = std::identity>
-std::vector<std::string> sort_into_chunks(database<ValueType>& db, std::size_t records_to_sort,
-                                          std::size_t number_of_chunks, std::size_t chunk_size,
-                                          Comp comp = {}, Proj proj = {}) {
+std::vector<std::string> sort_into_chunks(typename database<ValueType>::const_iterator first,
+                                          typename database<ValueType>::const_iterator last,
+                                          Comp comp = {}, Proj proj = {},
+                                          std::size_t max_memory_usage = 1'000'000'000) {
+
+    auto        records_to_sort  = static_cast<std::size_t>(last - first); // limited for debug
+    std::size_t chunk_size       = std::min(records_to_sort, max_memory_usage / sizeof(ValueType));
+    std::size_t number_of_chunks = (records_to_sort / chunk_size) +
+                                   static_cast<std::size_t>(records_to_sort % chunk_size != 0);
+
+    // std::cerr << fmt::format("{:20s} = {:12d}\n", "max_memory_usage", max_memory_usage);
+    // std::cerr << fmt::format("{:20s} = {:12d}\n", "records_to_sort", records_to_sort);
+    // std::cerr << fmt::format("{:20s} = {:12d}\n", "chunk_size", chunk_size);
+    // std::cerr << fmt::format("{:20s} = {:12d}\n", "number_of_chunks", number_of_chunks) << "\n";
 
     std::vector<std::string> chunk_filenames;
     chunk_filenames.reserve(number_of_chunks);
     for (std::size_t chunk = 0; chunk != number_of_chunks; ++chunk) {
-        std::string chunk_filename = db.filename() + ".partial." + fmt::format("{:06d}", chunk);
+        std::string chunk_filename = first.filename() + fmt::format("{:06d}", chunk);
         chunk_filenames.push_back(chunk_filename);
 
         std::size_t start = chunk * chunk_size;
         std::size_t end   = chunk * chunk_size + std::min(chunk_size, records_to_sort - start);
-        std::cerr << fmt::format("sorting [{:12d},{:12d}) => {:s}\n", start, end, chunk_filename);
+        // std::cerr << fmt::format("sorting [{:12d},{:12d}) => {:s}\n", start, end,
+        // chunk_filename);
 
         std::vector<ValueType> ppws;
-        std::copy(db.begin() + start, db.begin() + end, std::back_inserter(ppws));
+        std::copy(first + start, first + end, std::back_inserter(ppws));
         std::ranges::sort(ppws, comp, proj);
         auto part = writer<ValueType>(chunk_filename);
         for (const auto& ppw: ppws) part.write(ppw);
@@ -210,7 +222,7 @@ std::vector<std::string> sort_into_chunks(database<ValueType>& db, std::size_t r
 
 template <typename ValueType, typename Comp = std::less<>, typename Proj = std::identity>
 void merge_sorted_chunks(const std::vector<std::string>& chunk_filenames,
-                  const std::string& sorted_filename, Comp comp = {}, Proj proj = {}) {
+                         const std::string& sorted_filename, Comp comp = {}, Proj proj = {}) {
 
     static_assert(std::is_invocable_v<Proj, ValueType>);
 
@@ -231,13 +243,6 @@ void merge_sorted_chunks(const std::vector<std::string>& chunk_filenames,
     std::list<partial> partials;
     for (const auto& filename: chunk_filenames) partials.emplace_back(filename, 1000);
 
-    auto records_to_sort =
-        std::accumulate(partials.begin(), partials.end(), 0UL,
-                        [](std::size_t sum, auto& p) { return sum + p.db.number_records(); });
-
-    std::cerr << fmt::format("\nmerging [{:12d},{:12d}) => {:s}\n", 0, records_to_sort,
-                             sorted_filename);
-
     auto sorted = flat_file::writer<ValueType>(sorted_filename);
     while (!partials.empty()) {
         auto min = std::ranges::min_element(
@@ -248,41 +253,33 @@ void merge_sorted_chunks(const std::vector<std::string>& chunk_filenames,
 
         if (min->current == min->end) partials.erase(min);
     }
-    // for (const auto& filename: chunk_filenames)
-    //     std::filesystem::remove(std::filesystem::path(filename));
+    for (const auto& filename: chunk_filenames)
+        std::filesystem::remove(std::filesystem::path(filename));
 }
 
-} // namespace impl
+template <typename ValueType, typename Comp, typename Proj>
+std::string sort_range(typename database<ValueType>::const_iterator first,
+                       typename database<ValueType>::const_iterator last, Comp comp, Proj proj,
+                       std::size_t max_memory_usage) {
+
+    std::vector<std::string> chunk_filenames =
+        sort_into_chunks<ValueType>(first, last, comp, proj, max_memory_usage);
+
+    std::string sorted_filename = first.filename() + ".sorted";
+
+    if (chunk_filenames.size() == 1) {
+        std::filesystem::rename(chunk_filenames[0], sorted_filename);
+        // std::cerr << fmt::format("\nrenaming {:s} => {:s}\n", chunk_filenames[0], sorted_filename);
+    } else {
+        merge_sorted_chunks<ValueType>(chunk_filenames, sorted_filename, comp, proj);
+    }
+    return sorted_filename;
+}
 
 template <typename ValueType>
 template <typename Comp, typename Proj>
 std::string database<ValueType>::sort(Comp comp, Proj proj, std::size_t max_memory_usage) {
-
-    std::size_t records_to_sort = std::min(number_records(), 10UL); // limited for debug
-    // std::size_t records_to_sort = db.number_records();
-
-    std::size_t chunk_size = std::min(records_to_sort, max_memory_usage / sizeof(ValueType));
-
-    std::size_t number_of_chunks = (records_to_sort / chunk_size) +
-                                   static_cast<std::size_t>(records_to_sort % chunk_size != 0);
-
-    std::cerr << fmt::format("{:20s} = {:12d}\n", "max_memory_usage", max_memory_usage);
-    std::cerr << fmt::format("{:20s} = {:12d}\n", "records_to_sort", records_to_sort);
-    std::cerr << fmt::format("{:20s} = {:12d}\n", "chunk_size", chunk_size);
-    std::cerr << fmt::format("{:20s} = {:12d}\n", "number_of_chunks", number_of_chunks) << "\n";
-
-    std::vector<std::string> chunk_filenames =
-        impl::sort_into_chunks(*this, records_to_sort, number_of_chunks, chunk_size, comp, proj);
-
-    std::string sorted_filename = filename() + ".sorted";
-
-    if (number_of_chunks == 1) {
-        std::filesystem::rename(chunk_filenames[0], sorted_filename);
-        std::cerr << fmt::format("\nrenaming {:s} => {:s}\n", chunk_filenames[0], sorted_filename);
-    } else {
-        impl::merge_sorted_chunks<ValueType>(chunk_filenames, sorted_filename, comp, proj);
-    }
-    return sorted_filename;
+    return sort_range<ValueType>(begin(), end(), comp, proj, max_memory_usage);
 }
 
 } // namespace flat_file
