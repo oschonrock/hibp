@@ -116,7 +116,7 @@ class database {
     std::size_t number_records() const { return dbsize_; }
 
     template <typename Comp = std::less<>, typename Proj = std::identity>
-    void sort(Comp comp = {}, Proj proj = {});
+    std::string sort(Comp comp = {}, Proj proj = {});
 
   private:
     std::string            filename_;
@@ -254,7 +254,7 @@ void merge_chunks(const std::vector<std::string>& chunk_filenames,
 
 template <typename ValueType>
 template <typename Comp, typename Proj>
-void database<ValueType>::sort(Comp comp, Proj proj) {
+std::string database<ValueType>::sort(Comp comp, Proj proj) {
     const std::size_t max_memory_usage = 100; // ~1GB
 
     std::size_t records_to_sort = std::min(number_records(), 10UL); // limited for debug
@@ -274,13 +274,14 @@ void database<ValueType>::sort(Comp comp, Proj proj) {
         impl::sort_into_chunks(*this, records_to_sort, number_of_chunks, chunk_size, comp, proj);
 
     std::string sorted_filename = filename() + ".sorted";
-
+	
     if (number_of_chunks == 1) {
         std::filesystem::rename(chunk_filenames[0], sorted_filename);
         std::cerr << fmt::format("\nrenaming {:s} => {:s}\n", chunk_filenames[0], sorted_filename);
     } else {
         impl::merge_chunks<ValueType>(chunk_filenames, sorted_filename, comp, proj);
     }
+    return sorted_filename;
 }
 
 } // namespace flat_file
