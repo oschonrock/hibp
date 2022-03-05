@@ -94,63 +94,7 @@ class database {
     }
 
     using value_type = ValueType;
-
-    struct const_iterator {
-        using iterator_category = std::random_access_iterator_tag;
-        using difference_type   = std::ptrdiff_t;
-        using value_type        = ValueType;
-        using pointer           = const ValueType*;
-        using reference         = const ValueType&;
-
-        const_iterator(database<ValueType>& ffdb, std::size_t pos) : ffdb_(&ffdb), pos_(pos) {}
-
-        // clang-format off
-        value_type operator*() { return current(); }
-        pointer    operator->() { current(); return &cur_; }
-
-        bool operator==(const const_iterator& other) const { return ffdb_ == other.ffdb_ && pos_ == other.pos_; }
-        
-        const_iterator& operator++() { set_pos(pos_ + 1); return *this; }
-        const_iterator operator++(int) { const_iterator tmp = *this; ++(*this); return tmp; } // NOLINT why const?
-        const_iterator& operator--() { set_pos(pos_ - 1); return *this; }
-        const_iterator operator--(int) { const_iterator tmp = *this; --(*this); return tmp; } // NOLINT why const?
-
-        const_iterator& operator+=(std::size_t offset) { set_pos(pos_ + offset); return *this; }
-        const_iterator& operator-=(std::size_t offset) { set_pos(pos_ - offset); return *this; }
-        // clang-format on
-
-        friend const_iterator operator+(const_iterator iter, std::size_t offset) {
-            return iter += offset;
-        }
-        friend const_iterator operator+(std::size_t offset, const_iterator iter) {
-            return iter += offset;
-        }
-        friend const_iterator operator-(const_iterator iter, std::size_t offset) {
-            return iter -= offset;
-        }
-        friend difference_type operator-(const const_iterator& a, const const_iterator& b) {
-            return static_cast<difference_type>(a.pos_ - b.pos_);
-        }
-
-      private:
-        database*   ffdb_ = nullptr;
-        std::size_t pos_{};
-        ValueType   cur_;
-        bool        cur_valid_ = false;
-
-        void set_pos(std::size_t pos) {
-            pos_       = pos;
-            cur_valid_ = false;
-        }
-
-        ValueType& current() {
-            if (!cur_valid_) {
-                ffdb_->get_record(pos_, cur_);
-                cur_valid_ = true;
-            }
-            return cur_;
-        }
-    };
+    struct const_iterator;
 
     void get_record(std::size_t pos, ValueType& rec) {
         if (!(pos >= buf_start_ && pos < buf_end_)) {
@@ -184,12 +128,64 @@ class database {
     std::vector<ValueType> buf_;
 };
 
+template <typename ValueType>
+struct database<ValueType>::const_iterator {
+    using iterator_category = std::random_access_iterator_tag;
+    using difference_type   = std::ptrdiff_t;
+    using value_type        = ValueType;
+    using pointer           = const ValueType*;
+    using reference         = const ValueType&;
+
+    const_iterator(database<ValueType>& ffdb, std::size_t pos) : ffdb_(&ffdb), pos_(pos) {}
+
+    // clang-format off
+        value_type operator*() { return current(); }
+        pointer    operator->() { current(); return &cur_; }
+
+        bool operator==(const const_iterator& other) const { return ffdb_ == other.ffdb_ && pos_ == other.pos_; }
+        
+        const_iterator& operator++() { set_pos(pos_ + 1); return *this; }
+        const_iterator operator++(int) { const_iterator tmp = *this; ++(*this); return tmp; } // NOLINT why const?
+        const_iterator& operator--() { set_pos(pos_ - 1); return *this; }
+        const_iterator operator--(int) { const_iterator tmp = *this; --(*this); return tmp; } // NOLINT why const?
+
+        const_iterator& operator+=(std::size_t offset) { set_pos(pos_ + offset); return *this; }
+        const_iterator& operator-=(std::size_t offset) { set_pos(pos_ - offset); return *this; }
+
+    friend const_iterator operator+(const_iterator iter, std::size_t offset) { return iter += offset; }
+    friend const_iterator operator+(std::size_t offset, const_iterator iter) { return iter += offset; }
+    friend const_iterator operator-(const_iterator iter, std::size_t offset) { return iter -= offset; }
+    friend difference_type operator-(const const_iterator& a, const const_iterator& b) {
+        return static_cast<difference_type>(a.pos_ - b.pos_);
+    }
+    // clang-format on
+
+  private:
+    database*   ffdb_ = nullptr;
+    std::size_t pos_{};
+    ValueType   cur_;
+    bool        cur_valid_ = false;
+
+    void set_pos(std::size_t pos) {
+        pos_       = pos;
+        cur_valid_ = false;
+    }
+
+    ValueType& current() {
+        if (!cur_valid_) {
+            ffdb_->get_record(pos_, cur_);
+            cur_valid_ = true;
+        }
+        return cur_;
+    }
+};
+
 namespace impl {
 
 template <typename ValueType, typename Comp = std::less<>, typename Proj = std::identity>
-std::vector<std::string> sort_chunks(database<ValueType>& db, std::size_t records_to_sort,
-                                     std::size_t number_of_chunks, std::size_t chunk_size,
-                                     Comp comp = {}, Proj proj = {}) {
+std::vector<std::string> sort_into_chunks(database<ValueType>& db, std::size_t records_to_sort,
+                                          std::size_t number_of_chunks, std::size_t chunk_size,
+                                          Comp comp = {}, Proj proj = {}) {
 
     std::vector<std::string> chunk_filenames;
     chunk_filenames.reserve(number_of_chunks);
@@ -211,12 +207,10 @@ std::vector<std::string> sort_chunks(database<ValueType>& db, std::size_t record
 }
 
 template <typename ValueType, typename Comp = std::less<>, typename Proj = std::identity>
-void merge(const std::vector<std::string>& chunk_filenames, const std::string& sorted_filename,
-           Comp comp = {}, Proj proj = {}) {
+void merge_chunks(const std::vector<std::string>& chunk_filenames,
+                  const std::string& sorted_filename, Comp comp = {}, Proj proj = {}) {
 
     static_assert(std::is_invocable_v<Proj, ValueType>);
-
-    auto sorted = flat_file::writer<ValueType>(sorted_filename);
 
     struct partial {
         flat_file::database<ValueType>                          db;
@@ -242,6 +236,7 @@ void merge(const std::vector<std::string>& chunk_filenames, const std::string& s
     std::cerr << fmt::format("\nmerging [{:12d},{:12d}) => {:s}\n", 0, records_to_sort,
                              sorted_filename);
 
+    auto sorted = flat_file::writer<ValueType>(sorted_filename);
     while (!partials.empty()) {
         auto min = std::ranges::min_element(
             partials, comp, [&](auto& partial) { return std::invoke(proj, *partial.current); });
@@ -276,7 +271,7 @@ void database<ValueType>::sort(Comp comp, Proj proj) {
     std::cerr << fmt::format("{:20s} = {:12d}\n", "number_of_chunks", number_of_chunks) << "\n";
 
     std::vector<std::string> chunk_filenames =
-            impl::sort_chunks(*this, records_to_sort, number_of_chunks, chunk_size, comp, proj);
+        impl::sort_into_chunks(*this, records_to_sort, number_of_chunks, chunk_size, comp, proj);
 
     std::string sorted_filename = filename() + ".sorted";
 
@@ -284,7 +279,7 @@ void database<ValueType>::sort(Comp comp, Proj proj) {
         std::filesystem::rename(chunk_filenames[0], sorted_filename);
         std::cerr << fmt::format("\nrenaming {:s} => {:s}\n", chunk_filenames[0], sorted_filename);
     } else {
-        impl::merge<ValueType>(chunk_filenames, sorted_filename, comp, proj);
+        impl::merge_chunks<ValueType>(chunk_filenames, sorted_filename, comp, proj);
     }
 }
 
