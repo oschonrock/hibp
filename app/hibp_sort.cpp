@@ -22,7 +22,7 @@ int main(int argc, char* argv[]) {
         std::string                          in_filename(argv[1]);
         flat_file::database<hibp::pawned_pw> db(in_filename, 1'000);
 
-        db.sort(std::greater<>{}, &hibp::pawned_pw::count);
+        db.sort(std::greater<>{}, &hibp::pawned_pw::count); // , 100);
 
     } catch (const std::exception& e) {
         std::cerr << "something went wrong: " << e.what() << "\n";

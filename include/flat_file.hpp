@@ -72,6 +72,8 @@ class writer : private impl::ofstream_holder, public stream_writer<ValueType> {
     }
 };
 
+// CAUTION: flat_file ALWAYS INVALIDATES its iterators during move assignment. This can
+// be surprising and is UNLIKE other STL containers.
 template <typename ValueType>
 class database {
 
@@ -116,7 +118,7 @@ class database {
     std::size_t number_records() const { return dbsize_; }
 
     template <typename Comp = std::less<>, typename Proj = std::identity>
-    std::string sort(Comp comp = {}, Proj proj = {});
+    std::string sort(Comp comp = {}, Proj proj = {}, std::size_t max_memory_usage = 1'000'000'000);
 
   private:
     std::string            filename_;
@@ -207,7 +209,7 @@ std::vector<std::string> sort_into_chunks(database<ValueType>& db, std::size_t r
 }
 
 template <typename ValueType, typename Comp = std::less<>, typename Proj = std::identity>
-void merge_chunks(const std::vector<std::string>& chunk_filenames,
+void merge_sorted_chunks(const std::vector<std::string>& chunk_filenames,
                   const std::string& sorted_filename, Comp comp = {}, Proj proj = {}) {
 
     static_assert(std::is_invocable_v<Proj, ValueType>);
@@ -254,8 +256,7 @@ void merge_chunks(const std::vector<std::string>& chunk_filenames,
 
 template <typename ValueType>
 template <typename Comp, typename Proj>
-std::string database<ValueType>::sort(Comp comp, Proj proj) {
-    const std::size_t max_memory_usage = 100; // ~1GB
+std::string database<ValueType>::sort(Comp comp, Proj proj, std::size_t max_memory_usage) {
 
     std::size_t records_to_sort = std::min(number_records(), 10UL); // limited for debug
     // std::size_t records_to_sort = db.number_records();
@@ -279,7 +280,7 @@ std::string database<ValueType>::sort(Comp comp, Proj proj) {
         std::filesystem::rename(chunk_filenames[0], sorted_filename);
         std::cerr << fmt::format("\nrenaming {:s} => {:s}\n", chunk_filenames[0], sorted_filename);
     } else {
-        impl::merge_chunks<ValueType>(chunk_filenames, sorted_filename, comp, proj);
+        impl::merge_sorted_chunks<ValueType>(chunk_filenames, sorted_filename, comp, proj);
     }
     return sorted_filename;
 }
