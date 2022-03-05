@@ -7,7 +7,7 @@ USAGE="Usage: $(basename $0) [-v | --verbose] [ gcc | clang ] [ reset | clean | 
 
 CMAKE=cmake
 BUILD=./build
-TYPE=release
+TYPE=debug
 COMPILER=clang
 CLEAN=
 RESET=
