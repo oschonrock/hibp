@@ -131,7 +131,7 @@ public:
   std::size_t number_records() const { return dbsize_; }
 
   template <typename Comp = std::less<>, typename Proj = std::identity>
-  std::string sort(Comp comp = {}, Proj proj = {}, std::size_t max_memory_usage = 1'000'000'000);
+  std::string disksort(Comp comp = {}, Proj proj = {}, std::size_t max_memory_usage = 1'000'000'000);
 
 private:
   std::string            filename_;
@@ -154,25 +154,25 @@ struct database<ValueType>::const_iterator {
   const_iterator(database<ValueType>& ffdb, std::size_t pos) : ffdb_(&ffdb), pos_(pos) {}
 
   // clang-format off
-    value_type operator*() { return current(); }
-    pointer    operator->() { current(); return &cur_; }
+  value_type operator*() { return current(); }
+  pointer    operator->() { current(); return &cur_; }
 
-    bool operator==(const const_iterator& other) const { return ffdb_ == other.ffdb_ && pos_ == other.pos_; }
-    
-    const_iterator& operator++() { set_pos(pos_ + 1); return *this; }
-    const_iterator operator++(int) { const_iterator tmp = *this; ++(*this); return tmp; } // NOLINT why const?
-    const_iterator& operator--() { set_pos(pos_ - 1); return *this; }
-    const_iterator operator--(int) { const_iterator tmp = *this; --(*this); return tmp; } // NOLINT why const?
+  bool operator==(const const_iterator& other) const { return ffdb_ == other.ffdb_ && pos_ == other.pos_; }
+  
+  const_iterator& operator++() { set_pos(pos_ + 1); return *this; }
+  const_iterator operator++(int) { const_iterator tmp = *this; ++(*this); return tmp; } // NOLINT why const?
+  const_iterator& operator--() { set_pos(pos_ - 1); return *this; }
+  const_iterator operator--(int) { const_iterator tmp = *this; --(*this); return tmp; } // NOLINT why const?
 
-    const_iterator& operator+=(std::size_t offset) { set_pos(pos_ + offset); return *this; }
-    const_iterator& operator-=(std::size_t offset) { set_pos(pos_ - offset); return *this; }
+  const_iterator& operator+=(std::size_t offset) { set_pos(pos_ + offset); return *this; }
+  const_iterator& operator-=(std::size_t offset) { set_pos(pos_ - offset); return *this; }
 
-    friend const_iterator operator+(const_iterator iter, std::size_t offset) { return iter += offset; }
-    friend const_iterator operator+(std::size_t offset, const_iterator iter) { return iter += offset; }
-    friend const_iterator operator-(const_iterator iter, std::size_t offset) { return iter -= offset; }
-    friend difference_type operator-(const const_iterator& a, const const_iterator& b) {
-        return static_cast<difference_type>(a.pos_ - b.pos_);
-    }
+  friend const_iterator operator+(const_iterator iter, std::size_t offset) { return iter += offset; }
+  friend const_iterator operator+(std::size_t offset, const_iterator iter) { return iter += offset; }
+  friend const_iterator operator-(const_iterator iter, std::size_t offset) { return iter -= offset; }
+  friend difference_type operator-(const const_iterator& a, const const_iterator& b) {
+      return static_cast<difference_type>(a.pos_ - b.pos_);
+  }
   // clang-format on
 
   std::size_t pos() { return pos_; }
@@ -242,50 +242,48 @@ void merge_sorted_chunks(const std::vector<std::string>& chunk_filenames,
 
   static_assert(std::is_invocable_v<Proj, ValueType>);
 
-  struct partial {
+  struct chunk {
     flat_file::database<ValueType>                          db;
     typename flat_file::database<ValueType>::const_iterator current;
     typename flat_file::database<ValueType>::const_iterator end;
 
-    explicit partial(std::string filename, std::size_t buf_size)
+    explicit chunk(std::string filename, std::size_t buf_size)
         : db(std::move(filename), buf_size), current(db.begin()), end(db.end()) {}
   };
 
-  std::vector<partial> partials;
+  std::vector<chunk> chunks;
   // MUST reserve this to avoid invalidating flat_file::iterators
-  partials.reserve(chunk_filenames.size());
+  chunks.reserve(chunk_filenames.size());
+  for (const auto& filename: chunk_filenames) chunks.emplace_back(filename, 1000);
 
-  for (const auto& filename: chunk_filenames) partials.emplace_back(filename, 1000);
-
-  // utility struct to push into a priority queue. retains the index into the partials vector, so we
-  // can access them when they pop out of queue
   struct tail {
     ValueType   value;
-    std::size_t idx; // index into partials to know here I came from
+    std::size_t idx; // index into chunks to know here I came from
   };
 
+  // Comparator for the priority queue. Negation because priority queue is "max" by default.
   auto cmp = [&](const auto& a, const auto& b) {
-    // note the negation! because priority queue is "max" by default
     return !comp(std::invoke(proj, a.value), std::invoke(proj, b.value));
   };
 
   std::priority_queue<tail, std::vector<tail>, decltype(cmp)> tails(cmp);
 
   // prime the queue
-  for (std::size_t i = 0; i != partials.size(); ++i) {
-    tails.push({*(partials[i].current), i});
-    ++(partials[i].current);
+  for (std::size_t i = 0; i != chunks.size(); ++i) {
+    tails.push({*(chunks[i].current), i});
+    ++(chunks[i].current);
   }
 
   auto sorted = flat_file::file_writer<ValueType>(sorted_filename);
 
   while (!tails.empty()) {
-    const tail t = tails.top();
+    const tail& t = tails.top();
     sorted.write(t.value);
+    std::size_t chunk_idx = t.idx;
     tails.pop();
-    if (auto& partial = partials[t.idx]; partial.current != partial.end) {
-      tails.push({*(partial.current), t.idx});
-      ++(partial.current);
+    if (auto& chunk = chunks[chunk_idx]; chunk.current != chunk.end) {
+      tails.push({*(chunk.current), chunk_idx});
+      ++(chunk.current);
     }
   }
 
@@ -294,7 +292,7 @@ void merge_sorted_chunks(const std::vector<std::string>& chunk_filenames,
 }
 
 template <typename ValueType, typename Comp = std::less<>, typename Proj = std::identity>
-std::string sort_range(typename database<ValueType>::const_iterator first,
+std::string disksort_range(typename database<ValueType>::const_iterator first,
                        typename database<ValueType>::const_iterator last, Comp comp = {},
                        Proj proj = {}, std::size_t max_memory_usage = 1'000'000'000) {
 
@@ -316,8 +314,8 @@ std::string sort_range(typename database<ValueType>::const_iterator first,
 
 template <typename ValueType>
 template <typename Comp, typename Proj>
-std::string database<ValueType>::sort(Comp comp, Proj proj, std::size_t max_memory_usage) {
-  return sort_range<ValueType>(begin(), end(), comp, proj, max_memory_usage);
+std::string database<ValueType>::disksort(Comp comp, Proj proj, std::size_t max_memory_usage) {
+  return disksort_range<ValueType>(begin(), end(), comp, proj, max_memory_usage);
 }
 
 } // namespace flat_file
