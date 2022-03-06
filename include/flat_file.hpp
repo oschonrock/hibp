@@ -262,13 +262,11 @@ void merge_sorted_chunks(const std::vector<std::string>& chunk_filenames,
   struct tail {
     ValueType   value;
     std::size_t idx; // index into partials to know here I came from
-
-    std::strong_ordering operator<=>(const tail& other) const { return value <=> other.value; }
   };
 
   auto cmp = [&](const auto& a, const auto& b) {
     // note the negation! because priority queue is "max" by default
-    return !comp(std::invoke(proj, a), std::invoke(proj, b));
+    return !comp(std::invoke(proj, a.value), std::invoke(proj, b.value));
   };
 
   std::priority_queue<tail, std::vector<tail>, decltype(cmp)> tails(cmp);
