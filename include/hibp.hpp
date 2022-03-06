@@ -7,6 +7,7 @@
 #include <cassert>
 #include <compare>
 #include <cstddef>
+#include <cstdint>
 #include <ostream>
 
 namespace hibp {

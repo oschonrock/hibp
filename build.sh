@@ -3,7 +3,7 @@
 
 set -o errexit
 set -o nounset
-USAGE="Usage: $(basename $0) [-v | --verbose] [ gcc | clang ] [ reset | clean | debug | release ]"
+USAGE="Usage: $(basename $0) [-v | --verbose] [ gcc | clang ] [ reset | clean | debug | release | relwithdebinfo]"
 
 CMAKE=cmake
 BUILD=./build
@@ -19,6 +19,7 @@ for arg; do
     -v|--verbose) VERBOSE='VERBOSE=1'  ;;
     debug)        TYPE=debug ;;
     release)      TYPE=release ;;
+    relwithdebinfo)      TYPE=relwithdebinfo ;;
     clang)        COMPILER=clang ;;
     gcc)          COMPILER=gcc ;;
     clean)        CLEAN=1 ;;

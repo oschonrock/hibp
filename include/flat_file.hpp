@@ -14,6 +14,7 @@
 #include <list>
 #include <memory>
 #include <numeric>
+#include <queue>
 #include <ranges>
 #include <string>
 #include <type_traits>
@@ -112,7 +113,7 @@ public:
       db_.seekg(static_cast<long>(pos * sizeof(ValueType)));
 
       std::size_t nrecs = std::min(buf_.size(), dbsize_ - pos);
-      
+
       db_.read(reinterpret_cast<char*>(buf_.data()), // NOLINT reinterpret_cast
                static_cast<std::streamsize>(sizeof(ValueType) * nrecs));
 
@@ -246,28 +247,50 @@ void merge_sorted_chunks(const std::vector<std::string>& chunk_filenames,
     typename flat_file::database<ValueType>::const_iterator current;
     typename flat_file::database<ValueType>::const_iterator end;
 
-      explicit partial(std::string filename, std::size_t buf_size)
-              : db(std::move(filename), buf_size), current(db.begin()), end(db.end()) {}
+    explicit partial(std::string filename, std::size_t buf_size)
+        : db(std::move(filename), buf_size), current(db.begin()), end(db.end()) {}
   };
 
-  // Don't use a std::vector<partial>! This will use move assignment of partials(and
-  // therefore the flat_file) during re-allocaton which WILL INVALIDATE the iterators and
-  // cause UB! flat_file ALWAYS INVALIDATES its iterators during move assignment. This can
-  // be surprising and is UNLIKE other STL containers So we use a std::list<partials> or
-  // alternatively a std::vector<std::unique_ptr<partial>>
-  std::list<partial> partials;
+  std::vector<partial> partials;
+  // MUST reserve this to avoid invalidating flat_file::iterators
+  partials.reserve(chunk_filenames.size());
+
   for (const auto& filename: chunk_filenames) partials.emplace_back(filename, 1000);
 
-  auto sorted = flat_file::file_writer<ValueType>(sorted_filename);
-  while (!partials.empty()) {
-    auto min = std::ranges::min_element(
-        partials, comp, [&](auto& partial) { return std::invoke(proj, *partial.current); });
+  // utility struct to push into a priority queue. retains the index into the partials vector, so we
+  // can access them when they pop out of queue
+  struct tail {
+    ValueType   value;
+    std::size_t idx; // index into partials to know here I came from
 
-    sorted.write(*(min->current));
-    ++(min->current);
+    std::strong_ordering operator<=>(const tail& other) const { return value <=> other.value; }
+  };
 
-    if (min->current == min->end) partials.erase(min);
+  auto cmp = [&](const auto& a, const auto& b) {
+    // note the negation! because priority queue is "max" by default
+    return !comp(std::invoke(proj, a), std::invoke(proj, b));
+  };
+
+  std::priority_queue<tail, std::vector<tail>, decltype(cmp)> tails(cmp);
+
+  // prime the queue
+  for (std::size_t i = 0; i != partials.size(); ++i) {
+    tails.push({*(partials[i].current), i});
+    ++(partials[i].current);
   }
+
+  auto sorted = flat_file::file_writer<ValueType>(sorted_filename);
+
+  while (!tails.empty()) {
+    const tail t = tails.top();
+    sorted.write(t.value);
+    tails.pop();
+    if (auto& partial = partials[t.idx]; partial.current != partial.end) {
+      tails.push({*(partial.current), t.idx});
+      ++(partial.current);
+    }
+  }
+
   for (const auto& filename: chunk_filenames)
     std::filesystem::remove(std::filesystem::path(filename));
 }
