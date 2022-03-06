@@ -53,7 +53,7 @@ target_link_libraries(hibp_search PRIVATE toolbelt sha1 hibp)
 
 add_executable(hibp_sort app/hibp_sort.cpp)
 target_compile_options(hibp_sort PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_sort PRIVATE toolbelt hibp)
+target_link_libraries(hibp_sort PRIVATE toolbelt hibp tbb)
 
 add_executable(hibp_convert app/hibp_convert.cpp)
 target_compile_options(hibp_convert PRIVATE ${PROJECT_COMPILE_OPTIONS})
