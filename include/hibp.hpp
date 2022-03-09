@@ -8,14 +8,60 @@
 #include <compare>
 #include <cstddef>
 #include <cstdint>
+#include <immintrin.h>
+#include <ios>
 #include <ostream>
+#include <pstl/utils.h>
 
 namespace hibp {
 
 struct pawned_pw {
-  bool operator==(const pawned_pw& rhs) const { return hash == rhs.hash; }
+  std::strong_ordering operator<=>(const pawned_pw& rhs) const {
+    // ALERT: not entirely portable (yet?)
+    // this compiles to a load and `bswap` which should be fast
+    // measured > 33% faster than hash < rhs.hash, which compiles to `memcmp`
 
-  std::strong_ordering operator<=>(const pawned_pw& rhs) const { return hash <=> rhs.hash; }
+    static_assert(sizeof(std::uint64_t) == 8);
+    static_assert(sizeof(std::uint32_t) == 4);
+
+    // c++23 will have std::byteswap
+#ifdef MSVC
+  #define BYTE_SWAP_32 _byteswap_ulong
+  #define BYTE_SWAP_64 _byteswap_uint64
+#else
+  #define BYTE_SWAP_32 __builtin_bswap32
+  #define BYTE_SWAP_64 __builtin_bswap64
+#endif
+
+    std::uint64_t head     = BYTE_SWAP_64(*(std::uint64_t*)(&hash[0]));     // NOLINT
+    std::uint64_t rhs_head = BYTE_SWAP_64(*(std::uint64_t*)(&rhs.hash[0])); // NOLINT
+    if (head != rhs_head) return head <=> rhs_head;
+
+    std::uint64_t mid     = BYTE_SWAP_64(*(std::uint64_t*)(&hash[8]));     // NOLINT
+    std::uint64_t rhs_mid = BYTE_SWAP_64(*(std::uint64_t*)(&rhs.hash[8])); // NOLINT
+    if (mid != rhs_mid) return mid <=> rhs_mid;
+
+    std::uint32_t tail     = BYTE_SWAP_32(*(std::uint32_t*)(&hash[16]));     // NOLINT
+    std::uint32_t rhs_tail = BYTE_SWAP_32(*(std::uint32_t*)(&rhs.hash[16])); // NOLINT
+    return tail <=> rhs_tail;
+  }
+
+  bool operator==(const pawned_pw& rhs) const {
+    static_assert(sizeof(std::uint64_t) == 8);
+    static_assert(sizeof(std::uint32_t) == 4);
+
+    std::uint64_t head     = *(std::uint64_t*)(&hash[0]);     // NOLINT
+    std::uint64_t rhs_head = *(std::uint64_t*)(&rhs.hash[0]); // NOLINT
+    if (head != rhs_head) return false;
+
+    std::uint64_t mid     = *(std::uint64_t*)(&hash[8]);     // NOLINT
+    std::uint64_t rhs_mid = *(std::uint64_t*)(&rhs.hash[8]); // NOLINT
+    if (mid != rhs_mid) return false;
+
+    std::uint32_t tail     = *(std::uint32_t*)(&hash[16]);     // NOLINT
+    std::uint32_t rhs_tail = *(std::uint32_t*)(&rhs.hash[16]); // NOLINT
+    return tail == rhs_tail;
+  }
 
   friend std::ostream& operator<<(std::ostream& os, const pawned_pw& rhs) {
     for (auto&& b: rhs.hash) os << fmt::format("{:02X}", b);

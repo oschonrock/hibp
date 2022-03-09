@@ -28,7 +28,6 @@ else()
   set(PROJECT_STATIC_OPTIONS "")
 endif()
 
-
 add_subdirectory(ext/fmt)
 target_compile_options(fmt INTERFACE -Wno-missing-noreturn)
 
@@ -49,7 +48,7 @@ target_link_libraries(toolbelt INTERFACE fmt)
 
 add_executable(hibp_search app/hibp_search.cpp)
 target_compile_options(hibp_search PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_search PRIVATE toolbelt sha1 hibp)
+target_link_libraries(hibp_search PRIVATE toolbelt sha1 hibp tbb)
 
 add_executable(hibp_sort app/hibp_sort.cpp)
 target_compile_options(hibp_sort PRIVATE ${PROJECT_COMPILE_OPTIONS})
@@ -57,7 +56,20 @@ target_link_libraries(hibp_sort PRIVATE toolbelt hibp tbb)
 
 add_executable(hibp_convert app/hibp_convert.cpp)
 target_compile_options(hibp_convert PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_convert PRIVATE toolbelt sha1 hibp)
+target_link_libraries(hibp_convert PRIVATE toolbelt sha1 hibp tbb)
+
+
+add_executable(heap app/heap.cpp)
+target_compile_options(heap PRIVATE ${PROJECT_COMPILE_OPTIONS})
+target_link_libraries(heap PRIVATE toolbelt fmt)
+
+add_executable(heap_primitives app/heap_primitives.cpp)
+target_compile_options(heap_primitives PRIVATE ${PROJECT_COMPILE_OPTIONS})
+target_link_libraries(heap_primitives PRIVATE toolbelt fmt)
+
+add_executable(vectorized_strcmp app/vectorized_strcmp.cpp)
+target_compile_options(vectorized_strcmp PRIVATE ${PROJECT_COMPILE_OPTIONS})
+target_link_libraries(vectorized_strcmp PRIVATE toolbelt fmt hibp)
 
 
 add_subdirectory(test)

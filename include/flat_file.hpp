@@ -1,6 +1,8 @@
 #pragma once
 
 #include "fmt/format.h"
+#include "hibp.hpp"
+#include "os/bch.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <cstdlib>
@@ -108,7 +110,7 @@ public:
   using value_type = ValueType;
   struct const_iterator;
 
-  void get_record(std::size_t pos, ValueType& rec) {
+  ValueType& get_record(std::size_t pos) {
     if (!(pos >= buf_start_ && pos < buf_end_)) {
       db_.seekg(static_cast<long>(pos * sizeof(ValueType)));
 
@@ -120,7 +122,7 @@ public:
       buf_start_ = pos;
       buf_end_   = pos + nrecs;
     }
-    rec = buf_[pos - buf_start_];
+    return buf_[pos - buf_start_];
   }
 
   const_iterator begin() { return {*this, 0}; }
@@ -131,7 +133,8 @@ public:
   std::size_t number_records() const { return dbsize_; }
 
   template <typename Comp = std::less<>, typename Proj = std::identity>
-  std::string disksort(Comp comp = {}, Proj proj = {}, std::size_t max_memory_usage = 1'000'000'000);
+  std::string disksort(Comp comp = {}, Proj proj = {},
+                       std::size_t max_memory_usage = 1'000'000'000);
 
 private:
   std::string            filename_;
@@ -189,9 +192,9 @@ private:
     cur_valid_ = false;
   }
 
-  ValueType& current() {
+  ValueType current() {
     if (!cur_valid_) {
-      ffdb_->get_record(pos_, cur_);
+      cur_       = ffdb_->get_record(pos_);
       cur_valid_ = true;
     }
     return cur_;
@@ -204,7 +207,7 @@ std::vector<std::string> sort_into_chunks(typename database<ValueType>::const_it
                                           Comp comp = {}, Proj proj = {},
                                           std::size_t max_memory_usage = 1'000'000'000) {
 
-  auto        records_to_sort = static_cast<std::size_t>(last - first); // limited for debug
+  auto        records_to_sort = static_cast<std::size_t>(last - first);
   std::size_t chunk_size      = std::min(records_to_sort, max_memory_usage / sizeof(ValueType));
   std::size_t number_of_chunks =
       (records_to_sort / chunk_size) + static_cast<std::size_t>(records_to_sort % chunk_size != 0);
@@ -256,7 +259,7 @@ void merge_sorted_chunks(const std::vector<std::string>& chunk_filenames,
   chunks.reserve(chunk_filenames.size());
   for (const auto& filename: chunk_filenames) chunks.emplace_back(filename, 1000);
 
-  struct tail {
+  struct head {
     ValueType   value;
     std::size_t idx; // index into chunks to know here I came from
   };
@@ -266,23 +269,22 @@ void merge_sorted_chunks(const std::vector<std::string>& chunk_filenames,
     return !comp(std::invoke(proj, a.value), std::invoke(proj, b.value));
   };
 
-  std::priority_queue<tail, std::vector<tail>, decltype(cmp)> tails(cmp);
+  std::priority_queue<head, std::vector<head>, decltype(cmp)> heads(cmp);
 
   // prime the queue
   for (std::size_t i = 0; i != chunks.size(); ++i) {
-    tails.push({*(chunks[i].current), i});
+    heads.push({*(chunks[i].current), i});
     ++(chunks[i].current);
   }
 
   auto sorted = flat_file::file_writer<ValueType>(sorted_filename);
-
-  while (!tails.empty()) {
-    const tail& t = tails.top();
+  while (!heads.empty()) {
+    const head& t = heads.top();
     sorted.write(t.value);
     std::size_t chunk_idx = t.idx;
-    tails.pop();
+    heads.pop();
     if (auto& chunk = chunks[chunk_idx]; chunk.current != chunk.end) {
-      tails.push({*(chunk.current), chunk_idx});
+      heads.push({*(chunk.current), chunk_idx});
       ++(chunk.current);
     }
   }
@@ -293,8 +295,8 @@ void merge_sorted_chunks(const std::vector<std::string>& chunk_filenames,
 
 template <typename ValueType, typename Comp = std::less<>, typename Proj = std::identity>
 std::string disksort_range(typename database<ValueType>::const_iterator first,
-                       typename database<ValueType>::const_iterator last, Comp comp = {},
-                       Proj proj = {}, std::size_t max_memory_usage = 1'000'000'000) {
+                           typename database<ValueType>::const_iterator last, Comp comp = {},
+                           Proj proj = {}, std::size_t max_memory_usage = 1'000'000'000) {
 
   std::vector<std::string> chunk_filenames =
       sort_into_chunks<ValueType>(first, last, comp, proj, max_memory_usage);
