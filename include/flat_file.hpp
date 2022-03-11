@@ -278,14 +278,17 @@ void merge_sorted_chunks(const std::vector<std::string>& chunk_filenames,
   }
 
   auto sorted = flat_file::file_writer<ValueType>(sorted_filename);
-  while (!heads.empty()) {
-    const head& t = heads.top();
-    sorted.write(t.value);
-    std::size_t chunk_idx = t.idx;
-    heads.pop();
-    if (auto& chunk = chunks[chunk_idx]; chunk.current != chunk.end) {
-      heads.push({*(chunk.current), chunk_idx});
-      ++(chunk.current);
+  {
+    os::bch::Timer tim("merge stage");
+    while (!heads.empty()) {
+      const head& t = heads.top();
+      sorted.write(t.value);
+      std::size_t chunk_idx = t.idx;
+      heads.pop();
+      if (auto& chunk = chunks[chunk_idx]; chunk.current != chunk.end) {
+        heads.push({*(chunk.current), chunk_idx});
+        ++(chunk.current);
+      }
     }
   }
 
