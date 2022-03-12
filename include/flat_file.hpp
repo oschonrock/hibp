@@ -292,8 +292,8 @@ void merge_sorted_chunks(const std::vector<std::string>& chunk_filenames,
     }
   }
 
-  for (const auto& filename: chunk_filenames)
-    std::filesystem::remove(std::filesystem::path(filename));
+  // for (const auto& filename: chunk_filenames)
+  //   std::filesystem::remove(std::filesystem::path(filename));
 }
 
 template <typename ValueType, typename Comp = std::less<>, typename Proj = std::identity>

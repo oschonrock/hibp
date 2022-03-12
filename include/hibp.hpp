@@ -1,7 +1,7 @@
 #pragma once
 
-#include "fmt/format.h"
 #include "arrcmp.hpp"
+#include "fmt/format.h"
 #include "os/algo.hpp"
 #include "os/str.hpp"
 #include <array>

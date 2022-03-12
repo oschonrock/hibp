@@ -71,7 +71,8 @@ add_executable(vectorized_strcmp app/vectorized_strcmp.cpp)
 target_compile_options(vectorized_strcmp PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(vectorized_strcmp PRIVATE toolbelt fmt hibp)
 
-
+# tests
 add_subdirectory(test)
 
-# find_package(benchmark REQUIRED)
+# benchmarks
+add_subdirectory(bench)
