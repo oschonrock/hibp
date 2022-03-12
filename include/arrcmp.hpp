@@ -1,33 +1,33 @@
 #pragma once
 
-#include <immintrin.h>
 #include <array>
 #include <bit>
 #include <compare>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <immintrin.h>
 
 namespace arrcmp {
 
 namespace impl {
+
 #ifdef __cpp_lib_byteswap
 using std::byteswap;
 #else
 template <class T>
 constexpr T byteswap(T n) noexcept {
-  // clang-format off
-  // NOLINTBEGIN
+
+// clang-format off
   #ifdef _MSC_VER
-    #define BYTE_SWAP_16 _byteswap_ushort
-    #define BYTE_SWAP_32 _byteswap_ulong
-    #define BYTE_SWAP_64 _byteswap_uint64
+    #define BYTE_SWAP_16 _byteswap_ushort // NOLINT
+    #define BYTE_SWAP_32 _byteswap_ulong  // NOLINT
+    #define BYTE_SWAP_64 _byteswap_uint64 // NOLINT
   #else
-    #define BYTE_SWAP_16 __builtin_bswap16
-    #define BYTE_SWAP_32 __builtin_bswap32
-    #define BYTE_SWAP_64 __builtin_bswap64
+    #define BYTE_SWAP_16 __builtin_bswap16 // NOLINT
+    #define BYTE_SWAP_32 __builtin_bswap32 // NOLINT
+    #define BYTE_SWAP_64 __builtin_bswap64 // NOLINT
   #endif
-  // NOLINTEND
   // clang-format on
 
   if constexpr (std::same_as<T, std::uint64_t>) {
@@ -43,10 +43,11 @@ constexpr T byteswap(T n) noexcept {
 template <typename T, typename... U>
 concept any_of = (std::same_as<T, U> || ...);
 
-// convert the sizeof(Target) bytes starting at `source` pointer to Target
-// uses compiler intrinsics for endianess conversion if required and if `swap` == true
-// caller responsibility to ensure that enough bytes are readable/dereferencable etc
-// this compiles to a load and `bswap` which is very fast and can beat eg `memcmp`
+// Convert the sizeof(Target) bytes starting at `source` pointer to Target.
+// Uses compiler intrinsics for endianess conversion if required and if
+// `swap_if_required` == true.
+// It is the caller's responsibility to ensure that enough bytes are
+// readable/dereferencable etc. This compiles to just a `mov and `bswap`
 template <typename T, bool swap_if_required = true>
 constexpr T bytearray_cast(const std::byte* source) noexcept requires
     any_of<T, std::uint64_t, std::uint32_t, std::uint16_t, std::uint8_t> {
@@ -55,7 +56,7 @@ constexpr T bytearray_cast(const std::byte* source) noexcept requires
                     std::endian::native == std::endian::little,
                 "mixed-endianess architectures are not supported");
 
-  T value = *reinterpret_cast<const T*>(source); // NOLINT
+  T value = *reinterpret_cast<const T*>(source); // NOLINT reincast
 
   if constexpr (swap_if_required && sizeof(T) > 1 && std::endian::native == std::endian::little) {
     return byteswap<T>(value);
@@ -86,7 +87,8 @@ struct equal {
   template <typename T>
   constexpr bool operator()(const std::byte* a, const std::byte* b) noexcept requires
       impl::any_of<T, std::uint64_t, std::uint32_t, std::uint16_t, std::uint8_t> {
-    // don't bother swapping for endianess, since we don't need to for simple equality
+    // don't bother swapping for endianess, since we don't need to for simple
+    // equality
     return impl::bytearray_cast<T, false>(a) == impl::bytearray_cast<T, false>(b);
   }
   using return_type                           = bool;
@@ -101,7 +103,7 @@ constexpr typename Comp::return_type array_compare(const std::byte* a, const std
   } else {
     using next_type                 = impl::largest_uint<N>;
     constexpr std::size_t next_size = sizeof(next_type);
-    if (auto res = comp.template operator()<next_type>(&a[0], &b[0]); res != Comp::equality_value)
+    if (auto res = comp.template operator()<next_type>(a, b); res != Comp::equality_value)
       return res;
     return array_compare<N - next_size>(&a[next_size], &b[next_size], comp);
   }
