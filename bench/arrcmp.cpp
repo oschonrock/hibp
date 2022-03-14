@@ -9,20 +9,17 @@
 #include <random>
 
 static constexpr std::size_t size = 100;
-static constexpr std::size_t step = 2;
+static constexpr std::size_t step = 4;
 static constexpr std::size_t seed = 2;
 
 void arrCmpInt(benchmark::State& state) {
-  std::mt19937_64                             rgen(seed); // NOLINT fixed seed
-  std::uniform_int_distribution<std::uint8_t> dist(0, 255);
-
   auto idx = static_cast<std::size_t>(state.range(0));
 
   std::array<std::byte, size> hash1{};
-  hash1[idx] = static_cast<std::byte>(dist(rgen));
+  hash1[idx] = static_cast<std::byte>(0x01);
 
   std::array<std::byte, size> hash2{};
-  hash2[idx] = static_cast<std::byte>(dist(rgen));
+  hash2[idx] = static_cast<std::byte>(0x02);
 
   for (auto _: state) {
     auto result = arrcmp::array_compare<size>(&hash1[0], &hash2[0], arrcmp::three_way_int{});
@@ -34,16 +31,13 @@ void arrCmpInt(benchmark::State& state) {
 BENCHMARK(arrCmpInt)->DenseRange(0, size - 1, step);
 
 void arrCmpOrdering(benchmark::State& state) {
-  std::mt19937_64                             rgen(seed); // NOLINT fixed seed
-  std::uniform_int_distribution<std::uint8_t> dist(0, 255);
-
   auto idx = static_cast<std::size_t>(state.range(0));
 
   std::array<std::byte, size> hash1{};
-  hash1[idx] = static_cast<std::byte>(dist(rgen));
+  hash1[idx] = static_cast<std::byte>(0x01);
 
   std::array<std::byte, size> hash2{};
-  hash2[idx] = static_cast<std::byte>(dist(rgen));
+  hash2[idx] = static_cast<std::byte>(0x02);
 
   for (auto _: state) {
     auto result = arrcmp::array_compare<size>(&hash1[0], &hash2[0], arrcmp::three_way{});
@@ -55,16 +49,13 @@ void arrCmpOrdering(benchmark::State& state) {
 BENCHMARK(arrCmpOrdering)->DenseRange(0, size - 1, step);
 
 void asmlib(benchmark::State& state) {
-  std::mt19937_64                             rgen(seed); // NOLINT fixed seed
-  std::uniform_int_distribution<std::uint8_t> dist(0, 255);
-
   auto idx = static_cast<std::size_t>(state.range(0));
 
   std::array<std::byte, size> hash1{};
-  hash1[idx] = static_cast<std::byte>(dist(rgen));
+  hash1[idx] = static_cast<std::byte>(0x01);
 
   std::array<std::byte, size> hash2{};
-  hash2[idx] = static_cast<std::byte>(dist(rgen));
+  hash2[idx] = static_cast<std::byte>(0x02);
 
   for (auto _: state) {
     auto result = A_memcmp(&hash1[0], &hash2[0], size);
@@ -76,16 +67,13 @@ void asmlib(benchmark::State& state) {
 BENCHMARK(asmlib)->DenseRange(0, size - 1, step);
 
 void glibc(benchmark::State& state) {
-  std::mt19937_64                             rgen(seed); // NOLINT fixed seed
-  std::uniform_int_distribution<std::uint8_t> dist(0, 255);
-
   auto idx = static_cast<std::size_t>(state.range(0));
 
   std::array<std::byte, size> hash1{};
-  hash1[idx] = static_cast<std::byte>(dist(rgen));
+  hash1[idx] = static_cast<std::byte>(0x01);
 
   std::array<std::byte, size> hash2{};
-  hash2[idx] = static_cast<std::byte>(dist(rgen));
+  hash2[idx] = static_cast<std::byte>(0x02);
 
   for (auto _: state) {
     auto result = memcmp(&hash1[0], &hash2[0], size);

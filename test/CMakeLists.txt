@@ -14,7 +14,7 @@ function (add_unit_test UNIT_TEST)
     add_test(NAME ${UNIT_TEST} COMMAND ${UNIT_TEST})
 endfunction()
 
-add_unit_test(test_arrcmp)
+# add_unit_test(test_arrcmp)
 
 add_custom_target(all_tests ALL DEPENDS ${UNIT_TESTS})
 
