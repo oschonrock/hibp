@@ -20,8 +20,10 @@ done
 shift $((OPTIND-1))
 
 csvfile="$base/results/cmp.csv"
+
 if [[ $rerun == 1 ]]
 then
-    "$base/../build/clang/release/cmp" --benchmark_format=csv > "$csvfile"
+    "$base/../build/clang/release/bench/arrcmp" --benchmark_format=csv > "$csvfile"
 fi
+
 python "$base/../ext/google_benchmark_plot/plot.py" < "$csvfile" &
