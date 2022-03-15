@@ -9,11 +9,13 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 if (MSVC)
   set(PROJECT_COMPILE_OPTIONS /Wall /analyze)
-  string(APPEND CMAKE_CXX_FLAGS_DEBUG          " /fsanitize=address")
-else()
+  string(APPEND CMAKE_CXX_FLAGS_DEBUG " /fsanitize=address")
+else() # unix'ish
   set(PROJECT_COMPILE_OPTIONS -Wall -Wextra -Wpedantic -Wshadow -Wextra-semi
     -Wmissing-noreturn -Wconversion -Wsign-conversion)
-  string(APPEND CMAKE_CXX_FLAGS_DEBUG          " -fsanitize=address,undefined,leak")
+    if (NOT MINGW) # sanitizers are not working under mingw
+      string(APPEND CMAKE_CXX_FLAGS_DEBUG " -fsanitize=address,undefined,leak")
+    endif()
 endif()
 
 if (WIN32)
@@ -56,21 +58,27 @@ add_executable(hibp_convert app/hibp_convert.cpp)
 target_compile_options(hibp_convert PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_convert PRIVATE toolbelt sha1 hibp tbb)
 
-add_executable(heap_primitives app/heap_primitives.cpp)
-target_compile_options(heap_primitives PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(heap_primitives PRIVATE toolbelt fmt)
+# add_executable(heap_primitives app/heap_primitives.cpp)
+# target_compile_options(heap_primitives PRIVATE ${PROJECT_COMPILE_OPTIONS})
+# target_link_libraries(heap_primitives PRIVATE toolbelt fmt)
 
-add_executable(vectorized_strcmp app/vectorized_strcmp.cpp)
-target_compile_options(vectorized_strcmp PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(vectorized_strcmp PRIVATE toolbelt fmt hibp)
+# add_executable(vectorized_strcmp app/vectorized_strcmp.cpp)
+# target_compile_options(vectorized_strcmp PRIVATE ${PROJECT_COMPILE_OPTIONS})
+# target_link_libraries(vectorized_strcmp PRIVATE toolbelt fmt hibp)
 
-option(ARRCMP_TEST "Enable tests" OFF)
-if(ARRCMP_TEST)
+option(HIBP_TEST "Enable tests" OFF)
+if(HIBP_TEST)
   enable_testing()
   add_subdirectory(test)
-else(ARRCMP_TEST)
-  message(STATUS "Tests are disabled. Set ARRCMP_TEST to ON to run tests.")
-endif(ARRCMP_TEST)
+else(HIBP_TEST)
+  message(STATUS "Tests are disabled. Set HIBP_TEST to ON to run tests.")
+endif(HIBP_TEST)
 
 # benchmarks
-add_subdirectory(bench)
+option(HIBP_BENCH "Enable tests" OFF)
+if(HIBP_BENCH)
+  add_subdirectory(bench)
+else(HIBP_BENCH)
+  message(STATUS "Benchmarks are disabled. Set HIBP_BENCH to ON to run tests.")
+endif(HIBP_BENCH)
+
