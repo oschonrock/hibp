@@ -66,19 +66,19 @@ target_link_libraries(hibp_convert PRIVATE toolbelt sha1 hibp tbb)
 # target_compile_options(vectorized_strcmp PRIVATE ${PROJECT_COMPILE_OPTIONS})
 # target_link_libraries(vectorized_strcmp PRIVATE toolbelt fmt hibp)
 
-option(HIBP_TEST "Enable tests" OFF)
+option(HIBP_TEST "Enable HIBP tests" OFF)
 if(HIBP_TEST)
   enable_testing()
   add_subdirectory(test)
 else(HIBP_TEST)
-  message(STATUS "Tests are disabled. Set HIBP_TEST to ON to run tests.")
+  message(STATUS "HIBP Tests are disabled. Set HIBP_TEST to ON to run tests.")
 endif(HIBP_TEST)
 
 # benchmarks
-option(HIBP_BENCH "Enable tests" OFF)
+option(HIBP_BENCH "Build HIBP benchmarks" OFF)
 if(HIBP_BENCH)
   add_subdirectory(bench)
 else(HIBP_BENCH)
-  message(STATUS "Benchmarks are disabled. Set HIBP_BENCH to ON to run tests.")
+  message(STATUS "Building HIBP benchmarks is disabled. Set HIBP_BENCH to ON to build them.")
 endif(HIBP_BENCH)
 
