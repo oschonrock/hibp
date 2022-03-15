@@ -10,7 +10,6 @@
 
 static constexpr std::size_t size = 100;
 static constexpr std::size_t step = 4;
-static constexpr std::size_t seed = 2;
 
 void arrCmpInt(benchmark::State& state) {
   auto idx = static_cast<std::size_t>(state.range(0));
