@@ -25,6 +25,7 @@ for arg; do
     clang)        COMPILER=clang ;;
     gcc)          COMPILER=gcc ;;
     clean)        CLEAN=1 ;;
+    test)         TEST="-DHIBP_TEST=ON";;
     bench)        BENCH="-DHIBP_BENCH=ON";;
     reset)        RESET=1 ;;
     *)            echo -e "unknown option $arg\n$USAGE" >&2;  exit 1 ;;
