@@ -10,12 +10,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 if (MSVC)
   set(PROJECT_COMPILE_OPTIONS /Wall /analyze)
   string(APPEND CMAKE_CXX_FLAGS_DEBUG          " /fsanitize=address")
-  string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO " /fsanitize=address")
 else()
   set(PROJECT_COMPILE_OPTIONS -Wall -Wextra -Wpedantic -Wshadow -Wextra-semi
     -Wmissing-noreturn -Wconversion -Wsign-conversion)
   string(APPEND CMAKE_CXX_FLAGS_DEBUG          " -fsanitize=address,undefined,leak")
-  string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO " -fsanitize=address,undefined,leak")
 endif()
 
 if (WIN32)
@@ -58,11 +56,6 @@ add_executable(hibp_convert app/hibp_convert.cpp)
 target_compile_options(hibp_convert PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_convert PRIVATE toolbelt sha1 hibp tbb)
 
-
-add_executable(heap app/heap.cpp)
-target_compile_options(heap PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(heap PRIVATE toolbelt fmt)
-
 add_executable(heap_primitives app/heap_primitives.cpp)
 target_compile_options(heap_primitives PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(heap_primitives PRIVATE toolbelt fmt)
@@ -71,8 +64,13 @@ add_executable(vectorized_strcmp app/vectorized_strcmp.cpp)
 target_compile_options(vectorized_strcmp PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(vectorized_strcmp PRIVATE toolbelt fmt hibp)
 
-# tests
-add_subdirectory(test)
+option(ARRCMP_TEST "Enable tests" OFF)
+if(ARRCMP_TEST)
+  enable_testing()
+  add_subdirectory(test)
+else(ARRCMP_TEST)
+  message(STATUS "Tests are disabled. Set ARRCMP_TEST to ON to run tests.")
+endif(ARRCMP_TEST)
 
 # benchmarks
 add_subdirectory(bench)
