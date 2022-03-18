@@ -157,7 +157,7 @@ struct database<ValueType>::const_iterator {
   const_iterator(database<ValueType>& ffdb, std::size_t pos) : ffdb_(&ffdb), pos_(pos) {}
 
   // clang-format off
-  value_type operator*() { return current(); }
+  reference operator*() const { return current(); }
   pointer    operator->() { current(); return &cur_; }
 
   bool operator==(const const_iterator& other) const { return ffdb_ == other.ffdb_ && pos_ == other.pos_; }
@@ -184,15 +184,16 @@ struct database<ValueType>::const_iterator {
 private:
   database*   ffdb_ = nullptr;
   std::size_t pos_{};
-  ValueType   cur_;
-  bool        cur_valid_ = false;
+  // cur_ and cur_valid_ are mutable so that operator* can be const
+  mutable value_type cur_;
+  mutable bool      cur_valid_ = false;
 
   void set_pos(std::size_t pos) {
     pos_       = pos;
     cur_valid_ = false;
   }
 
-  ValueType current() {
+  reference current() const {
     if (!cur_valid_) {
       cur_       = ffdb_->get_record(pos_);
       cur_valid_ = true;
