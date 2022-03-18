@@ -158,13 +158,13 @@ struct database<ValueType>::const_iterator {
 
   // clang-format off
   reference operator*() const { return current(); }
-  pointer    operator->() { current(); return &cur_; }
+  pointer   operator->() const { current(); return &cur_; }
 
   bool operator==(const const_iterator& other) const { return ffdb_ == other.ffdb_ && pos_ == other.pos_; }
   
-  const_iterator& operator++() { set_pos(pos_ + 1); return *this; }
+  const_iterator& operator++() { return *this += 1; }
   const_iterator operator++(int) { const_iterator tmp = *this; ++(*this); return tmp; } // NOLINT why const?
-  const_iterator& operator--() { set_pos(pos_ - 1); return *this; }
+  const_iterator& operator--() { return *this -= 1; }
   const_iterator operator--(int) { const_iterator tmp = *this; --(*this); return tmp; } // NOLINT why const?
 
   const_iterator& operator+=(std::size_t offset) { set_pos(pos_ + offset); return *this; }
@@ -179,14 +179,14 @@ struct database<ValueType>::const_iterator {
   // clang-format on
 
   std::size_t pos() { return pos_; }
-  std::string filename() { return ffdb_->filename(); } // breaks encapsulation?
+  std::string filename() { return ffdb_->filename(); }
 
 private:
   database*   ffdb_ = nullptr;
   std::size_t pos_{};
   // cur_ and cur_valid_ are mutable so that operator* can be const
   mutable value_type cur_;
-  mutable bool      cur_valid_ = false;
+  mutable bool       cur_valid_ = false;
 
   void set_pos(std::size_t pos) {
     pos_       = pos;
