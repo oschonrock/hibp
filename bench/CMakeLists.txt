@@ -11,12 +11,12 @@ endif()
 
 find_package(benchmark REQUIRED)
 
-add_executable(arrcmp arrcmp.cpp)
-target_compile_options(arrcmp PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(arrcmp fmt hibp asmlib benchmark::benchmark)
+add_executable(bench_arrcmp bench_arrcmp.cpp)
+target_compile_options(bench_arrcmp PRIVATE ${PROJECT_COMPILE_OPTIONS})
+target_link_libraries(bench_arrcmp fmt hibp asmlib benchmark::benchmark)
 
-add_executable(ordering ordering.cpp)
-target_compile_options(ordering PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(ordering fmt hibp asmlib benchmark::benchmark)
+add_executable(bench_ordering bench_ordering.cpp)
+target_compile_options(bench_ordering PRIVATE ${PROJECT_COMPILE_OPTIONS})
+target_link_libraries(bench_ordering fmt hibp asmlib benchmark::benchmark)
 
 
