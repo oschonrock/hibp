@@ -4,7 +4,6 @@
 #include <bit>
 #include <compare>
 #include <concepts>
-#include <cstddef>
 #include <cstdint>
 #include <emmintrin.h>
 #include <immintrin.h>
@@ -125,7 +124,7 @@ constexpr std::size_t next_size() {
 
 template <typename T>
 requires std::integral<T> std::strong_ordering cmp(T a, T b) {
-// gcc compiles a fast `<=>`, but clang is quite slow
+// gcc & MSVC compile a fast `<=>`, but clang is quite slow
 #ifdef __clang__
   return std::bit_cast<std::strong_ordering>(static_cast<std::int8_t>((a > b) - (a < b)));
 #else
