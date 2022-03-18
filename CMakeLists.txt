@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 if (MSVC)
-  set(PROJECT_COMPILE_OPTIONS /Wall /analyze)
+  set(PROJECT_COMPILE_OPTIONS /W3)
   string(APPEND CMAKE_CXX_FLAGS_DEBUG " /fsanitize=address")
 else() # unix'ish
   set(PROJECT_COMPILE_OPTIONS -Wall -Wextra -Wpedantic -Wshadow -Wextra-semi
@@ -29,7 +29,9 @@ else()
 endif()
 
 add_subdirectory(ext/fmt)
-target_compile_options(fmt INTERFACE -Wno-missing-noreturn)
+if (NOT MSVC)
+  target_compile_options(fmt INTERFACE -Wno-missing-noreturn)
+endif()
 
 add_subdirectory(ext/date)
 
@@ -46,17 +48,19 @@ add_library(hibp INTERFACE)
 target_include_directories(hibp INTERFACE include)
 target_link_libraries(toolbelt INTERFACE fmt)
 
+find_package(TBB REQUIRED)
+
 add_executable(hibp_search app/hibp_search.cpp)
 target_compile_options(hibp_search PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_search PRIVATE toolbelt sha1 hibp tbb)
+target_link_libraries(hibp_search PRIVATE toolbelt sha1 hibp TBB::tbb)
 
 add_executable(hibp_sort app/hibp_sort.cpp)
 target_compile_options(hibp_sort PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_sort PRIVATE toolbelt hibp tbb)
+target_link_libraries(hibp_sort PRIVATE toolbelt hibp TBB::tbb)
 
 add_executable(hibp_convert app/hibp_convert.cpp)
 target_compile_options(hibp_convert PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_convert PRIVATE toolbelt sha1 hibp tbb)
+target_link_libraries(hibp_convert PRIVATE toolbelt sha1 hibp TBB::tbb)
 
 # add_executable(heap_primitives app/heap_primitives.cpp)
 # target_compile_options(heap_primitives PRIVATE ${PROJECT_COMPILE_OPTIONS})
