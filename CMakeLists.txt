@@ -18,16 +18,6 @@ else() # unix'ish
     endif()
 endif()
 
-if (WIN32)
-  # combine everthing into one binary on windows
-  set(BUILD_SHARED_LIBS OFF)
-  # -static removes dependencies on libgcc.dll, libstdc++.dll and winthread.dll on windows
-  set(PROJECT_STATIC_OPTIONS "-static")
-else()
-  # on linux there is not much point being statically linked
-  set(PROJECT_STATIC_OPTIONS "")
-endif()
-
 add_subdirectory(ext/fmt)
 if (NOT MSVC)
   target_compile_options(fmt INTERFACE -Wno-missing-noreturn)
