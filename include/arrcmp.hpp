@@ -16,7 +16,7 @@ namespace arrcmp {
 #ifdef _MSC_VER
 #include <intrin.h>
 
-static inline int __builtin_ctzl(std::uint64_t x) {
+static inline int __builtin_ctzll(std::uint64_t x) {
     unsigned long ret;
     _BitScanForward64(&ret, x);
     return (int)ret;
@@ -192,7 +192,7 @@ struct three_way {
       using T   = impl::largest_vector<N>;
       auto mask = impl::vector_cmp<T>(a, b);
       if (mask == 0) return equality_value;
-      auto count = static_cast<unsigned>(__builtin_ctzl(mask));
+      auto count = static_cast<unsigned>(__builtin_ctzll(mask));
       return impl::cmp(a[count], b[count]);
     }
   }
@@ -211,7 +211,7 @@ struct three_way_int {
       using T   = impl::largest_vector<N>;
       auto mask = impl::vector_cmp<T>(a, b);
       if (mask == 0) return equality_value;
-      auto count = static_cast<unsigned>(__builtin_ctzl(mask));
+      auto count = static_cast<unsigned>(__builtin_ctzll(mask));
       return impl::cmp_by_substracting(a[count], b[count]);
     }
   }
