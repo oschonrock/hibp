@@ -3,7 +3,6 @@ project(hibp)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -29,28 +28,44 @@ add_subdirectory(ext/fast_float)
 
 add_library(toolbelt INTERFACE)
 target_include_directories(toolbelt INTERFACE ext/toolbelt)
+target_compile_features(toolbelt INTERFACE cxx_std_20)
 target_link_libraries(toolbelt INTERFACE date fast_float)
 
 add_library(sha1 INTERFACE)
 target_include_directories(sha1 INTERFACE ext/sha1)
 
+add_library(arrcmp INTERFACE)
+target_include_directories(arrcmp INTERFACE include)
+target_compile_features(arrcmp INTERFACE cxx_std_20)
+target_link_libraries(arrcmp INTERFACE fmt)
+
 add_library(hibp INTERFACE)
 target_include_directories(hibp INTERFACE include)
-target_link_libraries(toolbelt INTERFACE fmt)
+target_compile_features(hibp INTERFACE cxx_std_20)
+target_link_libraries(hibp INTERFACE fmt arrcmp)
 
 find_package(TBB REQUIRED)
 
+add_library(flat_file INTERFACE)
+target_include_directories(flat_file INTERFACE include)
+target_compile_features(flat_file INTERFACE cxx_std_20)
+if (MSVC) # better solutions?
+  target_link_libraries(flat_file INTERFACE fmt tBB::tbb)
+else()
+  target_link_libraries(flat_file INTERFACE fmt tbb)
+endif()
+
 add_executable(hibp_search app/hibp_search.cpp)
 target_compile_options(hibp_search PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_search PRIVATE toolbelt sha1 hibp TBB::tbb)
+target_link_libraries(hibp_search PRIVATE toolbelt sha1 hibp flat_file)
 
 add_executable(hibp_sort app/hibp_sort.cpp)
 target_compile_options(hibp_sort PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_sort PRIVATE toolbelt hibp TBB::tbb)
+target_link_libraries(hibp_sort PRIVATE toolbelt hibp flat_file)
 
 add_executable(hibp_convert app/hibp_convert.cpp)
 target_compile_options(hibp_convert PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_convert PRIVATE toolbelt sha1 hibp TBB::tbb)
+target_link_libraries(hibp_convert PRIVATE toolbelt sha1 hibp flat_file)
 
 # add_executable(heap_primitives app/heap_primitives.cpp)
 # target_compile_options(heap_primitives PRIVATE ${PROJECT_COMPILE_OPTIONS})
