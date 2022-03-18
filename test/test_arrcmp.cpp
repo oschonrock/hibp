@@ -45,16 +45,12 @@ void test() {
   }
 }
 
-template <std::size_t Min, std::size_t... Sizes>
-void test_set(std::index_sequence<Sizes...> /*unused*/) {
-  (test<Min + Sizes>(), ...);
-}
-
 template <std::size_t Min, std::size_t Max>
-void make_test_set() {
-  test_set<Min>(std::make_index_sequence<Max - Min + 1>{});
+void test_set() {
+  []<std::size_t... Sizes>(std::index_sequence<Sizes...>  /*sizes*/) { (test<Min + Sizes>(), ...); }
+  (std::make_index_sequence<Max - Min + 1>{});
 }
 
-TEST(arrcmp, arrays) { // NOLINT
-  make_test_set<1, 2 * sizeof(__m128i) - 1>(); // TODO auto detect the largest MM register
+TEST(arrcmp, arrays) {                         // NOLINT
+  test_set<1, 2 * arrcmp::impl::maxvec - 1>(); // TODO auto detect the largest MM register
 }
