@@ -8,6 +8,7 @@ add_compile_options(${GTEST_CFLAGS})
 function (add_unit_test UNIT_TEST)
     set(UNIT_TESTS ${UNIT_TESTS} ${UNIT_TEST} PARENT_SCOPE)
     add_executable(${UNIT_TEST} ${UNIT_TEST}.cpp)
+    target_compile_options(${UNIT_TEST} PRIVATE ${PROJECT_COMPILE_OPTIONS})
     add_test(NAME ${UNIT_TEST} COMMAND ${UNIT_TEST})
 endfunction()
 
@@ -21,5 +22,5 @@ add_custom_command(
   COMMENT "Run tests"
   POST_BUILD 
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-  COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIGURATION> --output-on-failure # --verbose
+  COMMAND GTEST_COLOR=1 ${CMAKE_CTEST_COMMAND} -C $<CONFIGURATION> --output-on-failure # --verbose
   )

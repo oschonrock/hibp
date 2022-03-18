@@ -1,6 +1,7 @@
 #include "arrcmp.hpp"
 #include "gtest/gtest.h"
 #include <string>
+#include <vector>
 
 template <typename T>
 int three_way_cmp(T a, T b) {
@@ -24,22 +25,29 @@ void test() {
         auto a = std::array<std::byte, N>{};
         auto b = std::array<std::byte, N>{};
         a[pos] = a_byte;
-        b[pos] = b_byte;
 
-        SCOPED_TRACE("N=" + std::to_string(N) +
-                     ", a_byte=" + std::to_string(static_cast<unsigned>(a_byte)) +
-                     ", b_byte=" + std::to_string(static_cast<unsigned>(b_byte)) +
-                     ", pos=" + std::to_string(pos));
+        std::vector<std::size_t> b_positions{pos};
+        // offset test, ensures correct byte swapping for endianess
+        if (pos < N - 1) b_positions.push_back(pos + 1);
+        for (auto b_pos: b_positions) {
+          b[b_pos] = b_byte;
 
-        EXPECT_EQ(arrcmp::array_compare(a, b, arrcmp::equal{}), a == b);
-        EXPECT_EQ(arrcmp::array_compare(a, b, arrcmp::three_way{}), a <=> b);
-        EXPECT_EQ(get_sign(arrcmp::array_compare(a, b, arrcmp::three_way_int{})),
-                  three_way_cmp(a, b));
+          SCOPED_TRACE("N=" + std::to_string(N) +
+                       ", a_byte=" + std::to_string(static_cast<unsigned>(a_byte)) +
+                       ", b_byte=" + std::to_string(static_cast<unsigned>(b_byte)) +
+                       ", pos=" + std::to_string(pos) +
+                       ", b_pos=" + std::to_string(b_pos));
 
-        EXPECT_EQ(arrcmp::array_compare(b, a, arrcmp::equal{}), b == a);
-        EXPECT_EQ(arrcmp::array_compare(b, a, arrcmp::three_way{}), b <=> a);
-        EXPECT_EQ(get_sign(arrcmp::array_compare(b, a, arrcmp::three_way_int{})),
-                  three_way_cmp(b, a));
+          EXPECT_EQ(arrcmp::array_compare(a, b, arrcmp::equal{}), a == b);
+          EXPECT_EQ(arrcmp::array_compare(a, b, arrcmp::three_way{}), a <=> b);
+          EXPECT_EQ(get_sign(arrcmp::array_compare(a, b, arrcmp::three_way_int{})),
+                    three_way_cmp(a, b));
+
+          EXPECT_EQ(arrcmp::array_compare(b, a, arrcmp::equal{}), b == a);
+          EXPECT_EQ(arrcmp::array_compare(b, a, arrcmp::three_way{}), b <=> a);
+          EXPECT_EQ(get_sign(arrcmp::array_compare(b, a, arrcmp::three_way_int{})),
+                    three_way_cmp(b, a));
+        }
       }
     }
   }
@@ -47,7 +55,7 @@ void test() {
 
 template <std::size_t Min, std::size_t Max>
 void test_set() {
-  []<std::size_t... Sizes>(std::index_sequence<Sizes...>  /*sizes*/) { (test<Min + Sizes>(), ...); }
+  []<std::size_t... Sizes>(std::index_sequence<Sizes...> /*sizes*/) { (test<Min + Sizes>(), ...); }
   (std::make_index_sequence<Max - Min + 1>{});
 }
 

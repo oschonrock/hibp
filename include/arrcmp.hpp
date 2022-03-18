@@ -11,6 +11,8 @@
 
 namespace arrcmp {
 
+// https://godbolt.org/z/qEf7dnxj4
+
 #ifdef _MSC_VER
 #include <intrin.h>
 
@@ -19,14 +21,14 @@ static inline int __builtin_ctzl(std::uint64_t x) {
     _BitScanForward64(&ret, x);
     return (int)ret;
 }
-static inline int __builtin_bswap16(std::uint16_t x) {
-  _byteswap_ushort(x);
+static inline std::uint16_t __builtin_bswap16(std::uint16_t x) {
+  return _byteswap_ushort(x);
 }
-static inline int __builtin_bswap32(std::uint32_t x) {
-  _byteswap_ulong(x);
+static inline std::uint32_t __builtin_bswap32(std::uint32_t x) {
+  return _byteswap_ulong(x);
 }
-static inline int __builtin_bswap64(std::uint64_t x) {
-  _byteswap_uint64(x);
+static inline std::uint64_t __builtin_bswap64(std::uint64_t x) {
+  return _byteswap_uint64(x);
 }
 #endif
 
@@ -108,7 +110,7 @@ static constexpr std::size_t maxvec = sizeof(__m512i);
 
 template <std::size_t N>
 using largest_vector = std::conditional_t<
-    avx512 && N >= sizeof(__m512i), __m512i,
+  avx512 && N >= sizeof(__m512i), __m512i,
     std::conditional_t<avx2 && N >= sizeof(__m256i), __m256i,
                        std::conditional_t<sse && N >= sizeof(__m128i), __m128i, std::uint8_t>>>;
 
