@@ -15,18 +15,18 @@ namespace arrcmp {
 #ifdef _MSC_VER
 #include <intrin.h>
 
-static inline int __builtin_ctzll(std::uint64_t x) {
-    unsigned long ret;
-    _BitScanForward64(&ret, x);
-    return (int)ret;
+constexpr static inline int __builtin_ctzll(std::uint64_t x) noexcept {
+  unsigned long ret;
+  _BitScanForward64(&ret, x);
+  return (int)ret;
 }
-static inline std::uint16_t __builtin_bswap16(std::uint16_t x) {
+constexpr static inline std::uint16_t __builtin_bswap16(std::uint16_t x) noexcept {
   return _byteswap_ushort(x);
 }
-static inline std::uint32_t __builtin_bswap32(std::uint32_t x) {
+constexpr static inline std::uint32_t __builtin_bswap32(std::uint32_t x) noexcept {
   return _byteswap_ulong(x);
 }
-static inline std::uint64_t __builtin_bswap64(std::uint64_t x) {
+constexpr static inline std::uint64_t __builtin_bswap64(std::uint64_t x) noexcept {
   return _byteswap_uint64(x);
 }
 #endif
@@ -109,12 +109,12 @@ static constexpr std::size_t maxvec = sizeof(__m512i);
 
 template <std::size_t N>
 using largest_vector = std::conditional_t<
-  avx512 && N >= sizeof(__m512i), __m512i,
+    avx512 && N >= sizeof(__m512i), __m512i,
     std::conditional_t<avx2 && N >= sizeof(__m256i), __m256i,
                        std::conditional_t<sse && N >= sizeof(__m128i), __m128i, std::uint8_t>>>;
 
 template <typename std::size_t N>
-constexpr std::size_t next_size() {
+constexpr std::size_t next_size() noexcept {
   if constexpr (N > sizeof(std::uint64_t)) {
     return sizeof(largest_vector<N>);
   } else {
@@ -123,7 +123,8 @@ constexpr std::size_t next_size() {
 }
 
 template <typename T>
-requires std::integral<T> std::strong_ordering cmp(T a, T b) {
+requires std::integral<T>
+constexpr std::strong_ordering cmp(T a, T b) noexcept {
 // gcc & MSVC compile a fast `<=>`, but clang is quite slow
 #ifdef __clang__
   return std::bit_cast<std::strong_ordering>(static_cast<std::int8_t>((a > b) - (a < b)));
@@ -132,13 +133,13 @@ requires std::integral<T> std::strong_ordering cmp(T a, T b) {
 #endif
 }
 
-inline std::strong_ordering cmp(std::byte a, std::byte b) {
+constexpr inline std::strong_ordering cmp(std::byte a, std::byte b) noexcept {
   return cmp(static_cast<std::uint8_t>(a), static_cast<std::uint8_t>(b));
 }
 
 template <typename T>
 requires std::integral<T>
-int cmp_by_substracting(T a, T b) {
+constexpr int cmp_by_substracting(T a, T b) noexcept {
   if constexpr (sizeof(T) < sizeof(int)) {
     // returning an int which has enough range for this subtraction
     return a - b;
@@ -148,12 +149,12 @@ int cmp_by_substracting(T a, T b) {
   }
 }
 
-inline int cmp_by_substracting(std::byte a, std::byte b) {
+constexpr inline int cmp_by_substracting(std::byte a, std::byte b) noexcept {
   return cmp_by_substracting(static_cast<std::uint8_t>(a), static_cast<std::uint8_t>(b));
 }
 
 template <typename T>
-std::uint64_t vector_cmp(const std::byte* a, const std::byte* b) {
+constexpr std::uint64_t vector_cmp(const std::byte* a, const std::byte* b) noexcept {
   if constexpr (std::same_as<T, __m128i>) {
     const auto sa = _mm_loadu_si128(reinterpret_cast<const __m128i*>(a)); // NOLINT reincast
     const auto sb = _mm_loadu_si128(reinterpret_cast<const __m128i*>(b)); // NOLINT reincast
