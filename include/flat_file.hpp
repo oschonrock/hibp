@@ -82,8 +82,8 @@ public:
   }
 };
 
-// CAUTION: flat_file ALWAYS INVALIDATES its iterators during move assignment. This can
-// be surprising and is UNLIKE other STL containers.
+// CAUTION: flat_file::database ALWAYS INVALIDATES its iterators during move assignment.
+// This can be surprising as this is UNLIKE the STL containers.
 template <typename ValueType>
 class database {
 
@@ -225,7 +225,7 @@ std::vector<std::string> sort_into_chunks(typename database<ValueType>::const_it
     chunk_filenames.push_back(chunk_filename);
 
     std::size_t start = chunk * chunk_size;
-    std::size_t end   = chunk * chunk_size + std::min(chunk_size, records_to_sort - start);
+    std::size_t end   = start + std::min(chunk_size, records_to_sort - start);
     std::cerr << fmt::format("sorting [{:12d},{:12d}) => {:s}\n", start, end, chunk_filename);
 
     std::vector<ValueType> objs;
@@ -262,7 +262,7 @@ void merge_sorted_chunks(const std::vector<std::string>& chunk_filenames,
 
   struct head {
     ValueType   value;
-    std::size_t idx; // index into chunks to know here I came from
+    std::size_t idx; // index into chunks to know where I came from
   };
 
   // Comparator for the priority queue. Negation because priority queue is "max" by default.

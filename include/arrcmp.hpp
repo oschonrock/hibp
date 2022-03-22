@@ -55,7 +55,7 @@ concept any_of = (std::same_as<T, U> || ...);
 // Uses compiler intrinsics for endianess conversion if required and if
 // `swap_if_required` == true.
 // It is the caller's responsibility to ensure that enough bytes are
-// readable/dereferencable etc. This compiles to just a `mov and `bswap`
+// readable/dereferencable etc. This compiles to just a `mov` and `bswap`
 template <typename T, bool swap_if_required = true>
 constexpr T bytearray_cast(const std::byte* source) noexcept requires
     any_of<T, std::uint64_t, std::uint32_t, std::uint16_t, std::uint8_t> {
@@ -183,7 +183,7 @@ constexpr std::uint64_t vector_cmp(const std::byte* a, const std::byte* b) noexc
 
 struct three_way {
   template <std::size_t N>
-  constexpr std::strong_ordering operator()(const std::byte* a, const std::byte* b) noexcept {
+  constexpr std::strong_ordering operator()(const std::byte* a, const std::byte* b) const noexcept {
     static_assert(N <= impl::maxvec, "this cpu cannot handle compares this large");
     if constexpr (N <= sizeof(std::uint64_t)) {
       using T = impl::largest_uint<N>;
@@ -202,7 +202,7 @@ struct three_way {
 
 struct three_way_int {
   template <std::size_t N>
-  constexpr int operator()(const std::byte* a, const std::byte* b) noexcept {
+  constexpr int operator()(const std::byte* a, const std::byte* b) const noexcept {
     static_assert(N <= impl::maxvec, "this cpu cannot handle compares this large");
     if constexpr (N <= sizeof(std::uint64_t)) {
       using T = impl::largest_uint<N>;
@@ -221,7 +221,7 @@ struct three_way_int {
 
 struct equal {
   template <std::size_t N>
-  constexpr bool operator()(const std::byte* a, const std::byte* b) noexcept {
+  constexpr bool operator()(const std::byte* a, const std::byte* b) const noexcept {
     static_assert(N <= impl::maxvec, "this cpu cannot handle compares this large");
     if constexpr (N <= sizeof(std::uint64_t)) {
       using T = impl::largest_uint<N>;
