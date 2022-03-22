@@ -39,10 +39,10 @@ BUILD_DIR=$BUILD/$COMPILER/$TYPE
 if [[ "$COMPILER" == "clang" ]]
 then
     # detect version specific preferred name
-    if command -v clang-13 &> /dev/null
+    if command -v clang-14 &> /dev/null
     then
-      C_COMPILER=clang-13 
-      CXX_COMPILER=clang++-13
+      C_COMPILER=clang-14 
+      CXX_COMPILER=clang++-14
     else
       C_COMPILER=clang 
       CXX_COMPILER=clang++

@@ -111,7 +111,7 @@ template <std::size_t N>
 using largest_vector = std::conditional_t<
     avx512 && N >= sizeof(__m512i), __m512i,
     std::conditional_t<avx2 && N >= sizeof(__m256i), __m256i,
-                       std::conditional_t<sse && N >= sizeof(__m128i), __m128i, std::uint8_t>>>;
+                       std::conditional_t<sse && N >= sizeof(__m128i), __m128i, std::uint64_t>>>;
 
 template <typename std::size_t N>
 constexpr std::size_t next_size() noexcept {
