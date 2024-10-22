@@ -22,7 +22,8 @@ Checks: '*,-fuchsia*,
 -Wunused-parameter,
 -bugprone-easily-swappable-parameters,
 -google-readability-todo,
--llvm-header-guard'
+-llvm-header-guard,
+-readability-identifier-length'
 
 CheckOptions:
   - key:             cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor
