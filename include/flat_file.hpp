@@ -59,10 +59,10 @@ public:
   }
 
   // a "unique manager" .. no copies, move-only
-  stream_writer(const stream_writer& other) = delete;
+  stream_writer(const stream_writer& other)            = delete;
   stream_writer& operator=(const stream_writer& other) = delete;
 
-  stream_writer(stream_writer&& other) noexcept = default;
+  stream_writer(stream_writer&& other) noexcept            = default;
   stream_writer& operator=(stream_writer&& other) noexcept = default;
 
   ~stream_writer() { flush(); }

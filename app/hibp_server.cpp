@@ -10,8 +10,6 @@
 
 int main(int argc, char* argv[]) {
 
-  int uniq = 1000;
-
   try {
     if (argc < 2) {
       throw std::domain_error("USAGE: " + std::string(argv[0]) + " dbfile.bin");
@@ -20,11 +18,11 @@ int main(int argc, char* argv[]) {
 
     auto router = std::make_unique<restinio::router::express_router_t<>>();
     router->http_get(R"(/:password)", [&](auto req, auto params) {
-      thread_local flat_file::database<hibp::pawned_pw> db(db_file);
+      thread_local flat_file::database<hibp::pawned_pw> db(db_file, 4096 / sizeof(hibp::pawned_pw));
       const auto qp = restinio::parse_query(req->header().query());
 
       SHA1 sha1;
-      sha1.update(std::string(params["password"]) + std::to_string(uniq++));
+      sha1.update(std::string(params["password"]));
       hibp::pawned_pw needle = hibp::convert_to_binary(sha1.final());
 
       std::optional<hibp::pawned_pw> maybe_ppw;
@@ -47,9 +45,7 @@ int main(int argc, char* argv[]) {
       using request_handler_t = restinio::router::express_router_t<>;
     };
 
-    restinio::run(
-        restinio::on_thread_pool<my_server_traits>(8)
-        // restinio::on_this_thread<my_server_traits>()
+    restinio::run(restinio::on_thread_pool<my_server_traits>(std::thread::hardware_concurrency())
                       .address("localhost")
                       .request_handler(std::move(router)));
 
@@ -57,7 +53,5 @@ int main(int argc, char* argv[]) {
     std::cerr << "something went wrong: " << e.what() << "\n";
     return EXIT_FAILURE;
   }
-
-  std::cout << uniq << "\n";
   return EXIT_SUCCESS;
 }
