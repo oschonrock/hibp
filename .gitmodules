@@ -16,3 +16,6 @@
 [submodule "ext/google_benchmark_plot"]
 	path = ext/google_benchmark_plot
 	url = https://github.com/lakshayg/google_benchmark_plot.git
+[submodule "ext/restinio"]
+	path = ext/restinio
+	url = git@github.com:Stiffstream/restinio.git

@@ -33,6 +33,9 @@ target_link_libraries(toolbelt INTERFACE date fast_float)
 
 add_library(sha1 INTERFACE)
 target_include_directories(sha1 INTERFACE ext/sha1)
+if (NOT MSVC)
+  target_compile_options(sha1 INTERFACE -Wno-sign-conversion)
+endif()
 
 add_library(arrcmp INTERFACE)
 target_include_directories(arrcmp INTERFACE include)
@@ -55,9 +58,26 @@ else()
   target_link_libraries(flat_file INTERFACE fmt tbb)
 endif()
 
+
+set(RESTINIO_EXPLICIT_CPPSTD 20)
+set(RESTINIO_ASIO_SOURCE standalone)
+set(asio_INCLUDE_DIRS ../asio/include) # relative to ext/restinio/dev/restinio
+set(BUILD_STATIC_LIBS ON CACHE BOOL "OVERIIDDEN") # not a great way but required?
+add_subdirectory(ext/restinio/dev/nodejs/llhttp)
+# add_subdirectory(ext/fmt) # not needed as alredy part of our root CMakelists
+add_subdirectory(ext/restinio/dev/expected-lite)
+add_subdirectory(ext/restinio/dev/restinio)
+if (NOT MSVC)
+  target_compile_options(restinio INTERFACE -Wno-shadow -Wno-sign-conversion -Wno-shorten-64-to-32 -Wno-extra-semi)
+endif()
+
 add_executable(hibp_search app/hibp_search.cpp)
 target_compile_options(hibp_search PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_search PRIVATE toolbelt sha1 hibp flat_file)
+
+add_executable(hibp_server app/hibp_server.cpp)
+target_compile_options(hibp_server PRIVATE ${PROJECT_COMPILE_OPTIONS})
+target_link_libraries(hibp_server PRIVATE toolbelt sha1 hibp flat_file restinio)
 
 add_executable(hibp_sort app/hibp_sort.cpp)
 target_compile_options(hibp_sort PRIVATE ${PROJECT_COMPILE_OPTIONS})
@@ -66,14 +86,6 @@ target_link_libraries(hibp_sort PRIVATE toolbelt hibp flat_file)
 add_executable(hibp_convert app/hibp_convert.cpp)
 target_compile_options(hibp_convert PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_convert PRIVATE toolbelt sha1 hibp flat_file)
-
-# add_executable(heap_primitives app/heap_primitives.cpp)
-# target_compile_options(heap_primitives PRIVATE ${PROJECT_COMPILE_OPTIONS})
-# target_link_libraries(heap_primitives PRIVATE toolbelt fmt)
-
-# add_executable(vectorized_strcmp app/vectorized_strcmp.cpp)
-# target_compile_options(vectorized_strcmp PRIVATE ${PROJECT_COMPILE_OPTIONS})
-# target_link_libraries(vectorized_strcmp PRIVATE toolbelt fmt hibp)
 
 option(HIBP_TEST "Enable HIBP tests" OFF)
 if(HIBP_TEST)
