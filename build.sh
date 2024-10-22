@@ -66,6 +66,6 @@ $CMAKE -S . -B $BUILD_DIR $COMPILER_OPTIONS -DCMAKE_BUILD_TYPE=$TYPE $TEST $BENC
 
 [[ -n $CLEAN ]] && $CMAKE --build $BUILD_DIR --target clean
 
-$CMAKE --build $BUILD_DIR -- -j8 $VERBOSE
+$CMAKE --build $BUILD_DIR -- -j4 $VERBOSE
 
 cd $BUILD_DIR
