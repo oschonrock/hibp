@@ -1,23 +1,17 @@
 #pragma once
 
 #include "fmt/format.h"
-#include "hibp.hpp"
 #include "os/bch.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
-#include <exception>
 #include <execution>
 #include <filesystem>
 #include <fstream>
 #include <ios>
 #include <iostream>
-#include <list>
-#include <memory>
-#include <numeric>
 #include <queue>
-#include <ranges>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -235,7 +229,7 @@ std::vector<std::string> sort_into_chunks(typename database<ValueType>::const_it
                 return comp(std::invoke(proj, a), std::invoke(proj, b));
               });
     auto part = file_writer<ValueType>(chunk_filename);
-    for (const auto& ppw: objs) part.write(ppw);
+    for (const auto& obj: objs) part.write(obj);
   }
   return chunk_filenames;
 }
@@ -293,8 +287,7 @@ void merge_sorted_chunks(const std::vector<std::string>& chunk_filenames,
     }
   }
 
-  // for (const auto& filename: chunk_filenames)
-  //   std::filesystem::remove(std::filesystem::path(filename));
+  for (const auto& filename: chunk_filenames) std::filesystem::remove(filename);
 }
 
 template <typename ValueType, typename Comp = std::less<>, typename Proj = std::identity>
