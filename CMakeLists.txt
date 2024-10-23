@@ -87,6 +87,10 @@ add_executable(hibp_convert app/hibp_convert.cpp)
 target_compile_options(hibp_convert PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_convert PRIVATE toolbelt sha1 hibp flat_file)
 
+add_executable(hibp_join app/hibp_join.cpp)
+target_compile_options(hibp_join PRIVATE ${PROJECT_COMPILE_OPTIONS})
+target_link_libraries(hibp_join PRIVATE hibp flat_file)
+
 option(HIBP_TEST "Enable HIBP tests" OFF)
 if(HIBP_TEST)
   enable_testing()
