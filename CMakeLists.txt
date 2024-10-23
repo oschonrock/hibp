@@ -45,7 +45,7 @@ target_link_libraries(arrcmp INTERFACE fmt)
 add_library(hibp INTERFACE)
 target_include_directories(hibp INTERFACE include)
 target_compile_features(hibp INTERFACE cxx_std_20)
-target_link_libraries(hibp INTERFACE fmt arrcmp)
+target_link_libraries(hibp INTERFACE fmt arrcmp toolbelt)
 
 find_package(TBB REQUIRED)
 
