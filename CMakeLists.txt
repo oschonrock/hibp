@@ -91,6 +91,14 @@ add_executable(hibp_join app/hibp_join.cpp)
 target_compile_options(hibp_join PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_join PRIVATE hibp flat_file)
 
+# don't seem to need these? 
+# find_package(CURL REQUIRED)
+# pkg_search_module(LIBEVENT libevent)
+
+add_executable(hibp_download app/hibp_download.cpp)
+target_compile_options(hibp_download PRIVATE ${PROJECT_COMPILE_OPTIONS})
+target_link_libraries(hibp_download PRIVATE curl event) # can just link directly?
+
 option(HIBP_TEST "Enable HIBP tests" OFF)
 if(HIBP_TEST)
   enable_testing()
