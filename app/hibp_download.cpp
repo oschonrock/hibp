@@ -20,6 +20,7 @@ static struct event_base* base;              // NOLINT non-const-global
 static CURLM*             curl_multi_handle; // NOLINT non-const-global
 static struct event*      timeout;           // NOLINT non-const-global
 
+// connects an event with a socketfd
 struct curl_context_t {
   struct event* event;
   curl_socket_t sockfd;
@@ -29,7 +30,7 @@ static void curl_perform(int fd, short event, void* arg);
 
 static curl_context_t* create_curl_context(curl_socket_t sockfd) {
 
-  auto* context = new curl_context_t; // NOLINT
+  auto* context = new curl_context_t; // NOLINT manual new and delete
 
   context->sockfd = sockfd;
   context->event  = event_new(base, sockfd, 0, curl_perform, context);
@@ -40,7 +41,7 @@ static curl_context_t* create_curl_context(curl_socket_t sockfd) {
 static void destroy_curl_context(curl_context_t* context) {
   event_del(context->event);
   event_free(context->event);
-  delete context; // NOLINT
+  delete context; // NOLINT manual new and delete
 }
 
 struct download {
@@ -73,8 +74,8 @@ size_t write_cb(char* ptr, size_t size, size_t nmemb, void* userdata) {
 static std::mutex cerr_mutex; // NOLINT non-const-global
 
 // we use uniq_ptr<download> to keep the address of the downloads stable as queues change
-static std::deque<std::unique_ptr<download>> download_queue; // NOLINT non-const-global
-static std::deque<std::unique_ptr<download>> process_queue;  // NOLINT non-const-global
+static std::queue<std::unique_ptr<download>> download_queue; // NOLINT non-const-global
+static std::queue<std::unique_ptr<download>> process_queue;  // NOLINT non-const-global
 
 static std::mutex              queue_mutex;                            // NOLINT non-const-global
 static std::condition_variable queue_cv;                               // NOLINT non-const-global
@@ -88,7 +89,7 @@ static auto    next_prefix         = 0x0UL;      // NOLINT non-cost-gobal
 static void add_download(const std::string& prefix) {
   auto url = "https://api.pwnedpasswords.com/range/" + prefix;
 
-  auto& dl = download_queue.emplace_back(std::make_unique<download>(prefix));
+  auto& dl = download_queue.emplace(std::make_unique<download>(prefix));
   dl->buffer.reserve(1UL << 16U); // 64kB should be enough for any file for a while
 
   CURL* easy_handle = curl_easy_init();
@@ -129,8 +130,8 @@ static void process_complete_queue_entries() {
     if (!front->complete) {
       break; // these must be done in order, so we don't have to sort afterwards
     }
-    process_queue.push_back(std::move(front));
-    download_queue.pop_front();
+    process_queue.push(std::move(front));
+    download_queue.pop();
   }
   fill_queue();
 }
@@ -139,7 +140,7 @@ static void write_complete_queue_entries(flat_file::stream_writer<hibp::pawned_p
   while (!process_queue.empty()) {
     auto& front = process_queue.front();
     write_lines(writer, *front);
-    process_queue.pop_front();
+    process_queue.pop();
   }
 }
 
