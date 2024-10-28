@@ -5,7 +5,6 @@
 #include <cstdlib>
 #include <curl/curl.h>
 #include <curl/multi.h>
-#include <deque>
 #include <event2/event.h>
 #include <format>
 #include <iostream>
@@ -77,10 +76,11 @@ static std::mutex cerr_mutex; // NOLINT non-const-global
 static std::queue<std::unique_ptr<download>> download_queue; // NOLINT non-const-global
 static std::queue<std::unique_ptr<download>> process_queue;  // NOLINT non-const-global
 
-static std::mutex              queue_mutex;                            // NOLINT non-const-global
-static std::condition_variable queue_cv;                               // NOLINT non-const-global
-static bool                    downloads_ready_for_processing = false; // NOLINT non-const-global
-static bool                    downloads_processed            = false; // NOLINT non-const-global
+static std::mutex              queue_mutex; // NOLINT non-const-global
+static std::condition_variable queue_cv;    // NOLINT non-const-global
+
+enum class state { idle = 0, ready_for_processing, processed };
+static state tstate = state::idle; // NOLINT non-const-global
 
 constexpr auto max_queue_size      = 300L;
 constexpr auto max_prefix_plus_one = 0x100000UL; // 5 hex digits up to FFFFF
@@ -144,6 +144,15 @@ static void write_complete_queue_entries(flat_file::stream_writer<hibp::pawned_p
   }
 }
 
+static std::unordered_map<std::thread::id, std::string> thrnames;
+
+static void thrprinterr(const std::string& msg) {
+  {
+    std::lock_guard lk(cerr_mutex);
+    std::cerr << std::format("thread: {:>5}: {}\n", thrnames[std::this_thread::get_id()], msg);
+  }
+}
+
 static bool process_curl_done_msg(CURLMsg* message) {
   bool  found_successful_completions = false;
   CURL* easy_handle                  = message->easy_handle;
@@ -155,10 +164,9 @@ static bool process_curl_done_msg(CURLMsg* message) {
   curl_multi_remove_handle(curl_multi_handle, easy_handle);
 
   if (result == CURLE_OK) {
-    {
-      std::lock_guard lk(queue_mutex);
-      dl->complete = true;
-    }
+    // safe to do without lock, because we only look at dl->complete during
+    // state::ready_for_processing
+    dl->complete                 = true;
     found_successful_completions = true;
     curl_easy_cleanup(easy_handle);
   } else {
@@ -169,11 +177,8 @@ static bool process_curl_done_msg(CURLMsg* message) {
     }
     dl->retries_left--;
     dl->buffer.clear(); // throw away anything that was returned
-    {
-      std::lock_guard lk(cerr_mutex);
-      std::cerr << std::format("retrying prefix '{}', retries left = {}\n", dl->prefix,
-                               dl->retries_left);
-    }
+    thrprinterr(
+        std::format("retrying prefix '{}', retries left = {}", dl->prefix, dl->retries_left));
     curl_multi_add_handle(curl_multi_handle, easy_handle); // try again with same handle
   }
   return found_successful_completions;
@@ -191,18 +196,12 @@ static void process_curl_messages() {
       break;
     }
     case CURLMSG_LAST: {
-      {
-        std::lock_guard lk(cerr_mutex);
-        std::cerr << "CURLMSG_LAST\n";
-      }
+      thrprinterr("CURLMSG_LAST");
       break;
     }
 
     default: {
-      {
-        std::lock_guard lk(cerr_mutex);
-        std::cerr << "CURLMSG default\n";
-      }
+      thrprinterr("CURLMSG default");
       break;
     }
     }
@@ -210,13 +209,12 @@ static void process_curl_messages() {
   if (found_successful_completions) {
     {
       std::lock_guard lk(queue_mutex);
-      downloads_ready_for_processing = true;
-      downloads_processed            = false;
+      tstate = state::ready_for_processing;
     }
     queue_cv.notify_one();
 
     std::unique_lock lk(queue_mutex);
-    queue_cv.wait(lk, []() { return downloads_processed; });
+    queue_cv.wait(lk, []() { return tstate == state::processed; });
   }
 }
 
@@ -271,7 +269,7 @@ static int handle_socket(CURL* /*easy*/, curl_socket_t s, int action, void* /*us
     if (action != CURL_POLL_IN) events |= EV_WRITE; // NOLINT signed-bool-ops
     if (action != CURL_POLL_OUT) events |= EV_READ; // NOLINT signed-bool-ops
 
-    events |= EV_PERSIST; // NOLINT bitwise
+    events |= EV_PERSIST; // NOLINT signed bitwise
 
     event_del(curl_context->event);
     event_assign(curl_context->event, base, curl_context->sockfd, events, curl_perform,
@@ -295,9 +293,11 @@ static int handle_socket(CURL* /*easy*/, curl_socket_t s, int action, void* /*us
 }
 
 int main() {
+  thrnames[std::this_thread::get_id()] = "main";
+
   if (curl_global_init(CURL_GLOBAL_ALL) != 0) {
-    std::cerr << "Could not init curl\n";
-    return 1;
+    thrprinterr("Could not init curl");
+    return EXIT_FAILURE;
   }
 
   base    = event_base_new();
@@ -314,14 +314,14 @@ int main() {
   fill_queue(); // no need to lock queue here, as curl_event thread is not running yet
 
   std::jthread curl_event_thread([]() { event_base_dispatch(base); });
+  thrnames[curl_event_thread.get_id()] = "curl";
 
   while (!download_queue.empty()) {
     {
       std::unique_lock lk(queue_mutex);
-      queue_cv.wait(lk, []() { return downloads_ready_for_processing; });
+      queue_cv.wait(lk, []() { return tstate == state::ready_for_processing; });
       process_complete_queue_entries(); // shuffle and fill queues
-      downloads_ready_for_processing = false;
-      downloads_processed            = true; // signal curl thread
+      tstate = state::processed;        // signal curl thread
     }
     queue_cv.notify_one();                // send control back to curl thread
     write_complete_queue_entries(writer); // do slow work writing to disk
