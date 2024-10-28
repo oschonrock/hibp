@@ -9,6 +9,7 @@
 #include <event2/event.h>
 #include <format>
 #include <iostream>
+#include <iterator>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -54,14 +55,9 @@ struct download {
 };
 
 size_t write_cb(char* ptr, size_t size, size_t nmemb, void* userdata) {
-
   auto* dl       = static_cast<download*>(userdata);
   auto  realsize = size * nmemb;
-  auto* cur      = ptr;
-  // TODO consdier replacing loop with memcpy for vectorisation
-  for (auto i = 0UL; i != realsize; i++) {
-    dl->buffer.push_back(*cur++);
-  }
+  std::copy(ptr, ptr + realsize, std::back_insert_iterator(dl->buffer));
   return realsize;
 }
 
@@ -76,6 +72,7 @@ size_t write_cb(char* ptr, size_t size, size_t nmemb, void* userdata) {
 // thread can continue
 static std::mutex cerr_mutex; // NOLINT non-const-global
 
+// we use uniq_ptr<download> to keep the address of the downloads stable as queues change
 static std::deque<std::unique_ptr<download>> download_queue; // NOLINT non-const-global
 static std::deque<std::unique_ptr<download>> process_queue;  // NOLINT non-const-global
 
@@ -94,15 +91,13 @@ static void add_download(const std::string& prefix) {
   auto& dl = download_queue.emplace_back(std::make_unique<download>(prefix));
   dl->buffer.reserve(1UL << 16U); // 64kB should be enough for any file for a while
 
-  {
-    CURL* easy_handle = curl_easy_init();
-    curl_easy_setopt(easy_handle, CURLOPT_PIPEWAIT, 1L); // wait for multiplexing
-    curl_easy_setopt(easy_handle, CURLOPT_WRITEFUNCTION, write_cb);
-    curl_easy_setopt(easy_handle, CURLOPT_WRITEDATA, dl.get());
-    curl_easy_setopt(easy_handle, CURLOPT_PRIVATE, dl.get());
-    curl_easy_setopt(easy_handle, CURLOPT_URL, url.c_str());
-    curl_multi_add_handle(curl_multi_handle, easy_handle);
-  }
+  CURL* easy_handle = curl_easy_init();
+  curl_easy_setopt(easy_handle, CURLOPT_PIPEWAIT, 1L); // wait for multiplexing
+  curl_easy_setopt(easy_handle, CURLOPT_WRITEFUNCTION, write_cb);
+  curl_easy_setopt(easy_handle, CURLOPT_WRITEDATA, dl.get());
+  curl_easy_setopt(easy_handle, CURLOPT_PRIVATE, dl.get());
+  curl_easy_setopt(easy_handle, CURLOPT_URL, url.c_str());
+  curl_multi_add_handle(curl_multi_handle, easy_handle);
 }
 
 static void fill_queue() {
