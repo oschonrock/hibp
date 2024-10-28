@@ -14,6 +14,7 @@ else() # unix'ish
     -Wmissing-noreturn -Wconversion -Wsign-conversion -Wno-ignored-attributes)
     if (NOT MINGW) # sanitizers are not working under mingw
       string(APPEND CMAKE_CXX_FLAGS_DEBUG " -fsanitize=address,undefined,leak")
+      # string(APPEND CMAKE_CXX_FLAGS_DEBUG " -fsanitize=thread") # alternative to above
     endif()
 endif()
 
@@ -96,8 +97,9 @@ target_link_libraries(hibp_join PRIVATE hibp flat_file)
 # pkg_search_module(LIBEVENT libevent)
 
 add_executable(hibp_download app/hibp_download.cpp)
+target_compile_features(hibp_download PRIVATE cxx_std_20)
 target_compile_options(hibp_download PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_download PRIVATE curl event) # can just link directly?
+target_link_libraries(hibp_download PRIVATE curl event hibp flat_file) # can just link directly?
 
 option(HIBP_TEST "Enable HIBP tests" OFF)
 if(HIBP_TEST)

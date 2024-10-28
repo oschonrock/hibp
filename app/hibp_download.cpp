@@ -1,20 +1,23 @@
+#include "flat_file.hpp"
+#include "hibp.hpp"
+#include <condition_variable>
+#include <cstddef>
+#include <cstdlib>
 #include <curl/curl.h>
+#include <curl/multi.h>
 #include <deque>
 #include <event2/event.h>
-#include <ios>
+#include <format>
 #include <iostream>
-#include <libgen.h>
 #include <memory>
-#include <sstream>
-#include <stdio.h>  // NOLINT
-#include <stdlib.h> // NOLINT
-#include <string.h> // NOLINT
+#include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
-struct event_base* base;              // NOLINT
-CURLM*             curl_multi_handle; // NOLINT
-struct event*      timeout;           // NOLINT
+static struct event_base* base;              // NOLINT non-const-global
+static CURLM*             curl_multi_handle; // NOLINT non-const-global
+static struct event*      timeout;           // NOLINT non-const-global
 
 struct curl_context_t {
   struct event* event;
@@ -39,66 +42,185 @@ static void destroy_curl_context(curl_context_t* context) {
   delete context; // NOLINT
 }
 
-struct donwload {
+struct download {
+  explicit download(std::string prefix_) : prefix(std::move(prefix_)) {}
+
+  static constexpr int max_retries = 10;
+
   std::vector<char> buffer;
-  std::string prefix;
+  std::string       prefix;
+  int               retries_left = max_retries;
+  bool              complete     = false;
 };
 
-static std::deque<std::unique_ptr<donwload>> queue;
+size_t write_cb(char* ptr, size_t size, size_t nmemb, void* userdata) {
 
-static void add_download(const char* url) {
-  auto url_cpy  = std::string(url);
-  char* prefix = basename(url_cpy.data());
-
-  FILE* file = fopen(prefix, "wb");
-  if (!file) {
-    fprintf(stderr, "Error opening %s\n", prefix);
-    return;
+  auto* dl       = static_cast<download*>(userdata);
+  auto  realsize = size * nmemb;
+  auto* cur      = ptr;
+  // TODO consdier replacing loop with memcpy for vectorisation
+  for (auto i = 0UL; i != realsize; i++) {
+    dl->buffer.push_back(*cur++);
   }
-
-  CURL* handle = curl_easy_init();
-  curl_easy_setopt(handle, CURLOPT_WRITEDATA, file);
-  curl_easy_setopt(handle, CURLOPT_PRIVATE, file);
-  curl_easy_setopt(handle, CURLOPT_PIPEWAIT, 1L);
-
-  curl_easy_setopt(handle, CURLOPT_URL, url);
-  curl_multi_add_handle(curl_multi_handle, handle);
-  // fprintf(stderr, "Added download %s -> %s\n", url, filename);
+  return realsize;
 }
 
-static void check_multi_info() {
-  char*    done_url;
-  CURLMsg* message;
-  int      pending;
-  CURL*    easy_handle;
-  FILE*    file;
+// both queues are managed by the main thread
+//
+// we feed process_queue from download_queue to be able to unclock curl thread ASAP
+// before we do the hard work of converting to binary format and writing to disk
+//
+// curl_event_thread notifies main thread, when there is work to be done on download_queue
+// main thread then shuffles completed items to process_queue and refills the download_queue with
+// new items main thread notifies curl thread when it has finished updating both queues so curl
+// thread can continue
+static std::mutex cerr_mutex; // NOLINT non-const-global
 
-  while ((message = curl_multi_info_read(curl_multi_handle, &pending))) {
+static std::deque<std::unique_ptr<download>> download_queue; // NOLINT non-const-global
+static std::deque<std::unique_ptr<download>> process_queue;  // NOLINT non-const-global
+
+static std::mutex              queue_mutex;                            // NOLINT non-const-global
+static std::condition_variable queue_cv;                               // NOLINT non-const-global
+static bool                    downloads_ready_for_processing = false; // NOLINT non-const-global
+static bool                    downloads_processed            = false; // NOLINT non-const-global
+
+constexpr auto max_queue_size      = 300L;
+constexpr auto max_prefix_plus_one = 0x100000UL; // 5 hex digits up to FFFFF
+static auto    next_prefix         = 0x0UL;      // NOLINT non-cost-gobal
+
+static void add_download(const std::string& prefix) {
+  auto url = "https://api.pwnedpasswords.com/range/" + prefix;
+
+  auto& dl = download_queue.emplace_back(std::make_unique<download>(prefix));
+  dl->buffer.reserve(1UL << 16U); // 64kB should be enough for any file for a while
+
+  {
+    CURL* easy_handle = curl_easy_init();
+    curl_easy_setopt(easy_handle, CURLOPT_PIPEWAIT, 1L); // wait for multiplexing
+    curl_easy_setopt(easy_handle, CURLOPT_WRITEFUNCTION, write_cb);
+    curl_easy_setopt(easy_handle, CURLOPT_WRITEDATA, dl.get());
+    curl_easy_setopt(easy_handle, CURLOPT_PRIVATE, dl.get());
+    curl_easy_setopt(easy_handle, CURLOPT_URL, url.c_str());
+    curl_multi_add_handle(curl_multi_handle, easy_handle);
+  }
+}
+
+static void fill_queue() {
+  while (download_queue.size() != max_queue_size && next_prefix != max_prefix_plus_one) {
+    auto prefix = std::format("{:05X}", next_prefix++);
+    add_download(prefix);
+  }
+}
+
+static std::size_t write_lines(flat_file::stream_writer<hibp::pawned_pw>& writer, download& dl) {
+  std::stringstream ss;
+  ss.rdbuf()->pubsetbuf(dl.buffer.data(), static_cast<std::streamsize>(dl.buffer.size()));
+
+  auto linecount = 0UL;
+
+  for (std::string line, prefixed_line; std::getline(ss, line);) {
+    if (line.size() > 0) {
+      prefixed_line = dl.prefix + line;
+      writer.write(hibp::convert_to_binary(prefixed_line));
+      linecount++;
+    }
+  }
+  return linecount;
+}
+
+static void process_complete_queue_entries() {
+  while (!download_queue.empty()) {
+    auto& front = download_queue.front();
+    if (!front->complete) {
+      break; // these must be done in order, so we don't have to sort afterwards
+    }
+    process_queue.push_back(std::move(front));
+    download_queue.pop_front();
+  }
+  fill_queue();
+}
+
+static void write_complete_queue_entries(flat_file::stream_writer<hibp::pawned_pw>& writer) {
+  while (!process_queue.empty()) {
+    auto& front = process_queue.front();
+    write_lines(writer, *front);
+    process_queue.pop_front();
+  }
+}
+
+static bool process_curl_done_msg(CURLMsg* message) {
+  bool  found_successful_completions = false;
+  CURL* easy_handle                  = message->easy_handle;
+
+  auto result = message->data.result;
+
+  download* dl = nullptr;
+  curl_easy_getinfo(easy_handle, CURLINFO_PRIVATE, &dl);
+  curl_multi_remove_handle(curl_multi_handle, easy_handle);
+
+  if (result == CURLE_OK) {
+    {
+      std::lock_guard lk(queue_mutex);
+      dl->complete = true;
+    }
+    found_successful_completions = true;
+    curl_easy_cleanup(easy_handle);
+  } else {
+    if (dl->retries_left == 0) {
+      throw std::runtime_error(std::format("prefix '{}': returned result '{}' after {} retries",
+                                           curl_easy_strerror(message->data.result), dl->prefix,
+                                           download::max_retries));
+    }
+    dl->retries_left--;
+    dl->buffer.clear(); // throw away anything that was returned
+    {
+      std::lock_guard lk(cerr_mutex);
+      std::cerr << std::format("retrying prefix '{}', retries left = {}\n", dl->prefix,
+                               dl->retries_left);
+    }
+    curl_multi_add_handle(curl_multi_handle, easy_handle); // try again with same handle
+  }
+  return found_successful_completions;
+}
+
+static void process_curl_messages() {
+  CURLMsg* message = nullptr;
+  int      pending = 0;
+
+  bool found_successful_completions = false;
+  while ((message = curl_multi_info_read(curl_multi_handle, &pending)) != nullptr) {
     switch (message->msg) {
-    case CURLMSG_DONE:
-      /* Do not use message data after calling curl_multi_remove_handle() and
-         curl_easy_cleanup(). As per curl_multi_info_read() docs:
-         "WARNING: The data the returned pointer points to does not survive
-         calling curl_multi_cleanup, curl_multi_remove_handle or
-         curl_easy_cleanup." */
-      easy_handle = message->easy_handle;
-      fprintf(stderr, "CURLMSG_DONE: Result = %d\n", message->data.result);
-
-      curl_easy_getinfo(easy_handle, CURLINFO_EFFECTIVE_URL, &done_url);
-      curl_easy_getinfo(easy_handle, CURLINFO_PRIVATE, &file);
-      /* printf("%s DONE\n", done_url); */
-
-      curl_multi_remove_handle(curl_multi_handle, easy_handle);
-      curl_easy_cleanup(easy_handle);
-      if (file) {
-        fclose(file);
-      }
-      break;
-
-    default:
-      fprintf(stderr, "CURLMSG default\n");
+    case CURLMSG_DONE: {
+      found_successful_completions |= process_curl_done_msg(message);
       break;
     }
+    case CURLMSG_LAST: {
+      {
+        std::lock_guard lk(cerr_mutex);
+        std::cerr << "CURLMSG_LAST\n";
+      }
+      break;
+    }
+
+    default: {
+      {
+        std::lock_guard lk(cerr_mutex);
+        std::cerr << "CURLMSG default\n";
+      }
+      break;
+    }
+    }
+  }
+  if (found_successful_completions) {
+    {
+      std::lock_guard lk(queue_mutex);
+      downloads_ready_for_processing = true;
+      downloads_processed            = false;
+    }
+    queue_cv.notify_one();
+
+    std::unique_lock lk(queue_mutex);
+    queue_cv.wait(lk, []() { return downloads_processed; });
   }
 }
 
@@ -106,20 +228,20 @@ static void curl_perform(int /*fd*/, short event, void* arg) {
   int running_handles = 0;
   int flags           = 0;
 
-  if (event & EV_READ) flags |= CURL_CSELECT_IN;
-  if (event & EV_WRITE) flags |= CURL_CSELECT_OUT;
+  if (event & EV_READ) flags |= CURL_CSELECT_IN;   // NOLINT -> bool & bitwise
+  if (event & EV_WRITE) flags |= CURL_CSELECT_OUT; // NOLINT -> bool & bitwise
 
   auto* context = static_cast<curl_context_t*>(arg);
 
   curl_multi_socket_action(curl_multi_handle, context->sockfd, flags, &running_handles);
 
-  check_multi_info();
+  process_curl_messages();
 }
 
 static void on_timeout(evutil_socket_t /*fd*/, short /*events*/, void* /*arg*/) {
   int running_handles = 0;
   curl_multi_socket_action(curl_multi_handle, CURL_SOCKET_TIMEOUT, 0, &running_handles);
-  check_multi_info();
+  process_curl_messages();
 }
 
 static int start_timeout(CURLM* /*multi*/, long timeout_ms, void* /*userp*/) {
@@ -127,7 +249,7 @@ static int start_timeout(CURLM* /*multi*/, long timeout_ms, void* /*userp*/) {
     evtimer_del(timeout);
   } else {
     if (timeout_ms == 0) timeout_ms = 1; /* 0 means call socket_action asap */
-    struct timeval tv;
+    struct timeval tv {};
     tv.tv_sec  = timeout_ms / 1000;
     tv.tv_usec = (timeout_ms % 1000) * 1000;
     evtimer_del(timeout);
@@ -138,33 +260,35 @@ static int start_timeout(CURLM* /*multi*/, long timeout_ms, void* /*userp*/) {
 
 static int handle_socket(CURL* /*easy*/, curl_socket_t s, int action, void* /*userp*/,
                          void* socketp) {
-  curl_context_t* curl_context = NULL;
+  curl_context_t* curl_context = nullptr;
   short           events       = 0;
 
   switch (action) {
   case CURL_POLL_IN:
   case CURL_POLL_OUT:
   case CURL_POLL_INOUT:
-    curl_context = socketp ? static_cast<curl_context_t*>(socketp) : create_curl_context(s);
+    curl_context =
+        (socketp != nullptr) ? static_cast<curl_context_t*>(socketp) : create_curl_context(s);
 
     curl_multi_assign(curl_multi_handle, s, curl_context);
 
-    if (action != CURL_POLL_IN) events |= EV_WRITE;
-    if (action != CURL_POLL_OUT) events |= EV_READ;
+    if (action != CURL_POLL_IN) events |= EV_WRITE; // NOLINT signed-bool-ops
+    if (action != CURL_POLL_OUT) events |= EV_READ; // NOLINT signed-bool-ops
 
-    events |= EV_PERSIST;
+    events |= EV_PERSIST; // NOLINT bitwise
 
     event_del(curl_context->event);
     event_assign(curl_context->event, base, curl_context->sockfd, events, curl_perform,
                  curl_context);
-    event_add(curl_context->event, NULL);
+    event_add(curl_context->event, nullptr);
 
     break;
   case CURL_POLL_REMOVE:
-    if (socketp) {
-      event_del((static_cast<curl_context_t*>(socketp))->event);
-      destroy_curl_context(static_cast<curl_context_t*>(socketp));
-      curl_multi_assign(curl_multi_handle, s, NULL);
+    if (socketp != nullptr) {
+      curl_context = static_cast<curl_context_t*>(socketp);
+      event_del(curl_context->event);
+      destroy_curl_context(curl_context);
+      curl_multi_assign(curl_multi_handle, s, nullptr);
     }
     break;
   default:
@@ -175,40 +299,37 @@ static int handle_socket(CURL* /*easy*/, curl_socket_t s, int action, void* /*us
 }
 
 int main() {
-
-  std::vector<char> buf{'h', 'e', 'l', 'l', 'o', '\n', 'h', 'e', 'l', 'l', 'o', '2', '\n'};
-  
-  std::stringstream ss;
-  ss.rdbuf()->pubsetbuf(buf.data(), static_cast<std::streamsize>(buf.size()));
-
-  for (std::string line; std::getline(ss, line); ) {
-    std::cout << line << "\n";
-  }
-  return 0;
-  
-  if (curl_global_init(CURL_GLOBAL_ALL)) {
-    fprintf(stderr, "Could not init curl\n");
+  if (curl_global_init(CURL_GLOBAL_ALL) != 0) {
+    std::cerr << "Could not init curl\n";
     return 1;
   }
-  
+
   base    = event_base_new();
   timeout = evtimer_new(base, on_timeout, NULL);
 
   curl_multi_handle = curl_multi_init();
-
-  // and PIPEWAIT is set to 1L in easy, which forces HTTP2 pipelining
   curl_multi_setopt(curl_multi_handle, CURLMOPT_PIPELINING, CURLPIPE_MULTIPLEX);
-
   curl_multi_setopt(curl_multi_handle, CURLMOPT_SOCKETFUNCTION, handle_socket);
   curl_multi_setopt(curl_multi_handle, CURLMOPT_TIMERFUNCTION, start_timeout);
 
-  char url[50];
-  for (unsigned i = 0; i != 0x300; i++) {
-    snprintf(url, 50, "https://api.pwnedpasswords.com/range/%05X", i);
-    add_download(url);
-  }
+  std::ios_base::sync_with_stdio(false);
+  auto writer = flat_file::stream_writer<hibp::pawned_pw>(std::cout);
 
-  event_base_dispatch(base);
+  fill_queue(); // no need to lock queue here, as curl_event thread is not running yet
+
+  std::jthread curl_event_thread([]() { event_base_dispatch(base); });
+
+  while (!download_queue.empty()) {
+    {
+      std::unique_lock lk(queue_mutex);
+      queue_cv.wait(lk, []() { return downloads_ready_for_processing; });
+      process_complete_queue_entries(); // shuffle and fill queues
+      downloads_ready_for_processing = false;
+      downloads_processed            = true; // signal curl thread
+    }
+    queue_cv.notify_one();                // send control back to curl thread
+    write_complete_queue_entries(writer); // do slow work writing to disk
+  }
 
   curl_multi_cleanup(curl_multi_handle);
   event_free(timeout);
@@ -217,5 +338,5 @@ int main() {
   libevent_global_shutdown();
   curl_global_cleanup();
 
-  return 0;
+  return EXIT_SUCCESS;
 }
