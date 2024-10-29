@@ -58,7 +58,7 @@ static std::queue<std::unique_ptr<download>> download_queue; // NOLINT non-const
 static std::queue<std::unique_ptr<download>> process_queue;  // NOLINT non-const-global
 
 static std::mutex              thrmutex; // NOLINT non-const-global
-static std::condition_variable queue_cv; // NOLINT non-const-global
+static std::condition_variable tstate_cv; // NOLINT non-const-global
 
 enum class state { handle_requests, process_queues };
 static state tstate; // NOLINT non-const-global
@@ -216,20 +216,13 @@ static void process_curl_messages() {
   bool found_successful_completions = false;
   while ((message = curl_multi_info_read(curl_multi_handle, &pending)) != nullptr) {
     switch (message->msg) {
-    case CURLMSG_DONE: {
-      // beware shortcut evaluation
-      found_successful_completions = process_curl_done_msg(message) || found_successful_completions;
+    case CURLMSG_DONE:
+      found_successful_completions |= process_curl_done_msg(message);
       break;
-    }
-    case CURLMSG_LAST: {
-      thrprinterr("CURLMSG_LAST");
-      break;
-    }
-
-    default: {
+      
+    default:
       thrprinterr("CURLMSG default");
       break;
-    }
     }
   }
   if (found_successful_completions) {
@@ -238,14 +231,14 @@ static void process_curl_messages() {
       tstate = state::process_queues;
     }
     thrprinterr("notifying main");
-    queue_cv.notify_one();
+    tstate_cv.notify_one();
 
     // must pause this thread here, as otherwise the callbacks could fire any time
     // cause accesto curls internal queue structures which could still be being modified
     // by main thread
     std::unique_lock lk(thrmutex);
     thrprinterr("waiting for main");
-    queue_cv.wait(lk, []() { return tstate == state::handle_requests; });
+    tstate_cv.wait(lk, []() { return tstate == state::handle_requests; });
   }
 }
 
@@ -329,9 +322,8 @@ static int handle_socket_curl_cb(CURL* /*easy*/, curl_socket_t s, int action, vo
     }
     break;
   default:
-    abort();
+    throw std::runtime_error("handle_socket_curl_cb: unknown action received.");
   }
-
   return 0;
 }
 
@@ -364,12 +356,12 @@ int main() {
     {
       thrprinterr("waiting for curl");
       std::unique_lock lk(thrmutex);
-      queue_cv.wait(lk, []() { return tstate == state::process_queues; });
+      tstate_cv.wait(lk, []() { return tstate == state::process_queues; });
       process_completed_download_queue_entries(); // shuffle and fill queues
       tstate = state::handle_requests;            // signal curl thread to continue
     }
     thrprinterr("notifying curl");
-    queue_cv.notify_one();                         // send control back to curl thread
+    tstate_cv.notify_one();                         // send control back to curl thread
     write_completed_process_queue_entries(writer); // do slow work writing to disk
   }
 
