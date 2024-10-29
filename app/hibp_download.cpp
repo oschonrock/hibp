@@ -14,15 +14,17 @@
 #include <vector>
 
 // threaded app needs mutex for stdio
-static std::mutex cerr_mutex; // NOLINT non-const-global
+[[maybe_unused]] static std::mutex cerr_mutex; // NOLINT non-const-global
 // labels for threads
 static std::unordered_map<std::thread::id, std::string> thrnames; // NOLINT non-const-global
 
-static void thrprinterr(const std::string& msg) {
+static void thrprinterr([[maybe_unused]] const std::string& msg) {
+#ifndef NDEBUG
   {
     std::lock_guard lk(cerr_mutex);
     std::cerr << std::format("thread: {:>5}: {}\n", thrnames[std::this_thread::get_id()], msg);
   }
+#endif
 }
 
 // queue management
@@ -61,9 +63,14 @@ static std::condition_variable queue_cv; // NOLINT non-const-global
 enum class state { handle_requests, process_queues };
 static state tstate; // NOLINT non-const-global
 
+#ifdef NDEBUG
+constexpr auto max_queue_size      = 300UL;
+constexpr auto max_prefix_plus_one = 0x100000UL; // 5 hex digits up to FFFFF
+#else
 constexpr auto max_queue_size      = 30UL;
-constexpr auto max_prefix_plus_one = 0x100UL; // 5 hex digits up to FFFFF
-static auto    next_prefix         = 0x0UL;      // NOLINT non-cost-gobal
+constexpr auto max_prefix_plus_one = 0x100UL; // small sample of 256 files for debug
+#endif
+static auto next_prefix = 0x0UL; // NOLINT non-cost-gobal
 
 static void add_download(const std::string& prefix);
 
@@ -99,16 +106,17 @@ static std::size_t write_lines(flat_file::stream_writer<hibp::pawned_pw>& writer
   std::stringstream ss;
   ss.rdbuf()->pubsetbuf(dl.buffer.data(), static_cast<std::streamsize>(dl.buffer.size()));
 
-  auto linecount = 0UL;
+  auto recordcount = 0UL;
 
   for (std::string line, prefixed_line; std::getline(ss, line);) {
     if (line.size() > 0) {
       prefixed_line = dl.prefix + line;
       writer.write(hibp::convert_to_binary(prefixed_line));
-      linecount++;
+      recordcount++;
     }
   }
-  return linecount;
+  thrprinterr(std::format("wrote '{}' in binary, recordcount = {}", dl.prefix, recordcount));
+  return recordcount;
 }
 
 static void
@@ -182,7 +190,7 @@ static bool process_curl_done_msg(CURLMsg* message) {
     // safe to change complete flag without lock, because main thread only accesses dl->complete
     // during state::process_queues and we only process new messages (ie this code) during
     // state::handle_requests
-    dl->complete                 = true;
+    dl->complete = true;
     thrprinterr(std::format("setting '{}' complete = {}", dl->prefix, dl->complete));
     found_successful_completions = true;
     curl_easy_cleanup(easy_handle);
@@ -209,7 +217,8 @@ static void process_curl_messages() {
   while ((message = curl_multi_info_read(curl_multi_handle, &pending)) != nullptr) {
     switch (message->msg) {
     case CURLMSG_DONE: {
-      found_successful_completions = found_successful_completions || process_curl_done_msg(message);
+      // beware shortcut evaluation
+      found_successful_completions = process_curl_done_msg(message) || found_successful_completions;
       break;
     }
     case CURLMSG_LAST: {
