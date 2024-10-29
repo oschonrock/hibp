@@ -55,7 +55,7 @@ struct download {
 static std::queue<std::unique_ptr<download>> download_queue; // NOLINT non-const-global
 static std::queue<std::unique_ptr<download>> process_queue;  // NOLINT non-const-global
 
-static std::mutex              queue_mutex; // NOLINT non-const-global
+static std::mutex              thrmutex; // NOLINT non-const-global
 static std::condition_variable queue_cv;    // NOLINT non-const-global
 
 enum class state { handle_requests, process_queues };
@@ -175,7 +175,7 @@ static bool process_curl_done_msg(CURLMsg* message) {
   curl_multi_remove_handle(curl_multi_handle, easy_handle);
 
   if (result == CURLE_OK) {
-    // safe to change complete flagwithout lock, because main thread only accesses dl->complete
+    // safe to change complete flag without lock, because main thread only accesses dl->complete
     // during state::process_queues and we only process new messages (ie this code) during
     // state::handle_requests
     dl->complete                 = true;
@@ -220,12 +220,15 @@ static void process_curl_messages() {
   }
   if (found_successful_completions) {
     {
-      std::lock_guard lk(queue_mutex);
+      std::lock_guard lk(thrmutex);
       tstate = state::process_queues;
     }
     queue_cv.notify_one();
 
-    std::unique_lock lk(queue_mutex);
+    // must pause this thread here, as otherwise the callbacks could fire any time
+    // cause accesto curls internal queue structures which could still be being modified
+    // by main thread
+    std::unique_lock lk(thrmutex);
     queue_cv.wait(lk, []() { return tstate == state::handle_requests; });
   }
 }
@@ -343,7 +346,7 @@ int main() {
 
   while (!download_queue.empty()) {
     {
-      std::unique_lock lk(queue_mutex);
+      std::unique_lock lk(thrmutex);
       queue_cv.wait(lk, []() { return tstate == state::process_queues; });
       process_completed_queue_entries(); // shuffle and fill queues
       tstate = state::handle_requests;   // signal curl thread to continue
