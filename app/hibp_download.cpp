@@ -1,8 +1,6 @@
 #include "flat_file.hpp"
 #include "hibp.hpp"
 #include <condition_variable>
-#include <cstddef>
-#include <cstdlib>
 #include <curl/curl.h>
 #include <curl/multi.h>
 #include <event2/event.h>
@@ -36,7 +34,9 @@ static void thrprinterr(const std::string& msg) {
 //
 // curl_event_thread notifies main thread, when there is work to be done on download_queue
 // main thread then shuffles completed items to process_queue and refills the download_queue with
-// new items main thread notifies curl thread when it has finished updating both queues so curl
+// new items.
+//
+// main thread notifies curl thread when it has finished updating both queues so curl
 // thread can continue
 //
 // we use uniq_ptr<download> to keep the address of the downloads stable as queues change
@@ -140,10 +140,10 @@ static void destroy_curl_context(curl_context_t* context) {
   delete context; // NOLINT manual new and delete
 }
 
-static size_t write_cb(char* ptr, size_t size, size_t nmemb, void* userdata) {
+static std::size_t write_cb(char* ptr, std::size_t size, std::size_t nmemb, void* userdata) {
   auto* dl       = static_cast<download*>(userdata);
   auto  realsize = size * nmemb;
-  std::copy(ptr, ptr + realsize, std::back_insert_iterator(dl->buffer));
+  std::copy(ptr, ptr + realsize, std::back_inserter(dl->buffer));
   return realsize;
 }
 
@@ -310,7 +310,7 @@ int main() {
   }
 
   base    = event_base_new();
-  timeout = evtimer_new(base, on_timeout, NULL);
+  timeout = evtimer_new(base, on_timeout, nullptr);
 
   curl_multi_handle = curl_multi_init();
   curl_multi_setopt(curl_multi_handle, CURLMOPT_PIPELINING, CURLPIPE_MULTIPLEX);
