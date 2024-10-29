@@ -15,33 +15,31 @@
 #include <thread>
 #include <vector>
 
-static struct event_base* base;              // NOLINT non-const-global
-static CURLM*             curl_multi_handle; // NOLINT non-const-global
-static struct event*      timeout;           // NOLINT non-const-global
+// threaded app needs mutex for stdio
+static std::mutex cerr_mutex; // NOLINT non-const-global
+// and labels for threads
+static std::unordered_map<std::thread::id, std::string> thrnames; // NOLINT non-const-global
 
-// connects an event with a socketfd
-struct curl_context_t {
-  struct event* event;
-  curl_socket_t sockfd;
-};
-
-static void curl_perform(int fd, short event, void* arg);
-
-static curl_context_t* create_curl_context(curl_socket_t sockfd) {
-
-  auto* context = new curl_context_t; // NOLINT manual new and delete
-
-  context->sockfd = sockfd;
-  context->event  = event_new(base, sockfd, 0, curl_perform, context);
-
-  return context;
+static void thrprinterr(const std::string& msg) {
+  {
+    std::lock_guard lk(cerr_mutex);
+    std::cerr << std::format("thread: {:>5}: {}\n", thrnames[std::this_thread::get_id()], msg);
+  }
 }
 
-static void destroy_curl_context(curl_context_t* context) {
-  event_del(context->event);
-  event_free(context->event);
-  delete context; // NOLINT manual new and delete
-}
+// queue management
+
+// We have 2 queues. Both queues are managed by the main thread
+//
+// we feed process_queue from download_queue to be able to unclock curl thread ASAP
+// before we do the hard work of converting to binary format and writing to disk
+//
+// curl_event_thread notifies main thread, when there is work to be done on download_queue
+// main thread then shuffles completed items to process_queue and refills the download_queue with
+// new items main thread notifies curl thread when it has finished updating both queues so curl
+// thread can continue
+//
+// we use uniq_ptr<download> to keep the address of the downloads stable as queues change
 
 struct download {
   explicit download(std::string prefix_) : prefix(std::move(prefix_)) {}
@@ -54,25 +52,6 @@ struct download {
   bool              complete     = false;
 };
 
-size_t write_cb(char* ptr, size_t size, size_t nmemb, void* userdata) {
-  auto* dl       = static_cast<download*>(userdata);
-  auto  realsize = size * nmemb;
-  std::copy(ptr, ptr + realsize, std::back_insert_iterator(dl->buffer));
-  return realsize;
-}
-
-// both queues are managed by the main thread
-//
-// we feed process_queue from download_queue to be able to unclock curl thread ASAP
-// before we do the hard work of converting to binary format and writing to disk
-//
-// curl_event_thread notifies main thread, when there is work to be done on download_queue
-// main thread then shuffles completed items to process_queue and refills the download_queue with
-// new items main thread notifies curl thread when it has finished updating both queues so curl
-// thread can continue
-static std::mutex cerr_mutex; // NOLINT non-const-global
-
-// we use uniq_ptr<download> to keep the address of the downloads stable as queues change
 static std::queue<std::unique_ptr<download>> download_queue; // NOLINT non-const-global
 static std::queue<std::unique_ptr<download>> process_queue;  // NOLINT non-const-global
 
@@ -82,24 +61,11 @@ static std::condition_variable queue_cv;    // NOLINT non-const-global
 enum class state { idle = 0, ready_for_processing, processed };
 static state tstate = state::idle; // NOLINT non-const-global
 
-constexpr auto max_queue_size      = 300L;
+constexpr auto max_queue_size      = 300UL;
 constexpr auto max_prefix_plus_one = 0x100000UL; // 5 hex digits up to FFFFF
 static auto    next_prefix         = 0x0UL;      // NOLINT non-cost-gobal
 
-static void add_download(const std::string& prefix) {
-  auto url = "https://api.pwnedpasswords.com/range/" + prefix;
-
-  auto& dl = download_queue.emplace(std::make_unique<download>(prefix));
-  dl->buffer.reserve(1UL << 16U); // 64kB should be enough for any file for a while
-
-  CURL* easy_handle = curl_easy_init();
-  curl_easy_setopt(easy_handle, CURLOPT_PIPEWAIT, 1L); // wait for multiplexing
-  curl_easy_setopt(easy_handle, CURLOPT_WRITEFUNCTION, write_cb);
-  curl_easy_setopt(easy_handle, CURLOPT_WRITEDATA, dl.get());
-  curl_easy_setopt(easy_handle, CURLOPT_PRIVATE, dl.get());
-  curl_easy_setopt(easy_handle, CURLOPT_URL, url.c_str());
-  curl_multi_add_handle(curl_multi_handle, easy_handle);
-}
+static void add_download(const std::string& prefix);
 
 static void fill_queue() {
   while (download_queue.size() != max_queue_size && next_prefix != max_prefix_plus_one) {
@@ -144,13 +110,56 @@ static void write_complete_queue_entries(flat_file::stream_writer<hibp::pawned_p
   }
 }
 
-static std::unordered_map<std::thread::id, std::string> thrnames;
+// curl internal queue management and event driven callbacks
 
-static void thrprinterr(const std::string& msg) {
-  {
-    std::lock_guard lk(cerr_mutex);
-    std::cerr << std::format("thread: {:>5}: {}\n", thrnames[std::this_thread::get_id()], msg);
-  }
+static struct event_base* base;              // NOLINT non-const-global
+static CURLM*             curl_multi_handle; // NOLINT non-const-global
+static struct event*      timeout;           // NOLINT non-const-global
+
+// connects an event with a socketfd
+struct curl_context_t {
+  struct event* event;
+  curl_socket_t sockfd;
+};
+
+static void curl_perform(int fd, short event, void* arg);
+
+static curl_context_t* create_curl_context(curl_socket_t sockfd) {
+
+  auto* context = new curl_context_t; // NOLINT manual new and delete
+
+  context->sockfd = sockfd;
+  context->event  = event_new(base, sockfd, 0, curl_perform, context);
+
+  return context;
+}
+
+static void destroy_curl_context(curl_context_t* context) {
+  event_del(context->event);
+  event_free(context->event);
+  delete context; // NOLINT manual new and delete
+}
+
+static size_t write_cb(char* ptr, size_t size, size_t nmemb, void* userdata) {
+  auto* dl       = static_cast<download*>(userdata);
+  auto  realsize = size * nmemb;
+  std::copy(ptr, ptr + realsize, std::back_insert_iterator(dl->buffer));
+  return realsize;
+}
+
+static void add_download(const std::string& prefix) {
+  auto url = "https://api.pwnedpasswords.com/range/" + prefix;
+
+  auto& dl = download_queue.emplace(std::make_unique<download>(prefix));
+  dl->buffer.reserve(1UL << 16U); // 64kB should be enough for any file for a while
+
+  CURL* easy_handle = curl_easy_init();
+  curl_easy_setopt(easy_handle, CURLOPT_PIPEWAIT, 1L); // wait for multiplexing
+  curl_easy_setopt(easy_handle, CURLOPT_WRITEFUNCTION, write_cb);
+  curl_easy_setopt(easy_handle, CURLOPT_WRITEDATA, dl.get());
+  curl_easy_setopt(easy_handle, CURLOPT_PRIVATE, dl.get());
+  curl_easy_setopt(easy_handle, CURLOPT_URL, url.c_str());
+  curl_multi_add_handle(curl_multi_handle, easy_handle);
 }
 
 static bool process_curl_done_msg(CURLMsg* message) {
