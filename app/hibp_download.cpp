@@ -112,8 +112,8 @@ static void write_complete_queue_entries(flat_file::stream_writer<hibp::pawned_p
 
 // curl internal queue management and event driven callbacks
 
-static struct event_base* base;              // NOLINT non-const-global
 static CURLM*             curl_multi_handle; // NOLINT non-const-global
+static struct event_base* base;              // NOLINT non-const-global
 static struct event*      timeout;           // NOLINT non-const-global
 
 // connects an event with a socketfd
@@ -122,14 +122,14 @@ struct curl_context_t {
   curl_socket_t sockfd;
 };
 
-static void curl_perform(int fd, short event, void* arg);
+static void curl_perform_event_cb(int fd, short event, void* arg);
 
 static curl_context_t* create_curl_context(curl_socket_t sockfd) {
 
   auto* context = new curl_context_t; // NOLINT manual new and delete
 
   context->sockfd = sockfd;
-  context->event  = event_new(base, sockfd, 0, curl_perform, context);
+  context->event  = event_new(base, sockfd, 0, curl_perform_event_cb, context);
 
   return context;
 }
@@ -140,12 +140,7 @@ static void destroy_curl_context(curl_context_t* context) {
   delete context; // NOLINT manual new and delete
 }
 
-static std::size_t write_cb(char* ptr, std::size_t size, std::size_t nmemb, void* userdata) {
-  auto* dl       = static_cast<download*>(userdata);
-  auto  realsize = size * nmemb;
-  std::copy(ptr, ptr + realsize, std::back_inserter(dl->buffer));
-  return realsize;
-}
+static std::size_t write_data_curl_cb(char* ptr, std::size_t size, std::size_t nmemb, void* userdata);
 
 static void add_download(const std::string& prefix) {
   auto url = "https://api.pwnedpasswords.com/range/" + prefix;
@@ -155,7 +150,7 @@ static void add_download(const std::string& prefix) {
 
   CURL* easy_handle = curl_easy_init();
   curl_easy_setopt(easy_handle, CURLOPT_PIPEWAIT, 1L); // wait for multiplexing
-  curl_easy_setopt(easy_handle, CURLOPT_WRITEFUNCTION, write_cb);
+  curl_easy_setopt(easy_handle, CURLOPT_WRITEFUNCTION, write_data_curl_cb);
   curl_easy_setopt(easy_handle, CURLOPT_WRITEDATA, dl.get());
   curl_easy_setopt(easy_handle, CURLOPT_PRIVATE, dl.get());
   curl_easy_setopt(easy_handle, CURLOPT_URL, url.c_str());
@@ -227,7 +222,9 @@ static void process_curl_messages() {
   }
 }
 
-static void curl_perform(int /*fd*/, short event, void* arg) {
+// event callbacks
+
+static void curl_perform_event_cb(int /*fd*/, short event, void* arg) {
   int running_handles = 0;
   int flags           = 0;
 
@@ -241,13 +238,22 @@ static void curl_perform(int /*fd*/, short event, void* arg) {
   process_curl_messages();
 }
 
-static void on_timeout(evutil_socket_t /*fd*/, short /*events*/, void* /*arg*/) {
+static void timeout_event_cb(evutil_socket_t /*fd*/, short /*events*/, void* /*arg*/) {
   int running_handles = 0;
   curl_multi_socket_action(curl_multi_handle, CURL_SOCKET_TIMEOUT, 0, &running_handles);
   process_curl_messages();
 }
 
-static int start_timeout(CURLM* /*multi*/, long timeout_ms, void* /*userp*/) {
+// CURL callbacks
+
+static std::size_t write_data_curl_cb(char* ptr, std::size_t size, std::size_t nmemb, void* userdata) {
+  auto* dl       = static_cast<download*>(userdata);
+  auto  realsize = size * nmemb;
+  std::copy(ptr, ptr + realsize, std::back_inserter(dl->buffer));
+  return realsize;
+}
+
+static int start_timeout_curl_cb(CURLM* /*multi*/, long timeout_ms, void* /*userp*/) {
   if (timeout_ms < 0) {
     evtimer_del(timeout);
   } else {
@@ -261,8 +267,8 @@ static int start_timeout(CURLM* /*multi*/, long timeout_ms, void* /*userp*/) {
   return 0;
 }
 
-static int handle_socket(CURL* /*easy*/, curl_socket_t s, int action, void* /*userp*/,
-                         void* socketp) {
+static int handle_socket_curl_cb(CURL* /*easy*/, curl_socket_t s, int action, void* /*userp*/,
+                                 void* socketp) {
   curl_context_t* curl_context = nullptr;
   short           events       = 0;
 
@@ -281,7 +287,7 @@ static int handle_socket(CURL* /*easy*/, curl_socket_t s, int action, void* /*us
     events |= EV_PERSIST; // NOLINT signed bitwise
 
     event_del(curl_context->event);
-    event_assign(curl_context->event, base, curl_context->sockfd, events, curl_perform,
+    event_assign(curl_context->event, base, curl_context->sockfd, events, curl_perform_event_cb,
                  curl_context);
     event_add(curl_context->event, nullptr);
 
@@ -310,12 +316,12 @@ int main() {
   }
 
   base    = event_base_new();
-  timeout = evtimer_new(base, on_timeout, nullptr);
+  timeout = evtimer_new(base, timeout_event_cb, nullptr);
 
   curl_multi_handle = curl_multi_init();
   curl_multi_setopt(curl_multi_handle, CURLMOPT_PIPELINING, CURLPIPE_MULTIPLEX);
-  curl_multi_setopt(curl_multi_handle, CURLMOPT_SOCKETFUNCTION, handle_socket);
-  curl_multi_setopt(curl_multi_handle, CURLMOPT_TIMERFUNCTION, start_timeout);
+  curl_multi_setopt(curl_multi_handle, CURLMOPT_SOCKETFUNCTION, handle_socket_curl_cb);
+  curl_multi_setopt(curl_multi_handle, CURLMOPT_TIMERFUNCTION, start_timeout_curl_cb);
 
   std::ios_base::sync_with_stdio(false);
   auto writer = flat_file::stream_writer<hibp::pawned_pw>(std::cout);
