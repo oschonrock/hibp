@@ -15,7 +15,7 @@
 
 // threaded app needs mutex for stdio
 static std::mutex cerr_mutex; // NOLINT non-const-global
-// and labels for threads
+// labels for threads
 static std::unordered_map<std::thread::id, std::string> thrnames; // NOLINT non-const-global
 
 static void thrprinterr(const std::string& msg) {
@@ -58,8 +58,8 @@ static std::queue<std::unique_ptr<download>> process_queue;  // NOLINT non-const
 static std::mutex              queue_mutex; // NOLINT non-const-global
 static std::condition_variable queue_cv;    // NOLINT non-const-global
 
-enum class state { idle = 0, ready_for_processing, processed };
-static state tstate = state::idle; // NOLINT non-const-global
+enum class state { handle_requests, process_queues };
+static state tstate; // NOLINT non-const-global
 
 constexpr auto max_queue_size      = 300UL;
 constexpr auto max_prefix_plus_one = 0x100000UL; // 5 hex digits up to FFFFF
@@ -70,6 +70,9 @@ static void add_download(const std::string& prefix);
 static void fill_queue() {
   while (download_queue.size() != max_queue_size && next_prefix != max_prefix_plus_one) {
     auto prefix = std::format("{:05X}", next_prefix++);
+    // safe to add_download(), which adds items to curl' internal queue structure,
+    // because main (ie this) thread only does this during state::process_queues
+    // and curl thread only examines its queue during state::handle_requests
     add_download(prefix);
   }
 }
@@ -90,9 +93,12 @@ static std::size_t write_lines(flat_file::stream_writer<hibp::pawned_pw>& writer
   return linecount;
 }
 
-static void process_complete_queue_entries() {
+static void process_completed_queue_entries() {
   while (!download_queue.empty()) {
     auto& front = download_queue.front();
+    // safe to check complete flagwithout lock, because main (ie this) thread only does this
+    // during state::process_queues and curl thread only modifies complete flag during
+    // state::handle_requests
     if (!front->complete) {
       break; // these must be done in order, so we don't have to sort afterwards
     }
@@ -102,7 +108,7 @@ static void process_complete_queue_entries() {
   fill_queue();
 }
 
-static void write_complete_queue_entries(flat_file::stream_writer<hibp::pawned_pw>& writer) {
+static void write_completed_queue_entries(flat_file::stream_writer<hibp::pawned_pw>& writer) {
   while (!process_queue.empty()) {
     auto& front = process_queue.front();
     write_lines(writer, *front);
@@ -140,7 +146,8 @@ static void destroy_curl_context(curl_context_t* context) {
   delete context; // NOLINT manual new and delete
 }
 
-static std::size_t write_data_curl_cb(char* ptr, std::size_t size, std::size_t nmemb, void* userdata);
+static std::size_t write_data_curl_cb(char* ptr, std::size_t size, std::size_t nmemb,
+                                      void* userdata);
 
 static void add_download(const std::string& prefix) {
   auto url = "https://api.pwnedpasswords.com/range/" + prefix;
@@ -168,8 +175,9 @@ static bool process_curl_done_msg(CURLMsg* message) {
   curl_multi_remove_handle(curl_multi_handle, easy_handle);
 
   if (result == CURLE_OK) {
-    // safe to do without lock, because we only look at dl->complete during
-    // state::ready_for_processing
+    // safe to change complete flagwithout lock, because main thread only accesses dl->complete
+    // during state::process_queues and we only process new messages (ie this code) during
+    // state::handle_requests
     dl->complete                 = true;
     found_successful_completions = true;
     curl_easy_cleanup(easy_handle);
@@ -213,12 +221,12 @@ static void process_curl_messages() {
   if (found_successful_completions) {
     {
       std::lock_guard lk(queue_mutex);
-      tstate = state::ready_for_processing;
+      tstate = state::process_queues;
     }
     queue_cv.notify_one();
 
     std::unique_lock lk(queue_mutex);
-    queue_cv.wait(lk, []() { return tstate == state::processed; });
+    queue_cv.wait(lk, []() { return tstate == state::handle_requests; });
   }
 }
 
@@ -246,7 +254,8 @@ static void timeout_event_cb(evutil_socket_t /*fd*/, short /*events*/, void* /*a
 
 // CURL callbacks
 
-static std::size_t write_data_curl_cb(char* ptr, std::size_t size, std::size_t nmemb, void* userdata) {
+static std::size_t write_data_curl_cb(char* ptr, std::size_t size, std::size_t nmemb,
+                                      void* userdata) {
   auto* dl       = static_cast<download*>(userdata);
   auto  realsize = size * nmemb;
   std::copy(ptr, ptr + realsize, std::back_inserter(dl->buffer));
@@ -328,18 +337,19 @@ int main() {
 
   fill_queue(); // no need to lock queue here, as curl_event thread is not running yet
 
+  tstate = state::handle_requests;
   std::jthread curl_event_thread([]() { event_base_dispatch(base); });
   thrnames[curl_event_thread.get_id()] = "curl";
 
   while (!download_queue.empty()) {
     {
       std::unique_lock lk(queue_mutex);
-      queue_cv.wait(lk, []() { return tstate == state::ready_for_processing; });
-      process_complete_queue_entries(); // shuffle and fill queues
-      tstate = state::processed;        // signal curl thread
+      queue_cv.wait(lk, []() { return tstate == state::process_queues; });
+      process_completed_queue_entries(); // shuffle and fill queues
+      tstate = state::handle_requests;   // signal curl thread to continue
     }
-    queue_cv.notify_one();                // send control back to curl thread
-    write_complete_queue_entries(writer); // do slow work writing to disk
+    queue_cv.notify_one();                 // send control back to curl thread
+    write_completed_queue_entries(writer); // do slow work writing to disk
   }
 
   curl_multi_cleanup(curl_multi_handle);
