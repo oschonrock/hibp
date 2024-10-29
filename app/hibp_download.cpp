@@ -56,18 +56,18 @@ static std::queue<std::unique_ptr<download>> download_queue; // NOLINT non-const
 static std::queue<std::unique_ptr<download>> process_queue;  // NOLINT non-const-global
 
 static std::mutex              thrmutex; // NOLINT non-const-global
-static std::condition_variable queue_cv;    // NOLINT non-const-global
+static std::condition_variable queue_cv; // NOLINT non-const-global
 
 enum class state { handle_requests, process_queues };
 static state tstate; // NOLINT non-const-global
 
-constexpr auto max_queue_size      = 300UL;
-constexpr auto max_prefix_plus_one = 0x100000UL; // 5 hex digits up to FFFFF
+constexpr auto max_queue_size      = 30UL;
+constexpr auto max_prefix_plus_one = 0x100UL; // 5 hex digits up to FFFFF
 static auto    next_prefix         = 0x0UL;      // NOLINT non-cost-gobal
 
 static void add_download(const std::string& prefix);
 
-static void fill_queue() {
+static void fill_download_queue() {
   while (download_queue.size() != max_queue_size && next_prefix != max_prefix_plus_one) {
     auto prefix = std::format("{:05X}", next_prefix++);
     // safe to add_download(), which adds items to curl' internal queue structure,
@@ -75,6 +75,24 @@ static void fill_queue() {
     // and curl thread only examines its queue during state::handle_requests
     add_download(prefix);
   }
+}
+
+static void process_completed_download_queue_entries() {
+  thrprinterr(std::format("download_queue.size() = {}", download_queue.size()));
+  thrprinterr(std::format("front.complete = {}", download_queue.front()->complete));
+  while (!download_queue.empty()) {
+    auto& front = download_queue.front();
+    // safe to check complete flagwithout lock, because main (ie this) thread only does this
+    // during state::process_queues and curl thread only modifies complete flag during
+    // state::handle_requests
+    if (!front->complete) {
+      break; // these must be done in order, so we don't have to sort afterwards
+    }
+    thrprinterr(std::format("shuffling {}", front->prefix));
+    process_queue.push(std::move(front));
+    download_queue.pop();
+  }
+  fill_download_queue();
 }
 
 static std::size_t write_lines(flat_file::stream_writer<hibp::pawned_pw>& writer, download& dl) {
@@ -93,22 +111,8 @@ static std::size_t write_lines(flat_file::stream_writer<hibp::pawned_pw>& writer
   return linecount;
 }
 
-static void process_completed_queue_entries() {
-  while (!download_queue.empty()) {
-    auto& front = download_queue.front();
-    // safe to check complete flagwithout lock, because main (ie this) thread only does this
-    // during state::process_queues and curl thread only modifies complete flag during
-    // state::handle_requests
-    if (!front->complete) {
-      break; // these must be done in order, so we don't have to sort afterwards
-    }
-    process_queue.push(std::move(front));
-    download_queue.pop();
-  }
-  fill_queue();
-}
-
-static void write_completed_queue_entries(flat_file::stream_writer<hibp::pawned_pw>& writer) {
+static void
+write_completed_process_queue_entries(flat_file::stream_writer<hibp::pawned_pw>& writer) {
   while (!process_queue.empty()) {
     auto& front = process_queue.front();
     write_lines(writer, *front);
@@ -153,10 +157,10 @@ static void add_download(const std::string& prefix) {
   auto url = "https://api.pwnedpasswords.com/range/" + prefix;
 
   auto& dl = download_queue.emplace(std::make_unique<download>(prefix));
-  dl->buffer.reserve(1UL << 16U); // 64kB should be enough for any file for a while
+  dl->buffer.reserve(1U << 16U); // 64kB should be enough for any file for a while
 
   CURL* easy_handle = curl_easy_init();
-  curl_easy_setopt(easy_handle, CURLOPT_PIPEWAIT, 1L); // wait for multiplexing
+  curl_easy_setopt(easy_handle, CURLOPT_PIPEWAIT, 1L); // wait for multiplexing! key for perf
   curl_easy_setopt(easy_handle, CURLOPT_WRITEFUNCTION, write_data_curl_cb);
   curl_easy_setopt(easy_handle, CURLOPT_WRITEDATA, dl.get());
   curl_easy_setopt(easy_handle, CURLOPT_PRIVATE, dl.get());
@@ -179,6 +183,7 @@ static bool process_curl_done_msg(CURLMsg* message) {
     // during state::process_queues and we only process new messages (ie this code) during
     // state::handle_requests
     dl->complete                 = true;
+    thrprinterr(std::format("setting '{}' complete = {}", dl->prefix, dl->complete));
     found_successful_completions = true;
     curl_easy_cleanup(easy_handle);
   } else {
@@ -204,7 +209,7 @@ static void process_curl_messages() {
   while ((message = curl_multi_info_read(curl_multi_handle, &pending)) != nullptr) {
     switch (message->msg) {
     case CURLMSG_DONE: {
-      found_successful_completions |= process_curl_done_msg(message);
+      found_successful_completions = found_successful_completions || process_curl_done_msg(message);
       break;
     }
     case CURLMSG_LAST: {
@@ -223,12 +228,14 @@ static void process_curl_messages() {
       std::lock_guard lk(thrmutex);
       tstate = state::process_queues;
     }
+    thrprinterr("notifying main");
     queue_cv.notify_one();
 
     // must pause this thread here, as otherwise the callbacks could fire any time
     // cause accesto curls internal queue structures which could still be being modified
     // by main thread
     std::unique_lock lk(thrmutex);
+    thrprinterr("waiting for main");
     queue_cv.wait(lk, []() { return tstate == state::handle_requests; });
   }
 }
@@ -335,10 +342,10 @@ int main() {
   curl_multi_setopt(curl_multi_handle, CURLMOPT_SOCKETFUNCTION, handle_socket_curl_cb);
   curl_multi_setopt(curl_multi_handle, CURLMOPT_TIMERFUNCTION, start_timeout_curl_cb);
 
-  std::ios_base::sync_with_stdio(false);
+  std::ios_base::sync_with_stdio(false); // speed for writing
   auto writer = flat_file::stream_writer<hibp::pawned_pw>(std::cout);
 
-  fill_queue(); // no need to lock queue here, as curl_event thread is not running yet
+  fill_download_queue(); // no need to lock mutex here, as curl_event thread is not running yet
 
   tstate = state::handle_requests;
   std::jthread curl_event_thread([]() { event_base_dispatch(base); });
@@ -346,13 +353,15 @@ int main() {
 
   while (!download_queue.empty()) {
     {
+      thrprinterr("waiting for curl");
       std::unique_lock lk(thrmutex);
       queue_cv.wait(lk, []() { return tstate == state::process_queues; });
-      process_completed_queue_entries(); // shuffle and fill queues
-      tstate = state::handle_requests;   // signal curl thread to continue
+      process_completed_download_queue_entries(); // shuffle and fill queues
+      tstate = state::handle_requests;            // signal curl thread to continue
     }
-    queue_cv.notify_one();                 // send control back to curl thread
-    write_completed_queue_entries(writer); // do slow work writing to disk
+    thrprinterr("notifying curl");
+    queue_cv.notify_one();                         // send control back to curl thread
+    write_completed_process_queue_entries(writer); // do slow work writing to disk
   }
 
   curl_multi_cleanup(curl_multi_handle);
