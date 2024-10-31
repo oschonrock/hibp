@@ -1,6 +1,19 @@
 # hibp
 Have I been pwned database: High performance downloader, query tool, server and utilities
 
+This very useful database is somewhat challengint to use locally because the data size is so large. 
+This set of utilities uses a binary format to store and search the data. The orginal text records are a 
+40char SHA1 + ":" + an integer count + <CR><LF>
+
+The binary format just stored the 20byte binary bytes of the SHA1 + 4 bytes integer
+No delimiter is required because the record size is constant. Searches become easy, if the binary data is sorted, 
+because we can use random access binary search.
+
+These utilities are written in C++ and centre around a `flat_file` class to model the db. 
+- libcurl, libevent are used for the download
+- restinio is used for the local server
+- libtbb is used for local sorting in parallel (mainly deprecated)
+
 ## Building
 
 ### Ubuntu 24.04
@@ -25,7 +38,7 @@ sudo apt install clang gcc-14 g++-14  # need gcc-14 because clang tries to use i
 see here
 https://gcc.gnu.org/bugzilla/show_bug.cgi?id=117276
 
-install the patch provided in bug report above into both versions of libstdc++ now install on the machine
+install the patch provided in bug report above into both versions of libstdc++ now installed on the machine
 
 ```bash
 cd /usr/include/c++/13/
@@ -52,8 +65,9 @@ cd ~/hibp
 You should see a bunch thread debug output, but no error and  `ls -lh hibp_sample.bin` should show ~5.3M
 
 #### compile for release and run download: `hibp_download`
-Program will download the currently ~38GB of 1million 30-40kB text files from the api.haveibeenpawned.com 
+Program will download the currently ~38GB of 1million 30-40kB text files from api.haveibeenpawned.com 
 It does this using libcurl with curl_multi and 300 parallel requests on a single thread.
+With a second thread doing the conversion to binary format and writing to disk.
 
 ```bash
 
@@ -103,7 +117,7 @@ count=10434004
 Performance should be > 100 requests/second for a single core with zero latency and max concurrency but is highly disk dependent. 
 Performance feedback on different system is very welcome. 
 
-### Other utilies
+### Other utilities
 
 `./fetch.sh` : curl command line to directly download the ~1M text files (approx 30-40kB each)
                also has find command line to join the above together (in arbitrary order!) and prefix the lines witin appropriately
