@@ -78,7 +78,7 @@ found  = 5BAA61E4C9B93F3F0682250B6CF8331B7EE68FD8:10434004
 ```
 Performance will be mainly down to your disk and be around 15-20ms per uncached query, and <0.2ms cached.
 
-### Running a server
+### Running a local server: `hibp_server`
 
 You can run a high performance server for "pawned password queries" as follows:
 ```bash
