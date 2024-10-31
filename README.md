@@ -71,6 +71,10 @@ time ./build/gcc/release/hibp_download > hibp_all.bin
 # replace 'password' as you wish
 
 ./build/gcc/release/hibp_search hibp_all.bin 'password'
+# output should be 
+search took                0.2699 ms
+needle = 5BAA61E4C9B93F3F0682250B6CF8331B7EE68FD8:-1
+found  = 5BAA61E4C9B93F3F0682250B6CF8331B7EE68FD8:10434004
 ```
 Performance will be mainly down to your disk and be around 15-20ms per uncached query, and <0.2ms cached.
 
@@ -80,6 +84,9 @@ You can run a high performance server for "pawned password queries" as follows:
 ```bash
 ./build/gcc/release/hibp_server hibp_all.bin
 curl http://localhost:8082/password
+
+# output should be:
+count=10434004
 ```
 Performance should be > 100 requests/second for a single core with zero latency and max concurrency but is highly disk dependent. 
 Performance feedback on different system is very welcome. 
