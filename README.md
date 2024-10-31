@@ -9,6 +9,9 @@ The binary format just stored the 20byte binary bytes of the SHA1 + 4 bytes inte
 No delimiter is required because the record size is constant. Searches become easy, if the binary data is sorted, 
 because we can use random access binary search.
 
+Storage requirements are almost halved with the binary format (21GB currently). The in memory footprint of these 
+utilities is very small and measured in a few megabytes.
+
 These utilities are written in C++ and centre around a `flat_file` class to model the db. 
 - libcurl, libevent are used for the download
 - restinio is used for the local server
