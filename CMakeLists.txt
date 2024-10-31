@@ -69,7 +69,7 @@ add_subdirectory(ext/restinio/dev/nodejs/llhttp)
 add_subdirectory(ext/restinio/dev/expected-lite)
 add_subdirectory(ext/restinio/dev/restinio)
 if (NOT MSVC)
-  target_compile_options(restinio INTERFACE -Wno-shadow -Wno-sign-conversion -Wno-shorten-64-to-32 -Wno-extra-semi)
+  target_compile_options(restinio INTERFACE -Wno-shadow -Wno-sign-conversion -Wno-shorten-64-to-32 -Wno-extra-semi -Wno-conversion -Wno-dangling-reference)
 endif()
 
 add_executable(hibp_search app/hibp_search.cpp)
