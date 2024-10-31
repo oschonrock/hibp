@@ -90,3 +90,14 @@ count=10434004
 ```
 Performance should be > 100 requests/second for a single core with zero latency and max concurrency but is highly disk dependent. 
 Performance feedback on different system is very welcome. 
+
+### Other utilies
+
+`./fetch.sh` : curl command line to directly download the ~1M text files (approx 30-40kB each)
+               also has find command line to join the above together (in arbitrary order!) and prefix the lines witin appropriately
+
+`./build/gcc/release/hibp_join`    : join the ~1M text files into one large binary one in arbitrary order (not useful since hibp_download)
+
+`./build/gcc/release/hibp_convert` : convert a text file into a binary one
+
+`./build/gcc/release/hibp_sort`    : sort a binary file using external disk space (takes 3x space on disk)!
