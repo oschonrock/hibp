@@ -52,7 +52,11 @@ cd ~/hibp
 You should see a bunch thread debug output, but no error and  `ls -lh hibp_sample.bin` should show ~5.3M
 
 #### compile for release and run download: `hibp_download`
+Program will download the currently ~38GB of 1million 30-40kB text files from the api.haveibeenpawned.com 
+It does this using libcurl with curl_multi and 300 parallel requests on a single thread.
+
 ```bash
+
 ./build.sh gcc release
 
 # warning this will (currently) take at about 13mins on a 1Gb connection and consume ~21GB of disk space
@@ -67,6 +71,9 @@ time ./build/gcc/release/hibp_download > hibp_all.bin
 ```
 
 ### Run some sample "pawned password" queries from command line: `hibp_search`
+
+This is a tiny program / debug utility that runs a single query against the downloaded binary database.
+
 ```bash
 # replace 'password' as you wish
 
@@ -80,7 +87,12 @@ Performance will be mainly down to your disk and be around 15-20ms per uncached 
 
 ### Running a local server: `hibp_server`
 
-You can run a high performance server for "pawned password queries" as follows:
+You can run a high performance server for "pawned password queries" as follows. 
+This is a simple "REST" server using the "restinio" library.
+Searches does this by during "binary search" of the downloaded binary data database on disk. 
+The process consumes <100Mb of virtual memory and < 5MB of resident memory. 
+Note these are 100% accurate searches and not using some probabilistic "bloom filter" as in some similar projects.
+
 ```bash
 ./build/gcc/release/hibp_server hibp_all.bin
 curl http://localhost:8082/password
