@@ -101,3 +101,7 @@ Performance feedback on different system is very welcome.
 `./build/gcc/release/hibp_convert` : convert a text file into a binary one
 
 `./build/gcc/release/hibp_sort`    : sort a binary file using external disk space (takes 3x space on disk)!
+
+### Future uses
+
+- I was considering adding a php/pyhton/javascript extension so that queries can be trivially made from within those scripting environments
