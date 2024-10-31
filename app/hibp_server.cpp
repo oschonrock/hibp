@@ -46,8 +46,9 @@ int main(int argc, char* argv[]) {
     };
 
     restinio::run(restinio::on_thread_pool<my_server_traits>(std::thread::hardware_concurrency())
-                      .address("localhost")
-                      .request_handler(std::move(router)));
+                  .address("localhost")
+                  .port(8082)
+                  .request_handler(std::move(router)));
 
   } catch (const std::exception& e) {
     std::cerr << "something went wrong: " << e.what() << "\n";
