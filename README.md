@@ -19,37 +19,7 @@ These utilities are written in C++ and centre around a `flat_file` class to mode
 
 ## Building
 
-### Ubuntu 24.04
-
-#### Install Dependencies
-```bash
-sudo apt install build-essential git cmake libcurl4-openssl-dev libevent-dev ruby libtbb-dev
-git clone https://github.com/oschonrock/hibp.git
-cd hibp
-git submodule update --init --recursive
-cd ext/restinio
-sudo gem install Mxx_ru   # install ruby gem required for restinio dependency installation
-mxxruexternals            # install those deps
-cd ../..
-
-# optional: for compilng with clang also:
-sudo apt install clang gcc-14 g++-14  # need gcc-14 because clang tries to use its stdlibc++ version
-
-```
-
-#### Fix bug in libstdc++ parallel algos integration with libtbb-dev
-see here
-https://gcc.gnu.org/bugzilla/show_bug.cgi?id=117276
-
-install the patch provided in bug report above into both versions of libstdc++ now installed on the machine
-
-```bash
-cd /usr/include/c++/13/
-wget -qO - https://gcc.gnu.org/bugzilla/attachment.cgi?id=59419 | sudo patch --backup --strip 5
-cd ../14/
-wget -qO - https://gcc.gnu.org/bugzilla/attachment.cgi?id=59419 | sudo patch --backup --strip 5
-cd ~/hibp
-```
+## Compiling
 
 #### Compile in debug mode
 ```bash
@@ -67,21 +37,27 @@ cd ~/hibp
 ```
 You should see a bunch thread debug output, but no error and  `ls -lh hibp_sample.bin` should show ~5.3M
 
-#### compile for release and run download: `hibp_download`
+#### compile for release
+```bash
+
+./build.sh gcc release
+```
+
+## Usage
+
+#### run full download: `hibp_download`
 Program will download the currently ~38GB of 1million 30-40kB text files from api.haveibeenpawned.com 
 It does this using libcurl with curl_multi and 300 parallel requests on a single thread.
 With a second thread doing the conversion to binary format and writing to disk.
 
+*Warning* this will (currently) take at about 13mins on a 1Gb connection and consume ~21GB of disk space
+during this time:
+- your network connection should be saturated with HTTP2 multiplexed requests
+- `top` in threads mode (key `H`) should show 2 `hibp_download` threads.
+- One "curl thread" with ~50-80% CPU and
+- The "main thread" with ~15-30% CPU, primarily converting data to binary and writing to disk
+
 ```bash
-
-./build.sh gcc release
-
-# warning this will (currently) take at about 13mins on a 1Gb connection and consume ~21GB of disk space
-# during this time your network connection should be saturated with HTTP2 multiplexed requests
-# `top` in threads mode (key `H`) should show 2 `hibp_download` threads.
-# One "curl thread" with ~50-80% CPU and
-# the "main thread" with ~15-30% CPU, primarily converting data to binary and writing to disk
-
 time ./build/gcc/release/hibp_download > hibp_all.bin
 
 # you may see some warnings about failures and retries. If any transfers fails after 10 retries, programme will abort.

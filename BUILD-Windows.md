@@ -20,3 +20,8 @@ cd ../..
 ```
 
 And continue with testing / usage phase in main README
+
+
+Also refer to BUILD-linux.md for patching libstdc++
+haven't worked out the exact commands for Windows.
+But this is only important for hibp_sort, which is mostly deprecated
