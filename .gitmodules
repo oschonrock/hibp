@@ -1,9 +1,6 @@
 [submodule "ext/toolbelt"]
 	path = ext/toolbelt
 	url = https://github.com/oschonrock/toolbelt.git
-[submodule "ext/fmt"]
-	path = ext/fmt
-	url = https://github.com/fmtlib/fmt.git
 [submodule "ext/fast_float"]
 	path = ext/fast_float
 	url = https://github.com/fastfloat/fast_float.git
