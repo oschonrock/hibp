@@ -37,31 +37,26 @@ BUILD_DIR=$BUILD/$COMPILER/$TYPE
 
 if [[ "$COMPILER" == "clang" ]]
 then
-    # detect version specific preferred name
-    if command -v clang-14 &> /dev/null
-    then
-      C_COMPILER=clang-14 
-      CXX_COMPILER=clang++-14
-    else
-      C_COMPILER=clang 
-      CXX_COMPILER=clang++
-    fi
+    C_COMPILER=clang 
+    CXX_COMPILER=clang++
 else
-    # detect version specific preferred name
-    if command -v gcc-11 &> /dev/null
-    then
-      C_COMPILER=gcc-11
-      CXX_COMPILER=g++-11
-    else
-      C_COMPILER=gcc 
-      CXX_COMPILER=g++
-    fi
+    C_COMPILER=gcc 
+    CXX_COMPILER=g++
 fi
-COMPILER_OPTIONS="-DCMAKE_C_COMPILER=$C_COMPILER -DCMAKE_CXX_COMPILER=$CXX_COMPILER -DCMAKE_COLOR_DIAGNOSTICS=ON"
+
+if command -v ccache &> /dev/null
+then
+    CACHE="-DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache"
+else
+    echo -e '\033[0;31m'"Consider installing `ccache` for extra speed!"'\033[0m' 1>&2
+    CACHE=""
+fi
+
+COMPILER_OPTIONS="-DCMAKE_C_COMPILER=$C_COMPILER -DCMAKE_CXX_COMPILER=$CXX_COMPILER "
 
 [[ -n $RESET && -d $BUILD_DIR ]] && rm -rf $BUILD_DIR
     
-$CMAKE -GNinja -S . -B $BUILD_DIR $COMPILER_OPTIONS -DCMAKE_BUILD_TYPE=$TYPE $TEST $BENCH
+$CMAKE -GNinja -S . -B $BUILD_DIR $CACHE -DCMAKE_COLOR_DIAGNOSTICS=ON $COMPILER_OPTIONS -DCMAKE_BUILD_TYPE=$TYPE $TEST $BENCH
 
 [[ -n $CLEAN ]] && $CMAKE --build $BUILD_DIR --target clean
 
