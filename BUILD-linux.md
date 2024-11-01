@@ -2,7 +2,8 @@
 
 #### Install Dependencies
 ```bash
-sudo apt install build-essential ninja-build git cmake libcurl4-openssl-dev libevent-dev ruby libtbb-dev
+sudo apt install build-essential ninja-build ccache git libcurl4-openssl-dev libevent-dev ruby libtbb-dev
+sudo snap install cmake   # get the very latest
 git clone https://github.com/oschonrock/hibp.git
 cd hibp
 git submodule update --init --recursive
