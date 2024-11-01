@@ -147,7 +147,7 @@ static curl_context_t* create_curl_context(curl_socket_t sockfd) {
   auto* context = new curl_context_t; // NOLINT manual new and delete
 
   context->sockfd = sockfd;
-  context->event  = event_new(base, sockfd, 0, curl_perform_event_cb, context);
+  context->event  = event_new(base, static_cast<evutil_socket_t>(sockfd), 0, curl_perform_event_cb, context);
 
   return context;
 }
@@ -308,8 +308,8 @@ static int handle_socket_curl_cb(CURL* /*easy*/, curl_socket_t s, int action, vo
     events |= EV_PERSIST; // NOLINT signed bitwise
 
     event_del(curl_context->event);
-    event_assign(curl_context->event, base, curl_context->sockfd, events, curl_perform_event_cb,
-                 curl_context);
+    event_assign(curl_context->event, base, static_cast<evutil_socket_t>(curl_context->sockfd), 
+      events, curl_perform_event_cb, curl_context);
     event_add(curl_context->event, nullptr);
 
     break;
