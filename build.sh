@@ -17,7 +17,7 @@ VERBOSE=
 for arg; do
   case "$arg" in
     --help|-h)    echo $USAGE; exit 0;;
-    -v|--verbose) VERBOSE='VERBOSE=1'  ;;
+    -v|--verbose) VERBOSE='--verbose'  ;;
     debug)        TYPE=debug ;;
     release)      TYPE=release ;;
     relwithdebinfo)      TYPE=relwithdebinfo ;;
@@ -57,7 +57,7 @@ else
       CXX_COMPILER=g++
     fi
 fi
-COMPILER_OPTIONS="-DCMAKE_C_COMPILER=$C_COMPILER -DCMAKE_CXX_COMPILER=$CXX_COMPILER -DCMAKE_COLOR_MAKEFILE=ON"
+COMPILER_OPTIONS="-DCMAKE_C_COMPILER=$C_COMPILER -DCMAKE_CXX_COMPILER=$CXX_COMPILER -DCMAKE_COLOR_DIAGNOSTICS=ON"
 
 [[ -n $RESET && -d $BUILD_DIR ]] && rm -rf $BUILD_DIR
     
