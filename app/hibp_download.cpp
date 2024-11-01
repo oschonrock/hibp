@@ -140,7 +140,7 @@ struct curl_context_t {
   curl_socket_t sockfd;
 };
 
-static void curl_perform_event_cb(int fd, short event, void* arg);
+static void curl_perform_event_cb(long long int fd, short event, void* arg);
 
 static curl_context_t* create_curl_context(curl_socket_t sockfd) {
 
@@ -244,7 +244,7 @@ static void process_curl_messages() {
 
 // event callbacks
 
-static void curl_perform_event_cb(int /*fd*/, short event, void* arg) {
+static void curl_perform_event_cb(long long int /*fd*/, short event, void* arg) {
   int running_handles = 0;
   int flags           = 0;
 
