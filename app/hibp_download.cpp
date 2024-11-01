@@ -41,7 +41,7 @@ static void thrprinterr([[maybe_unused]] const std::string& msg) {
 // main thread notifies curl thread when it has finished updating both queues so curl
 // thread can continue
 //
-// we use uniq_ptr<download> to keep the address of the downloads stable as queues change
+// we use uniq_ptr<download> to keep the address of the downloads stable as queues changes
 
 struct download {
   explicit download(std::string prefix_) : prefix(std::move(prefix_)) {}
@@ -57,7 +57,7 @@ struct download {
 static std::queue<std::unique_ptr<download>> download_queue; // NOLINT non-const-global
 static std::queue<std::unique_ptr<download>> process_queue;  // NOLINT non-const-global
 
-static std::mutex              thrmutex; // NOLINT non-const-global
+static std::mutex              thrmutex;  // NOLINT non-const-global
 static std::condition_variable tstate_cv; // NOLINT non-const-global
 
 enum class state { handle_requests, process_queues };
@@ -140,7 +140,7 @@ struct curl_context_t {
   curl_socket_t sockfd;
 };
 
-static void curl_perform_event_cb(long long int fd, short event, void* arg);
+static void curl_perform_event_cb(evutil_socket_t fd, short event, void* arg);
 
 static curl_context_t* create_curl_context(curl_socket_t sockfd) {
 
@@ -219,7 +219,7 @@ static void process_curl_messages() {
     case CURLMSG_DONE:
       found_successful_completions |= process_curl_done_msg(message);
       break;
-      
+
     default:
       thrprinterr("CURLMSG default");
       break;
@@ -244,7 +244,7 @@ static void process_curl_messages() {
 
 // event callbacks
 
-static void curl_perform_event_cb(long long int /*fd*/, short event, void* arg) {
+static void curl_perform_event_cb(evutil_socket_t /*fd*/, short event, void* arg) {
   int running_handles = 0;
   int flags           = 0;
 
@@ -361,7 +361,7 @@ int main() {
       tstate = state::handle_requests;            // signal curl thread to continue
     }
     thrprinterr("notifying curl");
-    tstate_cv.notify_one();                         // send control back to curl thread
+    tstate_cv.notify_one();                        // send control back to curl thread
     write_completed_process_queue_entries(writer); // do slow work writing to disk
   }
 
