@@ -19,6 +19,11 @@ These utilities are written in C++ and centre around a `flat_file` class to mode
 
 ## Building
 
+refer to 
+
+- BUILD-linux.md
+- BUILD-Windows.md
+
 ## Compiling
 
 #### Compile in debug mode
