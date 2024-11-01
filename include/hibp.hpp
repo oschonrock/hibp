@@ -1,7 +1,6 @@
 #pragma once
 
 #include "arrcmp.hpp"
-#include "fmt/format.h"
 #include "os/str.hpp"
 #include <array>
 #include <cassert>
@@ -23,8 +22,8 @@ struct pawned_pw {
   }
 
   friend std::ostream& operator<<(std::ostream& os, const pawned_pw& rhs) {
-    for (auto&& b: rhs.hash) os << fmt::format("{:02X}", b);
-    return os << fmt::format(":{:d}", rhs.count);
+    for (auto&& b: rhs.hash) os << std::format("{:02X}", static_cast<unsigned>(b));
+    return os << std::format(":{:d}", rhs.count);
   }
 
   std::array<std::byte, 20> hash;
