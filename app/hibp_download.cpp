@@ -352,7 +352,7 @@ int main() {
   fill_download_queue(); // no need to lock mutex here, as curl_event thread is not running yet
 
   tstate = state::handle_requests;
-  std::jthread curl_event_thread([]() { event_base_dispatch(base); });
+  std::thread curl_event_thread([]() { event_base_dispatch(base); });
   thrnames[curl_event_thread.get_id()] = "curl";
 
   while (!download_queue.empty()) {
@@ -375,5 +375,7 @@ int main() {
   libevent_global_shutdown();
   curl_global_cleanup();
 
+  curl_event_thread.join();
+  
   return EXIT_SUCCESS;
 }
