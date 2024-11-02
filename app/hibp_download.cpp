@@ -198,11 +198,13 @@ static bool process_curl_done_msg(CURLMsg* message) {
   } else {
     if (dl->retries_left == 0) {
       throw std::runtime_error(std::format("prefix '{}': returned result '{}' after {} retries",
-                                           curl_easy_strerror(message->data.result), dl->prefix,
+                                           dl->prefix, curl_easy_strerror(message->data.result),
                                            download::max_retries));
     }
     dl->retries_left--;
     dl->buffer.clear(); // throw away anything that was returned
+    thrprinterr(std::format("prefix '{}': returned result '{}'",
+                            dl->prefix, curl_easy_strerror(message->data.result)));
     thrprinterr(
         std::format("retrying prefix '{}', retries left = {}", dl->prefix, dl->retries_left));
     curl_multi_add_handle(curl_multi_handle, easy_handle); // try again with same handle
