@@ -10,6 +10,9 @@
 
 int main(int argc, char* argv[]) {
 
+  // for performance testing
+  // int uniq{};
+  
   try {
     if (argc < 2) {
       throw std::domain_error("USAGE: " + std::string(argv[0]) + " dbfile.bin");
@@ -23,6 +26,8 @@ int main(int argc, char* argv[]) {
 
       SHA1 sha1;
       sha1.update(std::string(params["password"]));
+      // for performance testing
+      sha1.update(std::string(params["password"]) + std::to_string(uniq++));
       hibp::pawned_pw needle = hibp::convert_to_binary(sha1.final());
 
       std::optional<hibp::pawned_pw> maybe_ppw;
