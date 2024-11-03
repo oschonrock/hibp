@@ -104,9 +104,10 @@ static void process_completed_download_queue_entries() {
 }
 
 static std::size_t write_lines(flat_file::stream_writer<hibp::pawned_pw>& writer, download& dl) {
-  // "embarrassing" copy onto std:string until C++26 P2495R3 Interfacing stringstreams with string_view
+  // "embarrassing" copy onto std:string until C++26 P2495R3 Interfacing stringstreams with
+  // string_view
   std::stringstream ss(std::string(dl.buffer.data(), dl.buffer.size()));
-  
+
   auto recordcount = 0UL;
 
   for (std::string line, prefixed_line; std::getline(ss, line);) {
@@ -120,6 +121,8 @@ static std::size_t write_lines(flat_file::stream_writer<hibp::pawned_pw>& writer
   return recordcount;
 }
 
+static std::size_t files_processed = 0UL;
+
 static void
 write_completed_process_queue_entries(flat_file::stream_writer<hibp::pawned_pw>& writer) {
   while (!process_queue.empty()) {
@@ -128,6 +131,13 @@ write_completed_process_queue_entries(flat_file::stream_writer<hibp::pawned_pw>&
     // there may exist an optimisation that retains the `download` for future add_download()
     // so that the `buffer` allocation can be reused after being clear()'ed
     process_queue.pop();
+    files_processed++;
+    // in release builds show basic progress
+#ifdef NDEBUG
+    std::cerr << std::format("Progress: {} / {} files: {:.1f}%\r", files_processed,
+                             max_prefix_plus_one - 1,
+                             100.0 * files_processed / (max_prefix_plus_one - 1));
+#endif
   }
 }
 
@@ -380,6 +390,8 @@ int main() {
   curl_global_cleanup();
 
   curl_event_thread.join();
-
+#ifdef NDEBUG
+  std::cerr << "\n";
+#endif
   return EXIT_SUCCESS;
 }
