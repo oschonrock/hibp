@@ -21,10 +21,8 @@ static std::unordered_map<std::thread::id, std::string> thrnames; // NOLINT non-
 
 static void thrprinterr([[maybe_unused]] const std::string& msg) {
 #ifndef NDEBUG
-  {
-    std::lock_guard lk(cerr_mutex);
-    std::cerr << std::format("thread: {:>5}: {}\n", thrnames[std::this_thread::get_id()], msg);
-  }
+  std::lock_guard lk(cerr_mutex);
+  std::cerr << std::format("thread: {:>5}: {}\n", thrnames[std::this_thread::get_id()], msg);
 #endif
 }
 
@@ -78,12 +76,10 @@ static std::size_t files_processed = 0UL; // NOLINT non-const-global
 void print_progress() {
 // in release builds show basic progress
 #ifdef NDEBUG
-  {
-    std::lock_guard lk(cerr_mutex);
-    std::cerr << std::format(
-        "Progress: {} / {} files: {:.1f}%\r", files_processed, max_prefix_plus_one,
-        100.0 * static_cast<double>(files_processed) / static_cast<double>(max_prefix_plus_one));
-  }
+  std::lock_guard lk(cerr_mutex);
+  std::cerr << std::format(
+      "Progress: {} / {} files: {:.1f}%\r", files_processed, max_prefix_plus_one,
+      100.0 * static_cast<double>(files_processed) / static_cast<double>(max_prefix_plus_one));
 #endif
 }
 
