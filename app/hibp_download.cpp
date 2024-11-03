@@ -80,10 +80,9 @@ void print_progress() {
 #ifdef NDEBUG
   {
     std::lock_guard lk(cerr_mutex);
-    std::cerr << std::format("Progress: {} / {} files: {:.1f}%\r", files_processed,
-                             max_prefix_plus_one - 1,
-                             100.0 * static_cast<double>(files_processed) /
-                                 static_cast<double>(max_prefix_plus_one - 1));
+    std::cerr << std::format(
+        "Progress: {} / {} files: {:.1f}%\r", files_processed, max_prefix_plus_one,
+        100.0 * static_cast<double>(files_processed) / static_cast<double>(max_prefix_plus_one));
   }
 #endif
 }
