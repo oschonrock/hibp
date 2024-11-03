@@ -15,7 +15,7 @@ int main() {
 
   const std::filesystem::path curdir{"."};
   for (auto const& dir_entry: std::filesystem::directory_iterator{curdir}) {
-    filename = dir_entry.path().filename();
+    filename = dir_entry.path().filename().generic_string();
     if (std::regex_search(filename, fileregex)) {
       std::ifstream partial_file(dir_entry.path());
       while (std::getline(partial_file, line)) {

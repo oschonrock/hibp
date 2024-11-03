@@ -6,6 +6,7 @@
 #include <event2/event.h>
 #include <format>
 #include <iostream>
+#include <sstream>
 #include <iterator>
 #include <memory>
 #include <mutex>
@@ -41,7 +42,7 @@ static void thrprinterr([[maybe_unused]] const std::string& msg) {
 // main thread notifies curl thread when it has finished updating both queues so curl
 // thread can continue
 //
-// we use uniq_ptr<download> to keep the address of the downloads stable as queues change
+// we use uniq_ptr<download> to keep the address of the downloads stable as queues changes
 
 struct download {
   explicit download(std::string prefix_) : prefix(std::move(prefix_)) {}
@@ -57,7 +58,7 @@ struct download {
 static std::queue<std::unique_ptr<download>> download_queue; // NOLINT non-const-global
 static std::queue<std::unique_ptr<download>> process_queue;  // NOLINT non-const-global
 
-static std::mutex              thrmutex; // NOLINT non-const-global
+static std::mutex              thrmutex;  // NOLINT non-const-global
 static std::condition_variable tstate_cv; // NOLINT non-const-global
 
 enum class state { handle_requests, process_queues };
@@ -103,9 +104,9 @@ static void process_completed_download_queue_entries() {
 }
 
 static std::size_t write_lines(flat_file::stream_writer<hibp::pawned_pw>& writer, download& dl) {
-  std::stringstream ss;
-  ss.rdbuf()->pubsetbuf(dl.buffer.data(), static_cast<std::streamsize>(dl.buffer.size()));
-
+  // "embarrassing" copy onto std:string until C++26 P2495R3 Interfacing stringstreams with string_view
+  std::stringstream ss(std::string(dl.buffer.data(), dl.buffer.size()));
+  
   auto recordcount = 0UL;
 
   for (std::string line, prefixed_line; std::getline(ss, line);) {
@@ -124,6 +125,8 @@ write_completed_process_queue_entries(flat_file::stream_writer<hibp::pawned_pw>&
   while (!process_queue.empty()) {
     auto& front = process_queue.front();
     write_lines(writer, *front);
+    // there may exist an optimisation that retains the `download` for future add_download()
+    // so that the `buffer` allocation can be reused after being clear()'ed
     process_queue.pop();
   }
 }
@@ -140,14 +143,15 @@ struct curl_context_t {
   curl_socket_t sockfd;
 };
 
-static void curl_perform_event_cb(int fd, short event, void* arg);
+static void curl_perform_event_cb(evutil_socket_t fd, short event, void* arg);
 
 static curl_context_t* create_curl_context(curl_socket_t sockfd) {
 
   auto* context = new curl_context_t; // NOLINT manual new and delete
 
   context->sockfd = sockfd;
-  context->event  = event_new(base, sockfd, 0, curl_perform_event_cb, context);
+  context->event =
+      event_new(base, static_cast<evutil_socket_t>(sockfd), 0, curl_perform_event_cb, context);
 
   return context;
 }
@@ -197,11 +201,13 @@ static bool process_curl_done_msg(CURLMsg* message) {
   } else {
     if (dl->retries_left == 0) {
       throw std::runtime_error(std::format("prefix '{}': returned result '{}' after {} retries",
-                                           curl_easy_strerror(message->data.result), dl->prefix,
+                                           dl->prefix, curl_easy_strerror(message->data.result),
                                            download::max_retries));
     }
     dl->retries_left--;
     dl->buffer.clear(); // throw away anything that was returned
+    thrprinterr(std::format("prefix '{}': returned result '{}'", dl->prefix,
+                            curl_easy_strerror(message->data.result)));
     thrprinterr(
         std::format("retrying prefix '{}', retries left = {}", dl->prefix, dl->retries_left));
     curl_multi_add_handle(curl_multi_handle, easy_handle); // try again with same handle
@@ -219,7 +225,7 @@ static void process_curl_messages() {
     case CURLMSG_DONE:
       found_successful_completions |= process_curl_done_msg(message);
       break;
-      
+
     default:
       thrprinterr("CURLMSG default");
       break;
@@ -244,7 +250,7 @@ static void process_curl_messages() {
 
 // event callbacks
 
-static void curl_perform_event_cb(int /*fd*/, short event, void* arg) {
+static void curl_perform_event_cb(evutil_socket_t /*fd*/, short event, void* arg) {
   int running_handles = 0;
   int flags           = 0;
 
@@ -271,6 +277,7 @@ static std::size_t write_data_curl_cb(char* ptr, std::size_t size, std::size_t n
   auto* dl       = static_cast<download*>(userdata);
   auto  realsize = size * nmemb;
   std::copy(ptr, ptr + realsize, std::back_inserter(dl->buffer));
+
   return realsize;
 }
 
@@ -308,8 +315,8 @@ static int handle_socket_curl_cb(CURL* /*easy*/, curl_socket_t s, int action, vo
     events |= EV_PERSIST; // NOLINT signed bitwise
 
     event_del(curl_context->event);
-    event_assign(curl_context->event, base, curl_context->sockfd, events, curl_perform_event_cb,
-                 curl_context);
+    event_assign(curl_context->event, base, static_cast<evutil_socket_t>(curl_context->sockfd),
+                 events, curl_perform_event_cb, curl_context);
     event_add(curl_context->event, nullptr);
 
     break;
@@ -349,7 +356,7 @@ int main() {
   fill_download_queue(); // no need to lock mutex here, as curl_event thread is not running yet
 
   tstate = state::handle_requests;
-  std::jthread curl_event_thread([]() { event_base_dispatch(base); });
+  std::thread curl_event_thread([]() { event_base_dispatch(base); });
   thrnames[curl_event_thread.get_id()] = "curl";
 
   while (!download_queue.empty()) {
@@ -361,7 +368,7 @@ int main() {
       tstate = state::handle_requests;            // signal curl thread to continue
     }
     thrprinterr("notifying curl");
-    tstate_cv.notify_one();                         // send control back to curl thread
+    tstate_cv.notify_one();                        // send control back to curl thread
     write_completed_process_queue_entries(writer); // do slow work writing to disk
   }
 
@@ -371,6 +378,8 @@ int main() {
 
   libevent_global_shutdown();
   curl_global_cleanup();
+
+  curl_event_thread.join();
 
   return EXIT_SUCCESS;
 }

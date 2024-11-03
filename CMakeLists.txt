@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.28)
 project(hibp)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -15,12 +15,12 @@ else() # unix'ish
     if (NOT MINGW) # sanitizers are not working under mingw
       string(APPEND CMAKE_CXX_FLAGS_DEBUG " -fsanitize=address,undefined,leak")
       # string(APPEND CMAKE_CXX_FLAGS_DEBUG " -fsanitize=thread") # alternative to above
+      if(CMAKE_VERSION VERSION_LESS "3.29") 
+	message(WARNING "Please consider to upgrading to CMake 3.30 to enable use of faster `mold` linker!")
+      else()
+	set(CMAKE_LINKER_TYPE MOLD) # mold not "compatible with mingw toolchain"
+      endif()
     endif()
-endif()
-
-add_subdirectory(ext/fmt)
-if (NOT MSVC)
-  target_compile_options(fmt INTERFACE -Wno-missing-noreturn)
 endif()
 
 add_subdirectory(ext/date)
@@ -41,22 +41,24 @@ endif()
 add_library(arrcmp INTERFACE)
 target_include_directories(arrcmp INTERFACE include)
 target_compile_features(arrcmp INTERFACE cxx_std_20)
-target_link_libraries(arrcmp INTERFACE fmt)
 
 add_library(hibp INTERFACE)
 target_include_directories(hibp INTERFACE include)
 target_compile_features(hibp INTERFACE cxx_std_20)
-target_link_libraries(hibp INTERFACE fmt arrcmp toolbelt)
+target_link_libraries(hibp INTERFACE arrcmp toolbelt)
 
 find_package(TBB REQUIRED)
 
 add_library(flat_file INTERFACE)
 target_include_directories(flat_file INTERFACE include)
 target_compile_features(flat_file INTERFACE cxx_std_20)
+
 if (MSVC) # better solutions?
-  target_link_libraries(flat_file INTERFACE fmt tBB::tbb)
+  target_link_libraries(flat_file INTERFACE tBB::tbb)
+elseif (MINGW)
+  target_link_libraries(flat_file INTERFACE tbb12)
 else()
-  target_link_libraries(flat_file INTERFACE fmt tbb)
+  target_link_libraries(flat_file INTERFACE tbb)
 endif()
 
 
@@ -65,11 +67,11 @@ set(RESTINIO_ASIO_SOURCE standalone)
 set(asio_INCLUDE_DIRS ../asio/include) # relative to ext/restinio/dev/restinio
 set(BUILD_STATIC_LIBS ON CACHE BOOL "OVERIIDDEN") # not a great way but required?
 add_subdirectory(ext/restinio/dev/nodejs/llhttp)
-# add_subdirectory(ext/fmt) # not needed as alredy part of our root CMakelists
+add_subdirectory(ext/restinio/dev/fmt)
 add_subdirectory(ext/restinio/dev/expected-lite)
 add_subdirectory(ext/restinio/dev/restinio)
 if (NOT MSVC)
-  target_compile_options(restinio INTERFACE -Wno-shadow -Wno-sign-conversion -Wno-shorten-64-to-32 -Wno-extra-semi)
+  target_compile_options(restinio INTERFACE -Wno-shadow -Wno-sign-conversion -Wno-shorten-64-to-32 -Wno-extra-semi -Wno-conversion -Wno-dangling-reference)
 endif()
 
 add_executable(hibp_search app/hibp_search.cpp)
@@ -78,7 +80,11 @@ target_link_libraries(hibp_search PRIVATE toolbelt sha1 hibp flat_file)
 
 add_executable(hibp_server app/hibp_server.cpp)
 target_compile_options(hibp_server PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_server PRIVATE toolbelt sha1 hibp flat_file restinio)
+if (MINGW)
+  target_link_libraries(hibp_server PRIVATE toolbelt sha1 hibp flat_file restinio gdi32 wsock32 ws2_32)
+else()
+  target_link_libraries(hibp_server PRIVATE toolbelt sha1 hibp flat_file restinio)
+endif()
 
 add_executable(hibp_sort app/hibp_sort.cpp)
 target_compile_options(hibp_sort PRIVATE ${PROJECT_COMPILE_OPTIONS})

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "fmt/format.h"
 #include "os/bch.hpp"
 #include <algorithm>
 #include <cstddef>
@@ -207,27 +206,30 @@ std::vector<std::string> sort_into_chunks(typename database<ValueType>::const_it
   std::size_t number_of_chunks =
       (records_to_sort / chunk_size) + static_cast<std::size_t>(records_to_sort % chunk_size != 0);
 
-  std::cerr << fmt::format("{:20s} = {:12d}\n", "max memory usage", max_memory_usage);
-  std::cerr << fmt::format("{:20s} = {:12d}\n", "records to sort", records_to_sort);
-  std::cerr << fmt::format("{:20s} = {:12d}\n", "chunk size", chunk_size);
-  std::cerr << fmt::format("{:20s} = {:12d}\n", "number of chunks", number_of_chunks) << "\n";
+  std::cerr << std::format("{:20s} = {:12d}\n", "max memory usage", max_memory_usage);
+  std::cerr << std::format("{:20s} = {:12d}\n", "records to sort", records_to_sort);
+  std::cerr << std::format("{:20s} = {:12d}\n", "chunk size", chunk_size);
+  std::cerr << std::format("{:20s} = {:12d}\n", "number of chunks", number_of_chunks) << "\n";
 
   std::vector<std::string> chunk_filenames;
   chunk_filenames.reserve(number_of_chunks);
   for (std::size_t chunk = 0; chunk != number_of_chunks; ++chunk) {
-    std::string chunk_filename = first.filename() + fmt::format(".partial.{:04d}", chunk);
+    std::string chunk_filename = first.filename() + std::format(".partial.{:04d}", chunk);
     chunk_filenames.push_back(chunk_filename);
 
     std::size_t start = chunk * chunk_size;
     std::size_t end   = start + std::min(chunk_size, records_to_sort - start);
-    std::cerr << fmt::format("sorting [{:12d},{:12d}) => {:s}\n", start, end, chunk_filename);
+    std::cerr << std::format("sorting [{:12d},{:12d}) => {:s}\n", start, end, chunk_filename);
 
     std::vector<ValueType> objs;
     std::copy(first + start, first + end, std::back_inserter(objs));
-    std::sort(std::execution::par_unseq, objs.begin(), objs.end(),
-              [&](const auto& a, const auto& b) {
-                return comp(std::invoke(proj, a), std::invoke(proj, b));
-              });
+    std::sort(
+#if __cpp_lib_parallel_algorithm
+        std::execution::par_unseq,
+#endif
+        objs.begin(), objs.end(), [&](const auto& a, const auto& b) {
+          return comp(std::invoke(proj, a), std::invoke(proj, b));
+        });
     auto part = file_writer<ValueType>(chunk_filename);
     for (const auto& obj: objs) part.write(obj);
   }
@@ -302,9 +304,9 @@ std::string disksort_range(typename database<ValueType>::const_iterator first,
 
   if (chunk_filenames.size() == 1) {
     std::filesystem::rename(chunk_filenames[0], sorted_filename);
-    std::cerr << fmt::format("\nrenaming {:s} => {:s}\n", chunk_filenames[0], sorted_filename);
+    std::cerr << std::format("\nrenaming {} => {}\n", chunk_filenames[0], sorted_filename);
   } else {
-    std::cerr << fmt::format("\nmerging [{:12d},{:12d}) => {:s}\n", first.pos(), last.pos(),
+    std::cerr << std::format("\nmerging [{:12d},{:12d}) => {:s}\n", first.pos(), last.pos(),
                              sorted_filename);
     merge_sorted_chunks<ValueType>(chunk_filenames, sorted_filename, comp, proj);
   }

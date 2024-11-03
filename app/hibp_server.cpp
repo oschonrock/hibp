@@ -1,18 +1,15 @@
-#include <restinio/core.hpp>
-
 #include "flat_file.hpp"
 #include "hibp.hpp"
-#include "os/bch.hpp"
 #include "restinio/traits.hpp"
 #include "sha1.hpp"
 #include <cstdlib>
-#include <string_view>
+#include <restinio/core.hpp>
 
 int main(int argc, char* argv[]) {
 
   // for performance testing
   // int uniq{};
-  
+
   try {
     if (argc < 2) {
       throw std::domain_error("USAGE: " + std::string(argv[0]) + " dbfile.bin");
@@ -38,7 +35,7 @@ int main(int argc, char* argv[]) {
       }
 
       int count = maybe_ppw ? maybe_ppw->count : -1;
-      return req->create_response().set_body(fmt::format("count={}", count)).done();
+      return req->create_response().set_body(std::format("count={}", count)).done();
     });
 
     router->non_matched_request_handler([](auto req) {
@@ -51,8 +48,8 @@ int main(int argc, char* argv[]) {
     };
 
     restinio::run(restinio::on_thread_pool<my_server_traits>(std::thread::hardware_concurrency())
-                      .port(8082)
                       .address("localhost")
+                      .port(8082)
                       .request_handler(std::move(router)));
 
   } catch (const std::exception& e) {
