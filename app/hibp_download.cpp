@@ -1,3 +1,9 @@
+// need these for platform specific binary setting of stdout
+#ifdef _WIN32
+#include <io.h>
+#include <fcntl.h>
+#endif
+
 #include "flat_file.hpp"
 #include "hibp.hpp"
 #include <condition_variable>
@@ -367,6 +373,10 @@ int main() {
   curl_multi_setopt(curl_multi_handle, CURLMOPT_TIMERFUNCTION, start_timeout_curl_cb);
 
   std::ios_base::sync_with_stdio(false); // speed for writing
+#ifdef _WIN32
+  setmode(fileno(stdout), O_BINARY); // ensure windows does not send \r before each \n
+#endif
+  
   auto writer = flat_file::stream_writer<hibp::pawned_pw>(std::cout);
 
   fill_download_queue(); // no need to lock mutex here, as curl_event thread is not running yet
