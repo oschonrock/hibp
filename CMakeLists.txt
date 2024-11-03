@@ -12,15 +12,34 @@ if (MSVC)
 else() # unix'ish
   set(PROJECT_COMPILE_OPTIONS -Wall -Wextra -Wpedantic -Wshadow -Wextra-semi
     -Wmissing-noreturn -Wconversion -Wsign-conversion -Wno-ignored-attributes)
+
+  # sanatizers
+  if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     if (NOT MINGW) # sanitizers are not working under mingw
-      string(APPEND CMAKE_CXX_FLAGS_DEBUG " -fsanitize=address,undefined,leak")
-      # string(APPEND CMAKE_CXX_FLAGS_DEBUG " -fsanitize=thread") # alternative to above
-      if(CMAKE_VERSION VERSION_LESS "3.29") 
-	message(WARNING "Please consider to upgrading to CMake 3.30 to enable use of faster `mold` linker!")
+      if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+	message(WARNING "FreeBSD detected: skipping santizers which cause weird errors in OpenSSL")
       else()
-	set(CMAKE_LINKER_TYPE MOLD) # mold not "compatible with mingw toolchain"
+	string(APPEND CMAKE_CXX_FLAGS_DEBUG " -fsanitize=address,undefined,leak")
+	# string(APPEND CMAKE_CXX_FLAGS_DEBUG " -fsanitize=thread") # alternative to above
       endif()
     endif()
+  endif()
+  
+
+  # mold
+  if (NOT (MINGW OR CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")) # mold not "compatible with mingw|FreeBSD toolchain"
+    if(CMAKE_VERSION VERSION_LESS "3.29") 
+      message(WARNING "Please consider to upgrading to CMake 3.30 to enable use of faster `mold` linker!")
+    else()
+      set(CMAKE_LINKER_TYPE MOLD) 
+    endif()
+  endif()
+endif()
+
+if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+  # add the `local` paths common on FreeBSD
+  include_directories(/usr/local/include)
+  link_directories(/usr/local/lib)
 endif()
 
 add_subdirectory(ext/date)
