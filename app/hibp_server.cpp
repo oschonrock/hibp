@@ -46,6 +46,7 @@ int main(int argc, char* argv[]) {
     };
 
     restinio::run(restinio::on_thread_pool<my_server_traits>(std::thread::hardware_concurrency())
+                      .port(8082)
                       .address("localhost")
                       .request_handler(std::move(router)));
 
