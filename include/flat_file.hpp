@@ -223,10 +223,13 @@ std::vector<std::string> sort_into_chunks(typename database<ValueType>::const_it
 
     std::vector<ValueType> objs;
     std::copy(first + start, first + end, std::back_inserter(objs));
-    std::sort(std::execution::par_unseq, objs.begin(), objs.end(),
-              [&](const auto& a, const auto& b) {
-                return comp(std::invoke(proj, a), std::invoke(proj, b));
-              });
+    std::sort(
+#if __cpp_lib_parallel_algorithm
+        std::execution::par_unseq,
+#endif
+        objs.begin(), objs.end(), [&](const auto& a, const auto& b) {
+          return comp(std::invoke(proj, a), std::invoke(proj, b));
+        });
     auto part = file_writer<ValueType>(chunk_filename);
     for (const auto& obj: objs) part.write(obj);
   }
