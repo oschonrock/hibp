@@ -47,7 +47,7 @@ static void thrprinterr([[maybe_unused]] const std::string& msg) {
 struct download {
   explicit download(std::string prefix_) : prefix(std::move(prefix_)) {}
 
-  static constexpr int max_retries = 10;
+  static constexpr int max_retries = 5;
 
   std::vector<char> buffer;
   std::string       prefix;
@@ -72,6 +72,21 @@ constexpr auto max_queue_size      = 30UL;
 constexpr auto max_prefix_plus_one = 0x100UL; // small sample of 256 files for debug
 #endif
 static auto next_prefix = 0x0UL; // NOLINT non-cost-gobal
+
+static std::size_t files_processed = 0UL; // NOLINT non-const-global
+
+void print_progress() {
+// in release builds show basic progress
+#ifdef NDEBUG
+  {
+    std::lock_guard lk(cerr_mutex);
+    std::cerr << std::format("Progress: {} / {} files: {:.1f}%\r", files_processed,
+                             max_prefix_plus_one - 1,
+                             100.0 * static_cast<double>(files_processed) /
+                                 static_cast<double>(max_prefix_plus_one - 1));
+  }
+#endif
+}
 
 static void add_download(const std::string& prefix);
 
@@ -121,8 +136,6 @@ static std::size_t write_lines(flat_file::stream_writer<hibp::pawned_pw>& writer
   return recordcount;
 }
 
-static std::size_t files_processed = 0UL;
-
 static void
 write_completed_process_queue_entries(flat_file::stream_writer<hibp::pawned_pw>& writer) {
   while (!process_queue.empty()) {
@@ -132,12 +145,7 @@ write_completed_process_queue_entries(flat_file::stream_writer<hibp::pawned_pw>&
     // so that the `buffer` allocation can be reused after being clear()'ed
     process_queue.pop();
     files_processed++;
-    // in release builds show basic progress
-#ifdef NDEBUG
-    std::cerr << std::format("Progress: {} / {} files: {:.1f}%\r", files_processed,
-                             max_prefix_plus_one - 1,
-                             100.0 * files_processed / (max_prefix_plus_one - 1));
-#endif
+    print_progress();
   }
 }
 
@@ -156,7 +164,6 @@ struct curl_context_t {
 static void curl_perform_event_cb(evutil_socket_t fd, short event, void* arg);
 
 static curl_context_t* create_curl_context(curl_socket_t sockfd) {
-
   auto* context = new curl_context_t; // NOLINT manual new and delete
 
   context->sockfd = sockfd;
@@ -181,13 +188,16 @@ static void add_download(const std::string& prefix) {
   auto& dl = download_queue.emplace(std::make_unique<download>(prefix));
   dl->buffer.reserve(1U << 16U); // 64kB should be enough for any file for a while
 
-  CURL* easy_handle = curl_easy_init();
-  curl_easy_setopt(easy_handle, CURLOPT_PIPEWAIT, 1L); // wait for multiplexing! key for perf
-  curl_easy_setopt(easy_handle, CURLOPT_WRITEFUNCTION, write_data_curl_cb);
-  curl_easy_setopt(easy_handle, CURLOPT_WRITEDATA, dl.get());
-  curl_easy_setopt(easy_handle, CURLOPT_PRIVATE, dl.get());
-  curl_easy_setopt(easy_handle, CURLOPT_URL, url.c_str());
-  curl_multi_add_handle(curl_multi_handle, easy_handle);
+  CURL* easy = curl_easy_init();
+  curl_easy_setopt(easy, CURLOPT_PIPEWAIT, 1L); // wait for multiplexing! key for perf
+  curl_easy_setopt(easy, CURLOPT_WRITEFUNCTION, write_data_curl_cb);
+  curl_easy_setopt(easy, CURLOPT_WRITEDATA, dl.get());
+  curl_easy_setopt(easy, CURLOPT_PRIVATE, dl.get());
+  curl_easy_setopt(easy, CURLOPT_URL, url.c_str());
+  // abort if slower than 1000 bytes/sec during 10 seconds
+  curl_easy_setopt(easy, CURLOPT_LOW_SPEED_TIME, 10L);
+  curl_easy_setopt(easy, CURLOPT_LOW_SPEED_LIMIT, 1000L);
+  curl_multi_add_handle(curl_multi_handle, easy);
 }
 
 static bool process_curl_done_msg(CURLMsg* message) {
@@ -216,10 +226,11 @@ static bool process_curl_done_msg(CURLMsg* message) {
     }
     dl->retries_left--;
     dl->buffer.clear(); // throw away anything that was returned
-    thrprinterr(std::format("prefix '{}': returned result '{}'", dl->prefix,
-                            curl_easy_strerror(message->data.result)));
-    thrprinterr(
-        std::format("retrying prefix '{}', retries left = {}", dl->prefix, dl->retries_left));
+    {
+      std::lock_guard lk(cerr_mutex);
+      std::cerr << std::format("prefix '{}': returned result '{}'. {} retries left\n", dl->prefix,
+                               curl_easy_strerror(message->data.result), dl->retries_left);
+    }
     curl_multi_add_handle(curl_multi_handle, easy_handle); // try again with same handle
   }
   return found_successful_completions;
