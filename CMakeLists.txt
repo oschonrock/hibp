@@ -97,12 +97,14 @@ add_executable(hibp_search app/hibp_search.cpp)
 target_compile_options(hibp_search PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_search PRIVATE toolbelt sha1 hibp flat_file)
 
+find_package(Threads)
+
 add_executable(hibp_server app/hibp_server.cpp)
 target_compile_options(hibp_server PRIVATE ${PROJECT_COMPILE_OPTIONS})
 if (MINGW)
   target_link_libraries(hibp_server PRIVATE toolbelt sha1 hibp flat_file restinio gdi32 wsock32 ws2_32)
 else()
-  target_link_libraries(hibp_server PRIVATE toolbelt sha1 hibp flat_file restinio)
+  target_link_libraries(hibp_server PRIVATE toolbelt sha1 hibp flat_file restinio ${CMAKE_THREAD_LIBS_INIT})
 endif()
 
 add_executable(hibp_sort app/hibp_sort.cpp)
@@ -124,7 +126,7 @@ target_link_libraries(hibp_join PRIVATE hibp flat_file)
 add_executable(hibp_download app/hibp_download.cpp)
 target_compile_features(hibp_download PRIVATE cxx_std_20)
 target_compile_options(hibp_download PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_download PRIVATE curl event hibp flat_file) # can just link directly?
+target_link_libraries(hibp_download PRIVATE curl event hibp flat_file ${CMAKE_THREAD_LIBS_INIT}) # can just link directly?
 
 option(HIBP_TEST "Enable HIBP tests" OFF)
 if(HIBP_TEST)
