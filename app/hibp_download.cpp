@@ -105,7 +105,7 @@ static void process_completed_download_queue_entries() {
 
 static std::size_t write_lines(flat_file::stream_writer<hibp::pawned_pw>& writer, download& dl) {
   // "embarrassing" copy onto std:string until C++26 P2495R3 Interfacing stringstreams with string_view
-  std::stringstream ss(std::string(dl.buffer.data(), dl.buffer.size());
+  std::stringstream ss(std::string(dl.buffer.data(), dl.buffer.size()));
   
   auto recordcount = 0UL;
 
