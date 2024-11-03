@@ -6,6 +6,7 @@
 #include <event2/event.h>
 #include <format>
 #include <iostream>
+#include <sstream>
 #include <iterator>
 #include <memory>
 #include <mutex>
@@ -103,9 +104,9 @@ static void process_completed_download_queue_entries() {
 }
 
 static std::size_t write_lines(flat_file::stream_writer<hibp::pawned_pw>& writer, download& dl) {
-  std::stringstream ss;
-  ss.rdbuf()->pubsetbuf(dl.buffer.data(), static_cast<std::streamsize>(dl.buffer.size()));
-
+  // "embarrassing" copy onto std:string until C++26 P2495R3 Interfacing stringstreams with string_view
+  std::stringstream ss(std::string(dl.buffer.data(), dl.buffer.size());
+  
   auto recordcount = 0UL;
 
   for (std::string line, prefixed_line; std::getline(ss, line);) {
@@ -124,6 +125,8 @@ write_completed_process_queue_entries(flat_file::stream_writer<hibp::pawned_pw>&
   while (!process_queue.empty()) {
     auto& front = process_queue.front();
     write_lines(writer, *front);
+    // there may exist an optimisation that retains the `download` for future add_download()
+    // so that the `buffer` allocation can be reused after being clear()'ed
     process_queue.pop();
   }
 }
