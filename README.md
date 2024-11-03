@@ -22,6 +22,7 @@ These utilities are written in C++ and centre around a `flat_file` class to mode
 refer to 
 
 - [BUILD-linux.md](BUILD-linux.md)
+- [BUILD-FreeBSD.md](BUILD-FreeBSD.md)
 - [BUILD-Windows.md](BUILD-Windows.md)
 
 ## Compiling
