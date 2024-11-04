@@ -86,7 +86,7 @@ static clk::time_point start_time; // NOLINT non-const-global
 
 void print_progress() {
   // in release builds show basic progress
-  // #ifdef NDEBUG
+#ifdef NDEBUG
   auto elapsed     = clk::now() - start_time;
   auto elapsed_sec = std::chrono::duration_cast<std::chrono::duration<double>>(elapsed).count();
   auto elapsed_sec_trunc = floor<std::chrono::seconds>(elapsed);
@@ -97,7 +97,7 @@ void print_progress() {
                            static_cast<double>(bytes_processed) / (1U << 20U) / elapsed_sec,
                            100.0 * static_cast<double>(files_processed) /
                                static_cast<double>(max_prefix_plus_one));
-  // #endif
+#endif
 }
 
 static void add_download(const std::string& prefix);
