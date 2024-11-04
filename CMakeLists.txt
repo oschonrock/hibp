@@ -42,14 +42,10 @@ if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
   link_directories(/usr/local/lib)
 endif()
 
-add_subdirectory(ext/date)
-
-add_subdirectory(ext/fast_float)
-
 add_library(toolbelt INTERFACE)
 target_include_directories(toolbelt INTERFACE ext/toolbelt)
 target_compile_features(toolbelt INTERFACE cxx_std_20)
-target_link_libraries(toolbelt INTERFACE date fast_float)
+target_link_libraries(toolbelt INTERFACE)
 
 add_library(sha1 INTERFACE)
 target_include_directories(sha1 INTERFACE ext/sha1)

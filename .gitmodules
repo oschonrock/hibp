@@ -1,15 +1,9 @@
 [submodule "ext/toolbelt"]
 	path = ext/toolbelt
 	url = https://github.com/oschonrock/toolbelt.git
-[submodule "ext/fast_float"]
-	path = ext/fast_float
-	url = https://github.com/fastfloat/fast_float.git
 [submodule "ext/sha1"]
 	path = ext/sha1
 	url = https://github.com/vog/sha1.git
-[submodule "ext/date"]
-	path = ext/date
-	url = https://github.com/HowardHinnant/date.git
 [submodule "ext/google_benchmark_plot"]
 	path = ext/google_benchmark_plot
 	url = https://github.com/lakshayg/google_benchmark_plot.git
