@@ -122,7 +122,11 @@ target_link_libraries(hibp_join PRIVATE hibp flat_file)
 # find_package(CURL REQUIRED)
 # pkg_search_module(LIBEVENT libevent)
 
-add_executable(hibp_download app/hibp_download.cpp)
+add_executable(hibp_download
+  app/hibp_download.cpp
+  src/download/queuemgt.cpp
+  src/download/requests.cpp
+  src/download/shared.cpp)
 target_compile_features(hibp_download PRIVATE cxx_std_20)
 target_compile_options(hibp_download PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_download PRIVATE CLI11::CLI11 curl event hibp flat_file ${CMAKE_THREAD_LIBS_INIT})
