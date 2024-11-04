@@ -4,9 +4,6 @@
 [submodule "ext/sha1"]
 	path = ext/sha1
 	url = https://github.com/vog/sha1.git
-[submodule "ext/google_benchmark_plot"]
-	path = ext/google_benchmark_plot
-	url = https://github.com/lakshayg/google_benchmark_plot.git
 [submodule "ext/restinio"]
 	path = ext/restinio
 	url = https://github.com/Stiffstream/restinio.git

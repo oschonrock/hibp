@@ -131,12 +131,3 @@ if(HIBP_TEST)
 else(HIBP_TEST)
   message(STATUS "HIBP Tests are disabled. Set HIBP_TEST to ON to run tests.")
 endif(HIBP_TEST)
-
-# benchmarks
-option(HIBP_BENCH "Build HIBP benchmarks" OFF)
-if(HIBP_BENCH)
-  add_subdirectory(bench)
-else(HIBP_BENCH)
-  message(STATUS "Building HIBP benchmarks is disabled. Set HIBP_BENCH to ON to build them.")
-endif(HIBP_BENCH)
-
