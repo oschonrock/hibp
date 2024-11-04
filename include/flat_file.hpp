@@ -1,12 +1,12 @@
 #pragma once
 
-#include "os/bch.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
 #include <execution>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <ios>
 #include <iostream>
@@ -225,7 +225,8 @@ std::vector<std::string> sort_into_chunks(typename database<ValueType>::const_it
     std::copy(first + start, first + end, std::back_inserter(objs));
     std::sort(
 #if __cpp_lib_parallel_algorithm
-        // it is also possible to use std::sort(par_unseq from PTSL in libc++ with -fexperimental-library
+        // it is also possible to use std::sort(par_unseq from PTSL in libc++ with
+        // -fexperimental-library
         std::execution::par_unseq,
 #endif
         objs.begin(), objs.end(), [&](const auto& a, const auto& b) {
@@ -276,17 +277,14 @@ void merge_sorted_chunks(const std::vector<std::string>& chunk_filenames,
   }
 
   auto sorted = flat_file::file_writer<ValueType>(sorted_filename);
-  {
-    os::bch::Timer tim("merge stage");
-    while (!heads.empty()) {
-      const head& t = heads.top();
-      sorted.write(t.value);
-      std::size_t chunk_idx = t.idx;
-      heads.pop();
-      if (auto& chunk = chunks[chunk_idx]; chunk.current != chunk.end) {
-        heads.push({*(chunk.current), chunk_idx});
-        ++(chunk.current);
-      }
+  while (!heads.empty()) {
+    const head& t = heads.top();
+    sorted.write(t.value);
+    std::size_t chunk_idx = t.idx;
+    heads.pop();
+    if (auto& chunk = chunks[chunk_idx]; chunk.current != chunk.end) {
+      heads.push({*(chunk.current), chunk_idx});
+      ++(chunk.current);
     }
   }
 

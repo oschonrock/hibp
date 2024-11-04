@@ -29,7 +29,7 @@ else() # unix'ish
   # mold
   if (NOT (MINGW OR CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")) # mold not "compatible with mingw|FreeBSD toolchain"
     if(CMAKE_VERSION VERSION_LESS "3.29") 
-      message(WARNING "Please consider to upgrading to CMake 3.30 to enable use of faster `mold` linker!")
+      message(WARNING "Please consider upgrading to CMake 3.30 to enable use of faster `mold` linker!")
     else()
       set(CMAKE_LINKER_TYPE MOLD) 
     endif()
@@ -41,11 +41,6 @@ if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
   include_directories(/usr/local/include)
   link_directories(/usr/local/lib)
 endif()
-
-add_library(toolbelt INTERFACE)
-target_include_directories(toolbelt INTERFACE ext/toolbelt)
-target_compile_features(toolbelt INTERFACE cxx_std_20)
-target_link_libraries(toolbelt INTERFACE)
 
 add_library(sha1 INTERFACE)
 target_include_directories(sha1 INTERFACE ext/sha1)
@@ -60,7 +55,7 @@ target_compile_features(arrcmp INTERFACE cxx_std_20)
 add_library(hibp INTERFACE)
 target_include_directories(hibp INTERFACE include)
 target_compile_features(hibp INTERFACE cxx_std_20)
-target_link_libraries(hibp INTERFACE arrcmp toolbelt)
+target_link_libraries(hibp INTERFACE arrcmp)
 
 find_package(TBB REQUIRED)
 
@@ -97,25 +92,25 @@ endif()
 
 add_executable(hibp_search app/hibp_search.cpp)
 target_compile_options(hibp_search PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_search PRIVATE toolbelt sha1 hibp flat_file)
+target_link_libraries(hibp_search PRIVATE sha1 hibp flat_file)
 
 find_package(Threads)
 
 add_executable(hibp_server app/hibp_server.cpp)
 target_compile_options(hibp_server PRIVATE ${PROJECT_COMPILE_OPTIONS})
 if (MINGW)
-  target_link_libraries(hibp_server PRIVATE toolbelt sha1 hibp flat_file restinio gdi32 wsock32 ws2_32)
+  target_link_libraries(hibp_server PRIVATE sha1 hibp flat_file restinio gdi32 wsock32 ws2_32)
 else()
-  target_link_libraries(hibp_server PRIVATE toolbelt sha1 hibp flat_file restinio ${CMAKE_THREAD_LIBS_INIT})
+  target_link_libraries(hibp_server PRIVATE sha1 hibp flat_file restinio ${CMAKE_THREAD_LIBS_INIT})
 endif()
 
 add_executable(hibp_sort app/hibp_sort.cpp)
 target_compile_options(hibp_sort PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_sort PRIVATE toolbelt hibp flat_file)
+target_link_libraries(hibp_sort PRIVATE hibp flat_file)
 
 add_executable(hibp_convert app/hibp_convert.cpp)
 target_compile_options(hibp_convert PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_convert PRIVATE toolbelt sha1 hibp flat_file)
+target_link_libraries(hibp_convert PRIVATE sha1 hibp flat_file)
 
 add_executable(hibp_join app/hibp_join.cpp)
 target_compile_options(hibp_join PRIVATE ${PROJECT_COMPILE_OPTIONS})

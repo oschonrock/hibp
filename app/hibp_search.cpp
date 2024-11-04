@@ -1,8 +1,9 @@
 #include "flat_file.hpp"
 #include "hibp.hpp"
-#include "os/bch.hpp"
 #include "sha1.hpp"
+#include <chrono>
 #include <cstdlib>
+#include <ratio>
 
 int main(int argc, char* argv[]) {
   try {
@@ -17,13 +18,16 @@ int main(int argc, char* argv[]) {
 
     std::optional<hibp::pawned_pw> maybe_ppw;
 
-    {
-      os::bch::Timer t("search took");
-      if (auto iter = std::lower_bound(db.begin(), db.end(), needle);
-          iter != db.end() && *iter == needle) {
-        maybe_ppw = *iter;
-      }
+    using clk          = std::chrono::high_resolution_clock;
+    using double_milli = std::chrono::duration<double, std::milli>;
+    auto start_time    = clk::now();
+    if (auto iter = std::lower_bound(db.begin(), db.end(), needle);
+        iter != db.end() && *iter == needle) {
+      maybe_ppw = *iter;
     }
+    std::cout << std::format(
+        "search took {:.1f}ms\n",
+        std::chrono::duration_cast<double_milli>(clk::now() - start_time).count());
 
     std::cout << "needle = " << needle << "\n";
     if (maybe_ppw)
