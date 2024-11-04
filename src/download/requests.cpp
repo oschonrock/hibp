@@ -1,3 +1,4 @@
+#include "download/requests.hpp"
 #include "download/shared.hpp"
 #include <condition_variable>
 #include <cstdlib>
@@ -15,8 +16,8 @@
 
 // curl internal queue management and event driven callbacks
 
-static CURLM*             curl_multi_handle; // NOLINT non-const-global
-static struct event*      timeout;           // NOLINT non-const-global
+static CURLM*        curl_multi_handle; // NOLINT non-const-global
+static struct event* timeout;           // NOLINT non-const-global
 
 // connects an event with a socketfd
 struct curl_context_t {
@@ -49,7 +50,6 @@ void add_download(const std::string& prefix) {
   auto url = "https://api.pwnedpasswords.com/range/" + prefix;
 
   auto& dl = download_queue.emplace(std::make_unique<download>(prefix));
-  dl->buffer.reserve(1U << 16U); // 64kB should be enough for any file for a while
 
   CURL* easy = curl_easy_init();
   curl_easy_setopt(easy, CURLOPT_PIPEWAIT, 1L); // wait for multiplexing! key for perf

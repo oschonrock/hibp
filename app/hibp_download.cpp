@@ -1,6 +1,5 @@
 #include "CLI/CLI.hpp"
 #include "download/queuemgt.hpp"
-#include "download/requests.hpp"
 #include <cstdlib>
 #include <curl/curl.h>
 #include <curl/multi.h>
@@ -35,10 +34,7 @@ int main(int argc, char* argv[]) {
     return EXIT_FAILURE;
   }
 
-  start_time = clk::now();
-  init_curl_and_events();
   run_threads(writer);
-  shutdown_curl_and_events();
 
   return EXIT_SUCCESS;
 }

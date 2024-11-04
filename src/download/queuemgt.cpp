@@ -33,7 +33,8 @@
 //
 // we use uniq_ptr<download> to keep the address of the downloads stable as queues changes
 
-clk::time_point start_time; // NOLINT non-const-global, used in main()
+using clk = std::chrono::high_resolution_clock;
+static clk::time_point start_time; // NOLINT non-const-global, used in main()
 
 static std::queue<std::unique_ptr<download>> process_queue; // NOLINT non-const-global
 
@@ -141,6 +142,9 @@ void service_queue(flat_file::stream_writer<hibp::pawned_pw>& writer) {
 }
 
 void run_threads(flat_file::stream_writer<hibp::pawned_pw>& writer) {
+  start_time = clk::now();
+  init_curl_and_events();
+
   thrnames[std::this_thread::get_id()] = "main";
   fill_download_queue(); // no need to lock mutex here, as curl_event thread is not running yet
 
@@ -154,4 +158,5 @@ void run_threads(flat_file::stream_writer<hibp::pawned_pw>& writer) {
 #ifdef NDEBUG
   std::cerr << "\n"; // clear line after progress
 #endif
+  shutdown_curl_and_events();
 }
