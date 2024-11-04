@@ -1,17 +1,16 @@
 // need these for platform specific binary setting of stdout
-#include <chrono>
-#ifdef _WIN32
-#include <fcntl.h>
-#include <io.h>
-#endif
-
+#include "CLI/CLI.hpp"
 #include "flat_file.hpp"
 #include "hibp.hpp"
+#include <chrono>
 #include <condition_variable>
+#include <cstdlib>
 #include <curl/curl.h>
 #include <curl/multi.h>
 #include <event2/event.h>
 #include <format>
+#include <fstream>
+#include <ios>
 #include <iostream>
 #include <iterator>
 #include <memory>
@@ -368,14 +367,7 @@ static int handle_socket_curl_cb(CURL* /*easy*/, curl_socket_t s, int action, vo
   return 0;
 }
 
-int main() {
-  thrnames[std::this_thread::get_id()] = "main";
-
-  if (curl_global_init(CURL_GLOBAL_ALL) != 0) {
-    thrprinterr("Could not init curl");
-    return EXIT_FAILURE;
-  }
-
+void init_curl_and_events() {
   base    = event_base_new();
   timeout = evtimer_new(base, timeout_event_cb, nullptr);
 
@@ -383,21 +375,18 @@ int main() {
   curl_multi_setopt(curl_multi_handle, CURLMOPT_PIPELINING, CURLPIPE_MULTIPLEX);
   curl_multi_setopt(curl_multi_handle, CURLMOPT_SOCKETFUNCTION, handle_socket_curl_cb);
   curl_multi_setopt(curl_multi_handle, CURLMOPT_TIMERFUNCTION, start_timeout_curl_cb);
+}
 
-  std::ios_base::sync_with_stdio(false); // speed for writing
-#ifdef _WIN32
-  setmode(fileno(stdout), O_BINARY); // ensure windows does not send \r before each \n
-#endif
+void shutdown_curl_and_events() {
+  curl_multi_cleanup(curl_multi_handle);
+  event_free(timeout);
+  event_base_free(base);
 
-  auto writer = flat_file::stream_writer<hibp::pawned_pw>(std::cout);
+  libevent_global_shutdown();
+  curl_global_cleanup();
+}
 
-  start_time = clk::now();
-  fill_download_queue(); // no need to lock mutex here, as curl_event thread is not running yet
-
-  tstate = state::handle_requests;
-  std::thread curl_event_thread([]() { event_base_dispatch(base); });
-  thrnames[curl_event_thread.get_id()] = "curl";
-
+void service_queue(flat_file::stream_writer<hibp::pawned_pw>& writer) {
   while (!download_queue.empty()) {
     {
       thrprinterr("waiting for curl");
@@ -410,17 +399,52 @@ int main() {
     tstate_cv.notify_one();                        // send control back to curl thread
     write_completed_process_queue_entries(writer); // do slow work writing to disk
   }
+}
 
-  curl_multi_cleanup(curl_multi_handle);
-  event_free(timeout);
-  event_base_free(base);
+void run_threads(flat_file::stream_writer<hibp::pawned_pw>& writer) {
+  thrnames[std::this_thread::get_id()] = "main";
+  fill_download_queue(); // no need to lock mutex here, as curl_event thread is not running yet
 
-  libevent_global_shutdown();
-  curl_global_cleanup();
+  tstate = state::handle_requests;
+  std::thread curl_event_thread([]() { event_base_dispatch(base); });
+  thrnames[curl_event_thread.get_id()] = "curl";
+
+  service_queue(writer);
 
   curl_event_thread.join();
+}
+
+int main(int argc, char* argv[]) {
+  CLI::App app;
+
+  std::string output_db_filename;
+
+  app.add_option("output_db_filename", output_db_filename,
+                 "The file that the downloaded binary database will be written to")
+      ->required();
+
+  CLI11_PARSE(app, argc, argv);
+
+  auto output_db_stream = std::ofstream(output_db_filename, std::ios_base::binary);
+  if (!output_db_stream) {
+    std::cerr << std::format("Error opening '{}' for writing. Because: \"{}\".\n",
+                             output_db_filename, std::strerror(errno)); // NOLINT errno
+    return EXIT_FAILURE;
+  }
+  auto writer = flat_file::stream_writer<hibp::pawned_pw>(output_db_stream);
+
+  if (curl_global_init(CURL_GLOBAL_ALL) != 0) {
+    std::cerr << "Could not init curl\n";
+    return EXIT_FAILURE;
+  }
+
+  start_time = clk::now();
+  init_curl_and_events();
+  run_threads(writer);
+  shutdown_curl_and_events();
+
 #ifdef NDEBUG
-  std::cerr << "\n";
+  std::cerr << "\n"; // clear line after progress
 #endif
   return EXIT_SUCCESS;
 }

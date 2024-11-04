@@ -42,6 +42,8 @@ if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
   link_directories(/usr/local/lib)
 endif()
 
+add_subdirectory(ext/CLI11)
+
 add_library(sha1 INTERFACE)
 target_include_directories(sha1 INTERFACE ext/sha1)
 if (NOT MSVC)
@@ -123,7 +125,7 @@ target_link_libraries(hibp_join PRIVATE hibp flat_file)
 add_executable(hibp_download app/hibp_download.cpp)
 target_compile_features(hibp_download PRIVATE cxx_std_20)
 target_compile_options(hibp_download PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_download PRIVATE curl event hibp flat_file ${CMAKE_THREAD_LIBS_INIT}) # can just link directly?
+target_link_libraries(hibp_download PRIVATE CLI11::CLI11 curl event hibp flat_file ${CMAKE_THREAD_LIBS_INIT})
 
 option(HIBP_TEST "Enable HIBP tests" OFF)
 if(HIBP_TEST)
