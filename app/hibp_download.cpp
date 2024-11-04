@@ -1,7 +1,8 @@
 // need these for platform specific binary setting of stdout
+#include <chrono>
 #ifdef _WIN32
-#include <io.h>
 #include <fcntl.h>
+#include <io.h>
 #endif
 
 #include "flat_file.hpp"
@@ -78,15 +79,23 @@ constexpr auto max_prefix_plus_one = 0x100UL; // small sample of 256 files for d
 static auto next_prefix = 0x0UL; // NOLINT non-cost-gobal
 
 static std::size_t files_processed = 0UL; // NOLINT non-const-global
+static std::size_t bytes_processed = 0UL; // NOLINT non-const-global
+
+using clk = std::chrono::high_resolution_clock;
+static clk::time_point start_time; // NOLINT non-const-global
 
 void print_progress() {
-// in release builds show basic progress
-#ifdef NDEBUG
+  // in release builds show basic progress
+  // #ifdef NDEBUG
+  auto elapsed =
+      std::chrono::duration_cast<std::chrono::duration<double>>(clk::now() - start_time).count();
+
   std::lock_guard lk(cerr_mutex);
   std::cerr << std::format(
-      "Progress: {} / {} files: {:.1f}%\r", files_processed, max_prefix_plus_one,
+      "Progress: {} / {} files: {:.1f}MB/s  {:.1f}% \r", files_processed, max_prefix_plus_one,
+      static_cast<double>(bytes_processed) / (1U << 20U) / elapsed,
       100.0 * static_cast<double>(files_processed) / static_cast<double>(max_prefix_plus_one));
-#endif
+  // #endif
 }
 
 static void add_download(const std::string& prefix);
@@ -134,6 +143,7 @@ static std::size_t write_lines(flat_file::stream_writer<hibp::pawned_pw>& writer
     }
   }
   thrprinterr(std::format("wrote '{}' in binary, recordcount = {}", dl.prefix, recordcount));
+  bytes_processed += dl.buffer.size();
   return recordcount;
 }
 
@@ -376,9 +386,10 @@ int main() {
 #ifdef _WIN32
   setmode(fileno(stdout), O_BINARY); // ensure windows does not send \r before each \n
 #endif
-  
+
   auto writer = flat_file::stream_writer<hibp::pawned_pw>(std::cout);
 
+  start_time = clk::now();
   fill_download_queue(); // no need to lock mutex here, as curl_event thread is not running yet
 
   tstate = state::handle_requests;
