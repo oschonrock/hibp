@@ -34,4 +34,4 @@ extern std::mutex cerr_mutex; // NOLINT non-const-global
 
 extern std::unordered_map<std::thread::id, std::string> thrnames; // NOLINT non-const-global
 
-extern void thrprinterr([[maybe_unused]] const std::string& msg);
+void thrprinterr([[maybe_unused]] const std::string& msg);
