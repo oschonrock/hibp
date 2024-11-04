@@ -1,6 +1,3 @@
-[submodule "ext/toolbelt"]
-	path = ext/toolbelt
-	url = https://github.com/oschonrock/toolbelt.git
 [submodule "ext/sha1"]
 	path = ext/sha1
 	url = https://github.com/vog/sha1.git
