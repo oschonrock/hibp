@@ -87,14 +87,16 @@ static clk::time_point start_time; // NOLINT non-const-global
 void print_progress() {
   // in release builds show basic progress
   // #ifdef NDEBUG
-  auto elapsed =
-      std::chrono::duration_cast<std::chrono::duration<double>>(clk::now() - start_time).count();
+  auto elapsed     = clk::now() - start_time;
+  auto elapsed_sec = std::chrono::duration_cast<std::chrono::duration<double>>(elapsed).count();
+  auto elapsed_sec_trunc = floor<std::chrono::seconds>(elapsed);
 
   std::lock_guard lk(cerr_mutex);
-  std::cerr << std::format(
-      "Progress: {} / {} files: {:.1f}MB/s  {:.1f}% \r", files_processed, max_prefix_plus_one,
-      static_cast<double>(bytes_processed) / (1U << 20U) / elapsed,
-      100.0 * static_cast<double>(files_processed) / static_cast<double>(max_prefix_plus_one));
+  std::cerr << std::format("Elapsed: {:%M:%S}  Progress: {} / {} files  {:.1f}MB/s  {:5.1f}% \r",
+                           elapsed_sec_trunc, files_processed, max_prefix_plus_one,
+                           static_cast<double>(bytes_processed) / (1U << 20U) / elapsed_sec,
+                           100.0 * static_cast<double>(files_processed) /
+                               static_cast<double>(max_prefix_plus_one));
   // #endif
 }
 
