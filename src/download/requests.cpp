@@ -59,8 +59,8 @@ void add_download(const std::string& prefix) {
   curl_easy_setopt(easy, CURLOPT_WRITEDATA, dl.get());
   curl_easy_setopt(easy, CURLOPT_PRIVATE, dl.get());
   curl_easy_setopt(easy, CURLOPT_URL, url.c_str());
-  // abort if slower than 1000 bytes/sec during 10 seconds
-  curl_easy_setopt(easy, CURLOPT_LOW_SPEED_TIME, 10L);
+  // abort if slower than 1000 bytes/sec during 5 seconds
+  curl_easy_setopt(easy, CURLOPT_LOW_SPEED_TIME, 5L);
   curl_easy_setopt(easy, CURLOPT_LOW_SPEED_LIMIT, 1000L);
   curl_multi_add_handle(curl_multi_handle, easy);
 }
