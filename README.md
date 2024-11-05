@@ -99,10 +99,42 @@ Note these are 100% accurate searches and not using some probabilistic "bloom fi
 curl http://localhost:8082/password
 
 # output should be:
-count=10434004
+10434004
+
+#if you pass --json to the server you will get
+{count:10434004}
 ```
-Performance should be > 100 requests/second for a single core with zero latency and max concurrency but is highly disk dependent. 
-Performance feedback on different system is very welcome. 
+
+#### Basic performance evaluation using apache bench
+
+```
+# run server like this (--perf-test will uniquelt change the password for each request)
+
+./build/gcc/release/hibp_server data/hibp_all.bin --perf-test
+
+# and run apache bench like this (generate a somewhat random password to start):
+
+hash=$(date | sha1sum); ab -c100 -n10000 "http://localhost:8082/${hash:0:10}"
+
+# These the key figures from a short run on an old i5-3470 CPU @ 3.20GHz with 4 threads
+
+Requests per second:    3166.96 [#/sec] (mean)
+Time per request:       31.576 [ms] (mean)
+Time per request:       0.316 [ms] (mean, across all concurrent requests)
+```
+
+This should be more than enough for almost any site, in fact you may want to reduce the server to just one thread like so:
+
+```
+./build/gcc/release/hibp_server data/hibp_all.bin --perf-test --threads=1
+
+hash=$(date | sha1sum); ab -c25 -n10000 "http://localhost:8082/${hash:0:10}"
+
+Requests per second:    1017.17 [#/sec] (mean)
+Time per request:       24.578 [ms] (mean)
+Time per request:       0.983 [ms] (mean, across all concurrent requests)
+```
+
 
 ### Other utilities
 

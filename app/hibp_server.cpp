@@ -11,13 +11,14 @@ struct cli_config_t {
   std::string   db_filename;
   std::string   bind_address = "localhost";
   std::uint16_t port         = 8082;
+  unsigned int  threads      = std::thread::hardware_concurrency();
   bool          json         = false;
   bool          perf_test    = false;
 };
 
 static cli_config_t cli_config; // NOLINT non-const global
 
-static int uniq{}; // NOLINT for performance testing
+static std::atomic<int> uniq{}; // NOLINT for performance testing, uniq across threads
 
 auto get_router(const std::string& db_file) {
   auto router = std::make_unique<restinio::router::express_router_t<>>();
@@ -62,7 +63,6 @@ auto get_router(const std::string& db_file) {
 }
 
 int main(int argc, char* argv[]) {
-
   CLI::App app;
 
   app.add_option("db_filename", cli_config.db_filename,
@@ -75,6 +75,10 @@ int main(int argc, char* argv[]) {
 
   app.add_option("--port", cli_config.port,
                  std::format("The port the server will bind to (default: {})", cli_config.port));
+
+  app.add_option("--threads", cli_config.threads,
+                 std::format("The number of threads to use (default: {})", cli_config.threads))
+      ->check(CLI::Range(1U, cli_config.threads));
 
   app.add_flag("--json", cli_config.json, "Output a json response.");
 
@@ -97,7 +101,7 @@ int main(int argc, char* argv[]) {
                              cli_config.bind_address, cli_config.port, cli_config.bind_address,
                              cli_config.port);
 
-    auto settings = restinio::on_thread_pool<my_server_traits>(std::thread::hardware_concurrency())
+    auto settings = restinio::on_thread_pool<my_server_traits>(cli_config.threads)
                         .address(cli_config.bind_address)
                         .port(cli_config.port)
                         .request_handler(get_router(db_file));
