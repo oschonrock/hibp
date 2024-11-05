@@ -23,6 +23,6 @@ std::unordered_map<std::thread::id, std::string> thrnames; // NOLINT non-const-g
 void thrprinterr([[maybe_unused]] const std::string& msg) {
 #ifndef NDEBUG
   std::lock_guard lk(cerr_mutex);
-  std::cerr << std::format("thread: {:>5}: {}\n", thrnames[std::this_thread::get_id()], msg);
+  std::cerr << std::format("thread: {:>9}: {}\n", thrnames[std::this_thread::get_id()], msg);
 #endif
 }

@@ -145,12 +145,12 @@ void run_threads(flat_file::stream_writer<hibp::pawned_pw>& writer) {
   start_time = clk::now();
   init_curl_and_events();
 
-  thrnames[std::this_thread::get_id()] = "main";
+  thrnames[std::this_thread::get_id()] = "queuemgt";
   fill_download_queue(); // no need to lock mutex here, as curl_event thread is not running yet
 
   tstate = state::handle_requests;
   std::thread curl_event_thread([]() { event_base_dispatch(base); });
-  thrnames[curl_event_thread.get_id()] = "curl";
+  thrnames[curl_event_thread.get_id()] = "requests";
 
   service_queue(writer);
 
