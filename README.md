@@ -39,7 +39,7 @@ refer to
 
 #### Run download in debug mode 
 ```bash
-./build/gcc/debug/hibp_download > hibp_sample.bin
+./build/gcc/debug/hibp_download --debug --limit=256 --parallel-max=10 hibp_sample.bin
 ```
 You should see a bunch thread debug output, but no error and  `ls -lh hibp_sample.bin` should show ~5.3M
 
@@ -64,10 +64,12 @@ during this time:
 - The "main thread" with ~15-30% CPU, primarily converting data to binary and writing to disk
 
 ```bash
-time ./build/gcc/release/hibp_download > hibp_all.bin
+time ./build/gcc/release/hibp_download hibp_all.bin
 
 # you may see some warnings about failures and retries. If any transfers fails after 10 retries, programme will abort.
 ```
+
+For all options run `hibp_download --help`.
 
 ### Run some sample "pawned password" queries from command line: `hibp_search`
 
