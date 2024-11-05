@@ -21,8 +21,8 @@ std::mutex cerr_mutex; // NOLINT non-const-global
 std::unordered_map<std::thread::id, std::string> thrnames; // NOLINT non-const-global
 
 void thrprinterr([[maybe_unused]] const std::string& msg) {
-#ifndef NDEBUG
-  std::lock_guard lk(cerr_mutex);
-  std::cerr << std::format("thread: {:>9}: {}\n", thrnames[std::this_thread::get_id()], msg);
-#endif
+  if (cli_config.debug) {
+    std::lock_guard lk(cerr_mutex);
+    std::cerr << std::format("thread: {:>9}: {}\n", thrnames[std::this_thread::get_id()], msg);
+  }
 }

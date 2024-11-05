@@ -1,11 +1,14 @@
 #pragma once
 
 #include <condition_variable>
+#include <cstddef>
 #include <mutex>
 #include <queue>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+// shared types
 
 struct download {
   explicit download(std::string prefix_) : prefix(std::move(prefix_)) {
@@ -20,7 +23,17 @@ struct download {
   bool              complete     = false;
 };
 
+struct cli_config_t {
+  std::string output_db_filename;
+  bool        debug        = false;
+  bool        progress     = true;
+  std::size_t prefix_limit = 0x100000;
+  std::size_t parallel_max = 300;
+};
+
 enum class state { handle_requests, process_queues };
+
+// shared vars
 
 extern std::queue<std::unique_ptr<download>> download_queue; // NOLINT non-const-global
 
@@ -33,5 +46,9 @@ extern struct event_base* base; // NOLINT non-const-global
 extern std::mutex cerr_mutex; // NOLINT non-const-global
 
 extern std::unordered_map<std::thread::id, std::string> thrnames; // NOLINT non-const-global
+
+extern cli_config_t cli_config; // NOLINT non-const-global
+
+// shared free functions
 
 void thrprinterr([[maybe_unused]] const std::string& msg);

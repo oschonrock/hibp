@@ -3,6 +3,7 @@
 #include "download/shared.hpp"
 #include "flat_file.hpp"
 #include "hibp.hpp"
+#include <chrono>
 #include <condition_variable>
 #include <cstdlib>
 #include <curl/curl.h>
@@ -38,36 +39,29 @@ static clk::time_point start_time; // NOLINT non-const-global, used in main()
 
 static std::queue<std::unique_ptr<download>> process_queue; // NOLINT non-const-global
 
-#ifdef NDEBUG
-constexpr auto max_queue_size      = 300UL;
-constexpr auto max_prefix_plus_one = 0x100000UL; // 5 hex digits up to FFFFF
-#else
-constexpr auto max_queue_size      = 30UL;
-constexpr auto max_prefix_plus_one = 0x100UL; // small sample of 256 files for debug
-#endif
 static auto next_prefix = 0x0UL; // NOLINT non-cost-gobal
 
 static std::size_t files_processed = 0UL; // NOLINT non-const-global
 static std::size_t bytes_processed = 0UL; // NOLINT non-const-global
 
 void print_progress() {
-  // in release builds show basic progress
-#ifdef NDEBUG
-  auto elapsed     = clk::now() - start_time;
-  auto elapsed_sec = std::chrono::duration_cast<std::chrono::duration<double>>(elapsed).count();
-  auto elapsed_sec_trunc = floor<std::chrono::seconds>(elapsed);
+  if (cli_config.progress) {
+    auto elapsed     = clk::now() - start_time;
+    auto elapsed_sec = std::chrono::duration_cast<std::chrono::duration<double>>(elapsed).count();
+    auto elapsed_sec_trunc = floor<std::chrono::seconds>(elapsed);
 
-  std::lock_guard lk(cerr_mutex);
-  std::cerr << std::format("Elapsed: {:%M:%S}  Progress: {} / {} files  {:.1f}MB/s  {:5.1f}% \r",
-                           elapsed_sec_trunc, files_processed, max_prefix_plus_one,
-                           static_cast<double>(bytes_processed) / (1U << 20U) / elapsed_sec,
-                           100.0 * static_cast<double>(files_processed) /
-                               static_cast<double>(max_prefix_plus_one));
-#endif
+    std::lock_guard lk(cerr_mutex);
+    std::cerr << std::format("Elapsed: {:%M:%S}  Progress: {} / {} files  {:.1f}MB/s  {:5.1f}%\r",
+                             elapsed_sec_trunc, files_processed, cli_config.prefix_limit,
+                             static_cast<double>(bytes_processed) / (1U << 20U) / elapsed_sec,
+                             100.0 * static_cast<double>(files_processed) /
+                                 static_cast<double>(cli_config.prefix_limit));
+  }
 }
 
 static void fill_download_queue() {
-  while (download_queue.size() != max_queue_size && next_prefix != max_prefix_plus_one) {
+  while (download_queue.size() != cli_config.parallel_max &&
+         next_prefix != cli_config.prefix_limit) {
     auto prefix = std::format("{:05X}", next_prefix++);
     // safe to add_download(), which adds items to curl' internal queue structure,
     // because main (ie this) thread only does this during state::process_queues
@@ -149,14 +143,14 @@ void run_threads(flat_file::stream_writer<hibp::pawned_pw>& writer) {
   fill_download_queue(); // no need to lock mutex here, as curl_event thread is not running yet
 
   tstate = state::handle_requests;
-  std::thread curl_event_thread([]() { event_base_dispatch(base); });
-  thrnames[curl_event_thread.get_id()] = "requests";
+  std::thread requests_thread([]() { event_base_dispatch(base); });
+  thrnames[requests_thread.get_id()] = "requests";
 
   service_queue(writer);
 
-  curl_event_thread.join();
-#ifdef NDEBUG
-  std::cerr << "\n"; // clear line after progress
-#endif
+  requests_thread.join();
+  if (cli_config.progress) {
+    std::cerr << "\n"; // clear line after progress if being shown, bit nasty
+  }
   shutdown_curl_and_events();
 }
