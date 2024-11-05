@@ -11,6 +11,7 @@
 #include <memory>
 #include <mutex>
 #include <queue>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -129,7 +130,10 @@ static void process_curl_messages() {
     // by main thread
     std::unique_lock lk(thrmutex);
     thrprinterr("waiting for main");
-    tstate_cv.wait(lk, []() { return tstate == state::handle_requests; });
+    if (!tstate_cv.wait_for(lk, std::chrono::seconds(10),
+                            []() { return tstate == state::handle_requests; })) {
+      throw std::runtime_error("Timed out waiting for queuemgt thread");
+    }
   }
 }
 
@@ -220,6 +224,10 @@ static int handle_socket_curl_cb(CURL* /*easy*/, curl_socket_t s, int action, vo
 }
 
 void init_curl_and_events() {
+  if (curl_global_init(CURL_GLOBAL_ALL) != 0) {
+    throw std::runtime_error("Error: Could not init curl\n");
+  }
+
   base    = event_base_new();
   timeout = evtimer_new(base, timeout_event_cb, nullptr);
 

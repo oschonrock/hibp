@@ -43,12 +43,12 @@ int main(int argc, char* argv[]) {
   }
   auto writer = flat_file::stream_writer<hibp::pawned_pw>(output_db_stream);
 
-  if (curl_global_init(CURL_GLOBAL_ALL) != 0) {
-    std::cerr << "Could not init curl\n";
+  try {
+    run_threads(writer);
+  } catch (const std::exception& e) {
+    std::cerr << std::format("Error: {}: Terminating\n", e.what());
     return EXIT_FAILURE;
   }
-
-  run_threads(writer);
 
   return EXIT_SUCCESS;
 }

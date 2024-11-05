@@ -9,11 +9,13 @@
 #include <curl/curl.h>
 #include <curl/multi.h>
 #include <event2/event.h>
+#include <exception>
 #include <format>
 #include <memory>
 #include <mutex>
 #include <queue>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <vector>
@@ -125,7 +127,9 @@ void service_queue(flat_file::stream_writer<hibp::pawned_pw>& writer) {
     {
       thrprinterr("waiting for curl");
       std::unique_lock lk(thrmutex);
-      tstate_cv.wait(lk, []() { return tstate == state::process_queues; });
+      if (!tstate_cv.wait_for(lk, std::chrono::seconds(10), []() { return tstate == state::process_queues; })) {
+        throw std::runtime_error("Timed out waiting for requests thread");
+      }
       process_completed_download_queue_entries(); // shuffle and fill queues
       tstate = state::handle_requests;            // signal curl thread to continue
     }
@@ -133,24 +137,60 @@ void service_queue(flat_file::stream_writer<hibp::pawned_pw>& writer) {
     tstate_cv.notify_one();                        // send control back to curl thread
     write_completed_process_queue_entries(writer); // do slow work writing to disk
   }
-}
-
-void run_threads(flat_file::stream_writer<hibp::pawned_pw>& writer) {
-  start_time = clk::now();
-  init_curl_and_events();
-
-  thrnames[std::this_thread::get_id()] = "queuemgt";
-  fill_download_queue(); // no need to lock mutex here, as curl_event thread is not running yet
-
-  tstate = state::handle_requests;
-  std::thread requests_thread([]() { event_base_dispatch(base); });
-  thrnames[requests_thread.get_id()] = "requests";
-
-  service_queue(writer);
-
-  requests_thread.join();
   if (cli_config.progress) {
     std::cerr << "\n"; // clear line after progress if being shown, bit nasty
   }
+}
+
+bool handle_exception(const std::exception_ptr& exception_ptr, std::thread::id thr_id) {
+  if (exception_ptr) {
+    try {
+      std::rethrow_exception(exception_ptr);
+    } catch (const std::exception& e) {
+      std::cerr << std::format("Caught exception in {} thread: {}\n", thrnames[thr_id], e.what());
+    }
+    return true;
+  }
+  return false;
+}
+
+void run_threads(flat_file::stream_writer<hibp::pawned_pw>& writer) {
+  std::exception_ptr requests_exception_ptr;
+  std::exception_ptr queuemgt_exception_ptr;
+
+  start_time = clk::now();
+  init_curl_and_events();
+
+  auto que_thr_id = std::this_thread::get_id();
+  thrnames[que_thr_id] = "queuemgt";
+  fill_download_queue(); // no need to lock mutex here, as curl_event thread is not running yet
+
+  tstate = state::handle_requests;
+
+  std::thread requests_thread([&]() {
+    try {
+      event_base_dispatch(base);
+    } catch (...) {
+      requests_exception_ptr = std::current_exception();
+    }
+  });
+
+  auto req_thr_id = requests_thread.get_id();
+  thrnames[req_thr_id] = "requests";
+
+  try {
+    service_queue(writer);
+  } catch (...) {
+    queuemgt_exception_ptr = std::current_exception();
+  }
+
+  requests_thread.join();
   shutdown_curl_and_events();
+  
+  // use temps to avoid short cct eval
+  bool ex_requests = handle_exception(requests_exception_ptr, req_thr_id);
+  bool ex_queuemgt = handle_exception(queuemgt_exception_ptr, que_thr_id);
+  if (ex_requests || ex_queuemgt) {
+    throw std::runtime_error("Thread exceptions thrown as above");
+  }
 }
