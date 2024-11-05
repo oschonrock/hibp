@@ -22,8 +22,8 @@ static int uniq{}; // NOLINT for performance testing
 auto get_router(const std::string& db_file) {
   auto router = std::make_unique<restinio::router::express_router_t<>>();
   router->http_get(R"(/:password)", [&](auto req, auto params) {
+    // one db object (ie set of buffers and pointers) per thread
     thread_local flat_file::database<hibp::pawned_pw> db(db_file, 4096 / sizeof(hibp::pawned_pw));
-    const auto qp = restinio::parse_query(req->header().query());
 
     SHA1 sha1;
     auto pw = std::string(params["password"]);
@@ -97,12 +97,12 @@ int main(int argc, char* argv[]) {
                              cli_config.bind_address, cli_config.port, cli_config.bind_address,
                              cli_config.port);
 
-    auto server = restinio::on_thread_pool<my_server_traits>(std::thread::hardware_concurrency())
-                      .address(cli_config.bind_address)
-                      .port(cli_config.port)
-                      .request_handler(get_router(db_file));
+    auto settings = restinio::on_thread_pool<my_server_traits>(std::thread::hardware_concurrency())
+                        .address(cli_config.bind_address)
+                        .port(cli_config.port)
+                        .request_handler(get_router(db_file));
 
-    restinio::run(std::move(server));
+    restinio::run(std::move(settings));
 
   } catch (const std::exception& e) {
     std::cerr << "something went wrong: " << e.what() << "\n";
