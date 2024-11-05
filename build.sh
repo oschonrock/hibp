@@ -2,7 +2,7 @@
 
 set -o errexit
 set -o nounset
-USAGE="Usage: $(basename $0) [-v | --verbose] [ gcc | clang ] [ test | bench | reset | clean | debug | release | relwithdebinfo]"
+USAGE="Usage: $(basename $0) [-v | --verbose] [ gcc | clang ] [ test | bench | reset | generateonly | clean | debug | release | relwithdebinfo]"
 
 CMAKE=cmake
 BUILD=./build
@@ -12,6 +12,7 @@ TEST=
 BENCH=
 CLEAN=
 RESET=
+GENERATEONLY=
 VERBOSE=
 
 for arg; do
@@ -27,6 +28,7 @@ for arg; do
     test)         TEST="-DHIBP_TEST=ON";;
     bench)        BENCH="-DHIBP_BENCH=ON";;
     reset)        RESET=1 ;;
+    generateonly) GENERATEONLY=1 ;;
     *)            echo -e "unknown option $arg\n$USAGE" >&2;  exit 1 ;;
   esac
 done
@@ -57,6 +59,11 @@ COMPILER_OPTIONS="-DCMAKE_C_COMPILER=$C_COMPILER -DCMAKE_CXX_COMPILER=$CXX_COMPI
 [[ -n $RESET && -d $BUILD_DIR ]] && rm -rf $BUILD_DIR
     
 $CMAKE -GNinja -S . -B $BUILD_DIR $CACHE -DCMAKE_COLOR_DIAGNOSTICS=ON $COMPILER_OPTIONS -DCMAKE_BUILD_TYPE=$TYPE $TEST $BENCH
+
+if [[ -n $GENERATEONLY ]]
+then
+    exit $?
+fi
 
 [[ -n $CLEAN ]] && $CMAKE --build $BUILD_DIR --target clean
 
