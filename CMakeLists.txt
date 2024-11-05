@@ -77,7 +77,9 @@ endif()
 set(RESTINIO_EXPLICIT_CPPSTD 20)
 set(RESTINIO_ASIO_SOURCE standalone)
 set(asio_INCLUDE_DIRS ../asio/include) # relative to ext/restinio/dev/restinio
-set(BUILD_STATIC_LIBS ON CACHE BOOL "OVERIIDDEN") # not a great way but required?
+set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+set(BUILD_STATIC_LIBS ON)
+set(BUILD_SHARED_LIBS OFF)
 add_subdirectory(ext/restinio/dev/nodejs/llhttp)
 add_subdirectory(ext/restinio/dev/fmt)
 add_subdirectory(ext/restinio/dev/expected-lite)
