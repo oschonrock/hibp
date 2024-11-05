@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <format>
 #include <ostream>
+#include <charconv>
 
 namespace hibp {
 
