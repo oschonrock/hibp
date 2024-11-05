@@ -16,7 +16,7 @@ std::condition_variable tstate_cv; // NOLINT non-const-global
 state                   tstate;    // NOLINT non-const-global
 
 // threaded app needs mutex for stdio
-[[maybe_unused]] std::mutex cerr_mutex; // NOLINT non-const-global
+std::mutex cerr_mutex; // NOLINT non-const-global
 // labels for threads
 std::unordered_map<std::thread::id, std::string> thrnames; // NOLINT non-const-global
 

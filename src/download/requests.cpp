@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 
+// high volume concurrent requests using curl multi and libevent
 // curl internal queue management and event driven callbacks
 
 static CURLM*        curl_multi_handle; // NOLINT non-const-global
