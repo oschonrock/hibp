@@ -66,8 +66,7 @@ void add_download(const std::string& prefix) {
 }
 
 static bool process_curl_done_msg(CURLMsg* message) {
-  bool  found_successful_completions = false;
-  CURL* easy_handle                  = message->easy_handle;
+  CURL* easy_handle = message->easy_handle;
 
   auto result = message->data.result;
 
@@ -81,24 +80,27 @@ static bool process_curl_done_msg(CURLMsg* message) {
     // state::handle_requests
     dl->complete = true;
     thrprinterr(std::format("setting '{}' complete = {}", dl->prefix, dl->complete));
-    found_successful_completions = true;
     curl_easy_cleanup(easy_handle);
-  } else {
-    if (dl->retries_left == 0) {
-      throw std::runtime_error(std::format("prefix '{}': returned result '{}' after {} retries",
-                                           dl->prefix, curl_easy_strerror(message->data.result),
-                                           download::max_retries));
-    }
-    dl->retries_left--;
-    dl->buffer.clear(); // throw away anything that was returned
-    {
-      std::lock_guard lk(cerr_mutex);
-      std::cerr << std::format("prefix '{}': returned result '{}'. {} retries left\n", dl->prefix,
-                               curl_easy_strerror(message->data.result), dl->retries_left);
-    }
-    curl_multi_add_handle(curl_multi_handle, easy_handle); // try again with same handle
+    return true; // successful completion
   }
-  return found_successful_completions;
+
+  if (dl->retries_left == 0) {
+    // hard fail, will eventually terminate whole program
+    throw std::runtime_error(std::format("prefix '{}': returned result '{}' after {} retries",
+                                         dl->prefix, curl_easy_strerror(message->data.result),
+                                         download::max_retries));
+  }
+
+  dl->retries_left--;
+  dl->buffer.clear(); // throw away anything that was returned
+  {
+    std::lock_guard lk(cerr_mutex);
+    std::cerr << std::format("prefix '{}': returned result '{}'. {} retries left\n", dl->prefix,
+                             curl_easy_strerror(message->data.result), dl->retries_left);
+  }
+  curl_multi_add_handle(curl_multi_handle, easy_handle); // try again with same handle
+
+  return false; // no successful completion
 }
 
 static void process_curl_messages() {
@@ -126,8 +128,8 @@ static void process_curl_messages() {
     tstate_cv.notify_one();
 
     // must pause this thread here, as otherwise the callbacks could fire any time
-    // cause accesto curls internal queue structures which could still be being modified
-    // by main thread
+    // and access curls internal queue structures which could still be being modified
+    // by queuemgt thread
     std::unique_lock lk(thrmutex);
     thrprinterr("waiting for main");
     if (!tstate_cv.wait_for(lk, std::chrono::seconds(10),
