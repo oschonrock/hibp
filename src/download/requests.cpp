@@ -82,7 +82,8 @@ static bool process_curl_done_msg(CURLMsg* message) {
     dl->complete = true;
     thrprinterr(std::format("setting '{}' complete = {}", dl->prefix, dl->complete));
     curl_easy_cleanup(easy_handle);
-    return true; // successful completion
+    dl->easy = nullptr; // prevent further attempts at cleanup
+    return true;        // successful completion
   }
 
   if (dl->retries_left == 0) {

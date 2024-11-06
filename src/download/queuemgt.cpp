@@ -221,14 +221,18 @@ void run_threads(flat_file::stream_writer<hibp::pawned_pw>& writer) {
     event_base_loopbreak(base); // not sure if required, but to be safe
     while (!download_queue.empty()) {
       auto& dl = download_queue.front();
-      if (auto res = curl_multi_remove_handle(curl_multi_handle, dl->easy); res != CURLM_OK) {
-        std::cerr << std::format("error in curl_multi_remove_handle(): '{}'\n", curl_multi_strerror(res));
+      if (dl->easy != nullptr) {
+        if (auto res = curl_multi_remove_handle(curl_multi_handle, dl->easy); res != CURLM_OK) {
+          std::cerr << std::format("error in curl_multi_remove_handle(): '{}'\n",
+                                   curl_multi_strerror(res));
+        }
+        curl_easy_cleanup(dl->easy);
       }
-      curl_easy_cleanup(dl->easy);
       download_queue.pop();
     }
     shutdown_curl_and_events();
-    throw std::runtime_error("Thread exceptions thrown as above. Sorry, we are aborting. You can try rerunning with `--resume`");
+    throw std::runtime_error("Thread exceptions thrown as above. Sorry, we are aborting. You can "
+                             "try rerunning with `--resume`");
   }
   shutdown_curl_and_events();
 }
