@@ -35,7 +35,8 @@ void define_options(CLI::App& app) {
                  "The maximum number of requests that will be started concurrently (default: 300)");
 
   app.add_option("--limit", cli_config.prefix_limit,
-                 "The maximum number (prefix) files that will be downloaded (default: 0x100000)");
+                 "The maximum number (prefix) files that will be downloaded (default: 100 000 hex "
+                 "or 1 048 576 dec)");
 }
 
 int main(int argc, char* argv[]) {
@@ -64,8 +65,7 @@ int main(int argc, char* argv[]) {
       if (cli_config.prefix_limit <= next_prefix) {
         throw std::runtime_error(std::format("File '{}' contains {} records already, but you have "
                                              "specified --limit={}. Nothing to do. Aborting.",
-                                             cli_config.output_db_filename,
-                                             next_prefix,
+                                             cli_config.output_db_filename, next_prefix,
                                              cli_config.prefix_limit));
       }
       start_prefix = next_prefix; // to make progress correct
