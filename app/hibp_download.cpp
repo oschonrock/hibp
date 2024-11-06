@@ -1,9 +1,6 @@
 #include "CLI/CLI.hpp"
 #include "download/queuemgt.hpp"
-#include "download/requests.hpp"
 #include "download/shared.hpp"
-#include <charconv>
-#include <cstddef>
 #include <cstdlib>
 #include <curl/curl.h>
 #include <curl/easy.h>
@@ -13,36 +10,9 @@
 #include <fstream>
 #include <ios>
 #include <iostream>
-#include <sstream>
 #include <stdexcept>
-#include <string>
 
 cli_config_t cli_config; // NOLINT non-const-global
-
-std::size_t get_last_prefix() {
-  flat_file::database<hibp::pawned_pw> db(cli_config.output_db_filename,
-                                          4096 / sizeof(hibp::pawned_pw));
-
-  const auto& last = db.back();
-
-  std::stringstream ss;
-  ss << last;
-  std::string last_hash = ss.str().substr(0, 40);
-  std::string prefix    = last_hash.substr(0, 5);
-  std::string suffix    = last_hash.substr(5, 40 - 5);
-
-  std::string result_body = curl_get("https://api.pwnedpasswords.com/range/" + prefix);
-
-  auto pos = result_body.find_last_of(':');
-  if (pos == std::string::npos || pos < 35 || suffix != result_body.substr(pos - 35, 35)) {
-    throw std::runtime_error("last converted hash not found at end of last retrieved file\n");
-  }
-  std::size_t last_prefix{};
-  std::from_chars(prefix.c_str(), prefix.c_str() + prefix.length(), last_prefix,
-                  16); // known to be correct
-
-  return last_prefix;
-}
 
 void define_options(CLI::App& app) {
 

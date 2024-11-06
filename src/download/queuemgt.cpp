@@ -54,13 +54,38 @@ void print_progress() {
     auto elapsed_sec_trunc = floor<std::chrono::seconds>(elapsed);
 
     std::lock_guard lk(cerr_mutex);
-    auto files_todo = cli_config.prefix_limit - start_prefix;
+    auto            files_todo = cli_config.prefix_limit - start_prefix;
     std::cerr << std::format("Elapsed: {:%M:%S}  Progress: {} / {} files  {:.1f}MB/s  {:5.1f}%\r",
                              elapsed_sec_trunc, files_processed, files_todo,
                              static_cast<double>(bytes_processed) / (1U << 20U) / elapsed_sec,
                              100.0 * static_cast<double>(files_processed) /
                                  static_cast<double>(files_todo));
   }
+}
+
+std::size_t get_last_prefix() {
+  flat_file::database<hibp::pawned_pw> db(cli_config.output_db_filename,
+                                          4096 / sizeof(hibp::pawned_pw));
+
+  const auto& last = db.back();
+
+  std::stringstream ss;
+  ss << last;
+  std::string last_hash = ss.str().substr(0, 40);
+  std::string prefix    = last_hash.substr(0, 5);
+  std::string suffix    = last_hash.substr(5, 40 - 5);
+
+  std::string result_body = curl_sync_get("https://api.pwnedpasswords.com/range/" + prefix);
+
+  auto pos = result_body.find_last_of(':');
+  if (pos == std::string::npos || pos < 35 || suffix != result_body.substr(pos - 35, 35)) {
+    throw std::runtime_error("last converted hash not found at end of last retrieved file\n");
+  }
+  std::size_t last_prefix{};
+  std::from_chars(prefix.c_str(), prefix.c_str() + prefix.length(), last_prefix,
+                  16); // known to be correct
+
+  return last_prefix;
 }
 
 static void fill_download_queue() {
@@ -129,7 +154,7 @@ void service_queue(flat_file::stream_writer<hibp::pawned_pw>& writer) {
     {
       thrprinterr("waiting for curl");
       std::unique_lock lk(thrmutex);
-      if (!tstate_cv.wait_for(lk, std::chrono::seconds(10),
+      if (!tstate_cv.wait_for(lk, std::chrono::seconds(5),
                               []() { return tstate == state::process_queues; })) {
         throw std::runtime_error("Timed out waiting for requests thread");
       }
@@ -188,20 +213,22 @@ void run_threads(flat_file::stream_writer<hibp::pawned_pw>& writer) {
   }
 
   requests_thread.join();
-  shutdown_curl_and_events();
 
   // use temps to avoid short cct eval
   bool ex_requests = handle_exception(requests_exception_ptr, req_thr_id);
   bool ex_queuemgt = handle_exception(queuemgt_exception_ptr, que_thr_id);
   if (ex_requests || ex_queuemgt) {
-    // TODO.. do some cleanup as reported by ASAN
-    // sth like
-    // forech (easy_handle) { // need a record of them
-    //   curl_multi_remove_handle(curl_multi_handle, easy)
-    // }
-    // shutdown_curl_and_events();
-
-    // move abve shutdfown below if
-    throw std::runtime_error("Thread exceptions thrown as above");
+    event_base_loopbreak(base);
+    while (!download_queue.empty()) {
+      auto& dl = download_queue.front();
+      if (auto res = curl_multi_remove_handle(curl_multi_handle, dl->easy); res != CURLM_OK) {
+        std::cerr << std::format("error in curl_multi_remove_handle(): '{}'\n", curl_multi_strerror(res));
+      }
+      curl_easy_cleanup(dl->easy);
+      download_queue.pop();
+    }
+    shutdown_curl_and_events();
+    throw std::runtime_error("Thread exceptions thrown as above. Sorry, we are aborting. You can try rerunning with `--resume`");
   }
+  shutdown_curl_and_events();
 }

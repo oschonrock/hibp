@@ -67,6 +67,7 @@ during this time:
 time ./build/gcc/release/hibp_download hibp_all.bin
 
 # you may see some warnings about failures and retries. If any transfers fails after 10 retries, programme will abort.
+# after a permanent failure / abort, you can try rerunnung with `--resume` 
 ```
 
 For all options run `hibp_download --help`.
@@ -104,6 +105,8 @@ curl http://localhost:8082/password
 #if you pass --json to the server you will get
 {count:10434004}
 ```
+
+For all options run `hibp_server --help`.
 
 #### Basic performance evaluation using apache bench
 

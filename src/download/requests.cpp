@@ -18,7 +18,7 @@
 // high volume concurrent requests using curl multi and libevent
 // curl internal queue management and event driven callbacks
 
-static CURLM*        curl_multi_handle; // NOLINT non-const-global
+CURLM*               curl_multi_handle; // NOLINT non-const-global
 static struct event* timeout;           // NOLINT non-const-global
 
 // connects an event with a socketfd
@@ -63,6 +63,7 @@ void add_download(const std::string& prefix) {
   curl_easy_setopt(easy, CURLOPT_LOW_SPEED_TIME, 5L);
   curl_easy_setopt(easy, CURLOPT_LOW_SPEED_LIMIT, 1000L);
   curl_multi_add_handle(curl_multi_handle, easy);
+  dl->easy = easy;
 }
 
 static bool process_curl_done_msg(CURLMsg* message) {
@@ -225,22 +226,23 @@ static int handle_socket_curl_cb(CURL* /*easy*/, curl_socket_t s, int action, vo
   return 0;
 }
 
-std::string curl_get(const std::string& url) {
+std::string curl_sync_get(const std::string& url) {
   CURL* curl = curl_easy_init();
-
   curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+
+  // can't put inliue as setopt is a macro which fails
   auto write_cb = [](char* ptr, size_t size, size_t nmemb, void* body) {
-    *(static_cast<std::string*>(body)) += std::string{ptr, size * nmemb};
+    *static_cast<std::string*>(body) += std::string_view{ptr, size * nmemb};
     return size * nmemb;
   };
 
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, +write_cb); // convert to func ptr
   std::string result_body;
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, &result_body);
-  auto res = curl_easy_perform(curl);
-  if (res != CURLE_OK) {
+  if (auto res = curl_easy_perform(curl); res != CURLE_OK) {
     curl_easy_cleanup(curl);
-    throw std::runtime_error("couldn't retrieve " + url);
+    throw std::runtime_error(std::format("curl_sync_get: Couldn't retrieve '{}'. Error: {}", url,
+                                         curl_easy_strerror(res)));
   }
 
   curl_easy_cleanup(curl);
@@ -262,7 +264,10 @@ void init_curl_and_events() {
 }
 
 void shutdown_curl_and_events() {
-  curl_multi_cleanup(curl_multi_handle);
+  if (auto res = curl_multi_cleanup(curl_multi_handle); res != CURLM_OK) {
+    std::cerr << std::format("error: curl_multi_cleanup: '{}'\n", curl_multi_strerror(res));
+  }
+
   event_free(timeout);
   event_base_free(base);
 

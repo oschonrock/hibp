@@ -2,6 +2,7 @@
 
 #include <condition_variable>
 #include <cstddef>
+#include <curl/curl.h>
 #include <mutex>
 #include <queue>
 #include <string>
@@ -18,8 +19,9 @@ struct download {
 
   static constexpr int max_retries = 5;
 
-  std::vector<char> buffer;
+  CURL*             easy = nullptr;
   std::string       prefix;
+  std::vector<char> buffer;
   int               retries_left = max_retries;
   bool              complete     = false;
 };
@@ -35,18 +37,16 @@ struct cli_config_t {
 
 enum class state { handle_requests, process_queues };
 
-// shared vars
+// vars shared across threads
 
 extern std::queue<std::unique_ptr<download>> download_queue; // NOLINT non-const-global
-
-extern std::size_t start_prefix; // NOLINT non-cost-gobal
-extern std::size_t next_prefix;  // NOLINT non-cost-gobal
 
 extern std::mutex              thrmutex;  // NOLINT non-const-global
 extern std::condition_variable tstate_cv; // NOLINT non-const-global
 extern state                   tstate;    // NOLINT non-const-global
 
-extern struct event_base* base; // NOLINT non-const-global
+extern struct event_base* base;              // NOLINT non-const-global
+extern CURLM*             curl_multi_handle; // NOLINT non-const-global
 
 extern std::mutex cerr_mutex; // NOLINT non-const-global
 
