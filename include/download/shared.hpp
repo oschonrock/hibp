@@ -38,7 +38,9 @@ enum class state { handle_requests, process_queues };
 // shared vars
 
 extern std::queue<std::unique_ptr<download>> download_queue; // NOLINT non-const-global
-extern std::size_t next_prefix; // NOLINT non-cost-gobal
+
+extern std::size_t start_prefix; // NOLINT non-cost-gobal
+extern std::size_t next_prefix;  // NOLINT non-cost-gobal
 
 extern std::mutex              thrmutex;  // NOLINT non-const-global
 extern std::condition_variable tstate_cv; // NOLINT non-const-global

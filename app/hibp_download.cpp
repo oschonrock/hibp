@@ -75,7 +75,9 @@ int main(int argc, char* argv[]) {
 
     if (cli_config.resume) {
       next_prefix = get_last_prefix() + 1;
+      start_prefix = next_prefix; // to make progress correct
       mode |= std::ios_base::app;
+      std::cerr << std::format("Resuming from file {}\n", start_prefix);
     }
 
     auto output_db_stream = std::ofstream(cli_config.output_db_filename, mode);

@@ -41,7 +41,8 @@ static clk::time_point start_time; // NOLINT non-const-global, used in main()
 
 static std::queue<std::unique_ptr<download>> process_queue; // NOLINT non-const-global
 
-std::size_t next_prefix = 0x0UL; // NOLINT non-cost-gobal
+std::size_t start_prefix = 0x0UL; // NOLINT non-cost-gobal
+std::size_t next_prefix  = 0x0UL; // NOLINT non-cost-gobal
 
 static std::size_t files_processed = 0UL; // NOLINT non-const-global
 static std::size_t bytes_processed = 0UL; // NOLINT non-const-global
@@ -53,11 +54,12 @@ void print_progress() {
     auto elapsed_sec_trunc = floor<std::chrono::seconds>(elapsed);
 
     std::lock_guard lk(cerr_mutex);
+    auto files_todo = cli_config.prefix_limit - start_prefix;
     std::cerr << std::format("Elapsed: {:%M:%S}  Progress: {} / {} files  {:.1f}MB/s  {:5.1f}%\r",
-                             elapsed_sec_trunc, files_processed, cli_config.prefix_limit,
+                             elapsed_sec_trunc, files_processed, files_todo,
                              static_cast<double>(bytes_processed) / (1U << 20U) / elapsed_sec,
                              100.0 * static_cast<double>(files_processed) /
-                                 static_cast<double>(cli_config.prefix_limit));
+                                 static_cast<double>(files_todo));
   }
 }
 
@@ -127,7 +129,8 @@ void service_queue(flat_file::stream_writer<hibp::pawned_pw>& writer) {
     {
       thrprinterr("waiting for curl");
       std::unique_lock lk(thrmutex);
-      if (!tstate_cv.wait_for(lk, std::chrono::seconds(10), []() { return tstate == state::process_queues; })) {
+      if (!tstate_cv.wait_for(lk, std::chrono::seconds(10),
+                              []() { return tstate == state::process_queues; })) {
         throw std::runtime_error("Timed out waiting for requests thread");
       }
       process_completed_download_queue_entries(); // shuffle and fill queues
@@ -161,7 +164,7 @@ void run_threads(flat_file::stream_writer<hibp::pawned_pw>& writer) {
   start_time = clk::now();
   init_curl_and_events();
 
-  auto que_thr_id = std::this_thread::get_id();
+  auto que_thr_id      = std::this_thread::get_id();
   thrnames[que_thr_id] = "queuemgt";
   fill_download_queue(); // no need to lock mutex here, as curl_event thread is not running yet
 
@@ -175,7 +178,7 @@ void run_threads(flat_file::stream_writer<hibp::pawned_pw>& writer) {
     }
   });
 
-  auto req_thr_id = requests_thread.get_id();
+  auto req_thr_id      = requests_thread.get_id();
   thrnames[req_thr_id] = "requests";
 
   try {
@@ -186,7 +189,7 @@ void run_threads(flat_file::stream_writer<hibp::pawned_pw>& writer) {
 
   requests_thread.join();
   shutdown_curl_and_events();
-  
+
   // use temps to avoid short cct eval
   bool ex_requests = handle_exception(requests_exception_ptr, req_thr_id);
   bool ex_queuemgt = handle_exception(queuemgt_exception_ptr, que_thr_id);
@@ -198,7 +201,7 @@ void run_threads(flat_file::stream_writer<hibp::pawned_pw>& writer) {
     // }
     // shutdown_curl_and_events();
 
-    // move abve shutdfown below if 
+    // move abve shutdfown below if
     throw std::runtime_error("Thread exceptions thrown as above");
   }
 }
