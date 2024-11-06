@@ -6,6 +6,7 @@
 #include <curl/easy.h>
 #include <curl/multi.h>
 #include <event2/event.h>
+#include <filesystem>
 #include <format>
 #include <fstream>
 #include <ios>
@@ -29,6 +30,7 @@ void define_options(CLI::App& app) {
                "Attempt to resume an earlier download. Not with --text-out.");
   app.add_flag("--text-out", cli_config.text_out,
                "Output text format, rather than the default custom binary format.");
+  app.add_flag("--force", cli_config.force, "Overwrite any existing file!");
   app.add_option("--parallel-max", cli_config.parallel_max,
                  "The maximum number of requests that will be started concurrently (default: 300)");
 
@@ -45,13 +47,27 @@ int main(int argc, char* argv[]) {
 
   try {
     if (cli_config.text_out && cli_config.resume) {
-      throw std::runtime_error("can't use --resume and --text-out together");
+      throw std::runtime_error("can't use `--resume` and `--text-out` together");
+    }
+
+    if (!cli_config.resume && !cli_config.force &&
+        std::filesystem::exists(cli_config.output_db_filename)) {
+      throw std::runtime_error(std::format("File '{}' exists. Use `--force` to overwrite, or "
+                                           "`--resume` to resume a previous download.",
+                                           cli_config.output_db_filename));
     }
 
     auto mode = std::ios_base::binary;
 
     if (cli_config.resume) {
-      next_prefix  = get_last_prefix() + 1;
+      next_prefix = get_last_prefix() + 1;
+      if (cli_config.prefix_limit <= next_prefix) {
+        throw std::runtime_error(std::format("File '{}' contains {} records already, but you have "
+                                             "specified --limit={}. Nothing to do. Aborting.",
+                                             cli_config.output_db_filename,
+                                             next_prefix,
+                                             cli_config.prefix_limit));
+      }
       start_prefix = next_prefix; // to make progress correct
       mode |= std::ios_base::app;
       std::cerr << std::format("Resuming from file {}\n", start_prefix);
@@ -68,7 +84,7 @@ int main(int argc, char* argv[]) {
     run_threads(writer);
 
   } catch (const std::exception& e) {
-    std::cerr << std::format("Error: {}: Terminating\n", e.what());
+    std::cerr << std::format("Error: {}\n", e.what());
     return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;
