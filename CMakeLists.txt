@@ -14,7 +14,7 @@ else() # unix'ish
     -Wmissing-noreturn -Wconversion -Wsign-conversion -Wno-ignored-attributes)
 
   # sanatizers
-  if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  if(CMAKE_BUILD_TYPE STREQUAL "debug")
     if (NOT MINGW) # sanitizers are not working under mingw
       if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
 	message(WARNING "FreeBSD detected: skipping santizers which cause weird errors in OpenSSL")
