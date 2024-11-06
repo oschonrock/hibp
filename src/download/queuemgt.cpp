@@ -41,7 +41,7 @@ static clk::time_point start_time; // NOLINT non-const-global, used in main()
 
 static std::queue<std::unique_ptr<download>> process_queue; // NOLINT non-const-global
 
-static auto next_prefix = 0x0UL; // NOLINT non-cost-gobal
+std::size_t next_prefix = 0x0UL; // NOLINT non-cost-gobal
 
 static std::size_t files_processed = 0UL; // NOLINT non-const-global
 static std::size_t bytes_processed = 0UL; // NOLINT non-const-global
@@ -191,6 +191,14 @@ void run_threads(flat_file::stream_writer<hibp::pawned_pw>& writer) {
   bool ex_requests = handle_exception(requests_exception_ptr, req_thr_id);
   bool ex_queuemgt = handle_exception(queuemgt_exception_ptr, que_thr_id);
   if (ex_requests || ex_queuemgt) {
+    // TODO.. do some cleanup as reported by ASAN
+    // sth like
+    // forech (easy_handle) { // need a record of them
+    //   curl_multi_remove_handle(curl_multi_handle, easy)
+    // }
+    // shutdown_curl_and_events();
+
+    // move abve shutdfown below if 
     throw std::runtime_error("Thread exceptions thrown as above");
   }
 }

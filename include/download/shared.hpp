@@ -5,9 +5,9 @@
 #include <mutex>
 #include <queue>
 #include <string>
+#include <thread>
 #include <unordered_map>
 #include <vector>
-#include <thread>
 
 // shared types
 
@@ -28,6 +28,7 @@ struct cli_config_t {
   std::string output_db_filename;
   bool        debug        = false;
   bool        progress     = true;
+  bool        resume       = false;
   std::size_t prefix_limit = 0x100000;
   std::size_t parallel_max = 300;
 };
@@ -37,6 +38,7 @@ enum class state { handle_requests, process_queues };
 // shared vars
 
 extern std::queue<std::unique_ptr<download>> download_queue; // NOLINT non-const-global
+extern std::size_t next_prefix; // NOLINT non-cost-gobal
 
 extern std::mutex              thrmutex;  // NOLINT non-const-global
 extern std::condition_variable tstate_cv; // NOLINT non-const-global

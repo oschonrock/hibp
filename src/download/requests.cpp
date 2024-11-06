@@ -225,6 +225,28 @@ static int handle_socket_curl_cb(CURL* /*easy*/, curl_socket_t s, int action, vo
   return 0;
 }
 
+std::string curl_get(const std::string& url) {
+  CURL* curl = curl_easy_init();
+
+  curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+  auto write_cb = [](char* ptr, size_t size, size_t nmemb, void* body) {
+    *(static_cast<std::string*>(body)) += std::string{ptr, size * nmemb};
+    return size * nmemb;
+  };
+
+  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, +write_cb); // convert to func ptr
+  std::string result_body;
+  curl_easy_setopt(curl, CURLOPT_WRITEDATA, &result_body);
+  auto res = curl_easy_perform(curl);
+  if (res != CURLE_OK) {
+    curl_easy_cleanup(curl);
+    throw std::runtime_error("couldn't retrieve " + url);
+  }
+
+  curl_easy_cleanup(curl);
+  return result_body;
+}
+
 void init_curl_and_events() {
   if (curl_global_init(CURL_GLOBAL_ALL) != 0) {
     throw std::runtime_error("Error: Could not init curl\n");

@@ -103,7 +103,7 @@ public:
   using value_type = ValueType;
   struct const_iterator;
 
-  ValueType& get_record(std::size_t pos) {
+  const ValueType& get_record(std::size_t pos) {
     if (!(pos >= buf_start_ && pos < buf_end_)) {
       db_.seekg(static_cast<long>(pos * sizeof(ValueType)));
 
@@ -119,8 +119,14 @@ public:
   }
 
   const_iterator begin() { return {*this, 0}; }
-  const_iterator end() { return {*this, dbsize_}; }
+  const_iterator end() {
+    return {*this, dbsize_};
+  }
 
+  const ValueType& back() {
+    return get_record(dbsize_ - 1); // using iter here does not work (lifetime issue?)
+  }
+  
   std::string filename() const { return filename_; }
   std::size_t filesize() const { return dbfsize_; }
   std::size_t number_records() const { return dbsize_; }
