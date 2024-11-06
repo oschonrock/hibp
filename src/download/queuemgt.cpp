@@ -154,7 +154,7 @@ void service_queue(flat_file::stream_writer<hibp::pawned_pw>& writer) {
     {
       thrprinterr("waiting for curl");
       std::unique_lock lk(thrmutex);
-      if (!tstate_cv.wait_for(lk, std::chrono::seconds(5),
+      if (!tstate_cv.wait_for(lk, std::chrono::seconds(10),
                               []() { return tstate == state::process_queues; })) {
         throw std::runtime_error("Timed out waiting for requests thread");
       }
@@ -183,8 +183,8 @@ bool handle_exception(const std::exception_ptr& exception_ptr, std::thread::id t
 }
 
 void run_threads(flat_file::stream_writer<hibp::pawned_pw>& writer) {
-  std::exception_ptr requests_exception_ptr;
-  std::exception_ptr queuemgt_exception_ptr;
+  std::exception_ptr requests_exception;
+  std::exception_ptr queuemgt_exception;
 
   start_time = clk::now();
   init_curl_and_events();
@@ -199,7 +199,7 @@ void run_threads(flat_file::stream_writer<hibp::pawned_pw>& writer) {
     try {
       event_base_dispatch(base);
     } catch (...) {
-      requests_exception_ptr = std::current_exception();
+      requests_exception = std::current_exception();
     }
   });
 
@@ -209,16 +209,16 @@ void run_threads(flat_file::stream_writer<hibp::pawned_pw>& writer) {
   try {
     service_queue(writer);
   } catch (...) {
-    queuemgt_exception_ptr = std::current_exception();
+    queuemgt_exception = std::current_exception();
   }
 
   requests_thread.join();
 
   // use temps to avoid short cct eval
-  bool ex_requests = handle_exception(requests_exception_ptr, req_thr_id);
-  bool ex_queuemgt = handle_exception(queuemgt_exception_ptr, que_thr_id);
+  bool ex_requests = handle_exception(requests_exception, req_thr_id);
+  bool ex_queuemgt = handle_exception(queuemgt_exception, que_thr_id);
   if (ex_requests || ex_queuemgt) {
-    event_base_loopbreak(base);
+    event_base_loopbreak(base); // not sure if required, but to be safe
     while (!download_queue.empty()) {
       auto& dl = download_queue.front();
       if (auto res = curl_multi_remove_handle(curl_multi_handle, dl->easy); res != CURLM_OK) {
