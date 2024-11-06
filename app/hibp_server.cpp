@@ -20,6 +20,31 @@ static cli_config_t cli_config; // NOLINT non-const global
 
 static std::atomic<int> uniq{}; // NOLINT for performance testing, uniq across threads
 
+void define_options(CLI::App& app) {
+
+  app.add_option("db_filename", cli_config.db_filename,
+                 "The file that contains the binary database you downloaded")
+      ->required();
+
+  app.add_option("--bind-address", cli_config.bind_address,
+                 std::format("The IP4 address the server will bind to. (default: {})",
+                             cli_config.bind_address));
+
+  app.add_option("--port", cli_config.port,
+                 std::format("The port the server will bind to (default: {})", cli_config.port));
+
+  app.add_option("--threads", cli_config.threads,
+                 std::format("The number of threads to use (default: {})", cli_config.threads))
+      ->check(CLI::Range(1U, cli_config.threads));
+
+  app.add_flag("--json", cli_config.json, "Output a json response.");
+
+  app.add_flag(
+      "--perf-test", cli_config.perf_test,
+      "Use this to uniquefy the password provided for each query, "
+      "thereby defeating the cache. The results will be wrong, but good for performance tests");
+}
+
 auto get_router(const std::string& db_file) {
   auto router = std::make_unique<restinio::router::express_router_t<>>();
   router->http_get(R"(/:password)", [&](auto req, auto params) {
@@ -62,52 +87,31 @@ auto get_router(const std::string& db_file) {
   return router;
 }
 
+void run_server() {
+  // Launching a server with custom traits.
+  struct my_server_traits : public restinio::default_traits_t {
+    using request_handler_t = restinio::router::express_router_t<>;
+  };
+
+  std::cerr << std::format("Serving from {}:{}\nMake a request to http://{}:{}/some-password\n",
+                           cli_config.bind_address, cli_config.port, cli_config.bind_address,
+                           cli_config.port);
+
+  auto settings = restinio::on_thread_pool<my_server_traits>(cli_config.threads)
+                      .address(cli_config.bind_address)
+                      .port(cli_config.port)
+                      .request_handler(get_router(cli_config.db_filename));
+
+  restinio::run(std::move(settings));
+}
+
 int main(int argc, char* argv[]) {
-  CLI::App app;
-
-  app.add_option("db_filename", cli_config.db_filename,
-                 "The file that contains the binary database you downloaded")
-      ->required();
-
-  app.add_option("--bind-address", cli_config.bind_address,
-                 std::format("The IP4 address the server will bind to. (default: {})",
-                             cli_config.bind_address));
-
-  app.add_option("--port", cli_config.port,
-                 std::format("The port the server will bind to (default: {})", cli_config.port));
-
-  app.add_option("--threads", cli_config.threads,
-                 std::format("The number of threads to use (default: {})", cli_config.threads))
-      ->check(CLI::Range(1U, cli_config.threads));
-
-  app.add_flag("--json", cli_config.json, "Output a json response.");
-
-  app.add_flag(
-      "--perf-test", cli_config.perf_test,
-      "Use this to uniquefy the password provided for each query, "
-      "thereby defeating the cache. The results will be wrong, but good for performance tests");
-
+  CLI::App app("Have I been Pawned Server");
+  define_options(app);
   CLI11_PARSE(app, argc, argv);
 
   try {
-    auto db_file = std::string(cli_config.db_filename);
-
-    // Launching a server with custom traits.
-    struct my_server_traits : public restinio::default_traits_t {
-      using request_handler_t = restinio::router::express_router_t<>;
-    };
-
-    std::cerr << std::format("Serving from {}:{}\nMake a request to http://{}:{}/some-password\n",
-                             cli_config.bind_address, cli_config.port, cli_config.bind_address,
-                             cli_config.port);
-
-    auto settings = restinio::on_thread_pool<my_server_traits>(cli_config.threads)
-                        .address(cli_config.bind_address)
-                        .port(cli_config.port)
-                        .request_handler(get_router(db_file));
-
-    restinio::run(std::move(settings));
-
+    run_server();
   } catch (const std::exception& e) {
     std::cerr << "something went wrong: " << e.what() << "\n";
     return EXIT_FAILURE;
