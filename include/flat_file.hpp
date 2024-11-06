@@ -43,6 +43,11 @@ public:
     ++buf_pos_;
   }
 
+  // nasty hack which bypassed all buffers and writes to the file directly in an unstructered manner
+  void write_text(const std::string& str) {
+    db_.write(str.c_str(), static_cast<std::streamsize>(str.length()));
+  }
+
   void flush() {
     if (buf_pos_ != 0) {
       db_.write(reinterpret_cast<char*>(buf_.data()), // NOLINT reincast

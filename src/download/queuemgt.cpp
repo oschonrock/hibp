@@ -127,7 +127,12 @@ static std::size_t write_lines(flat_file::stream_writer<hibp::pawned_pw>& writer
   for (std::string line, prefixed_line; std::getline(ss, line);) {
     if (line.size() > 0) {
       prefixed_line = dl.prefix + line;
-      writer.write(hibp::convert_to_binary(prefixed_line));
+      if (cli_config.text_out) {
+        prefixed_line.erase(prefixed_line.find_last_not_of('\r') + 1);
+        writer.write_text(prefixed_line + '\n');
+      } else {
+        writer.write(hibp::convert_to_binary(prefixed_line));
+      }
       recordcount++;
     }
   }

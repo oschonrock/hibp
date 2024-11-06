@@ -26,6 +26,7 @@ void define_options(CLI::App& app) {
                "Show a progress meter on stderr. This is the default.");
 
   app.add_flag("--resume", cli_config.resume, "Attempt to resume an earlier download.");
+  app.add_flag("--text-out", cli_config.text_out, "Output text format, rather than the default custom binary format.");
   app.add_option("--parallel-max", cli_config.parallel_max,
                  "The maximum number of requests that will be started concurrently (default: 300)");
 

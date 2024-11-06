@@ -31,6 +31,7 @@ struct cli_config_t {
   bool        debug        = false;
   bool        progress     = true;
   bool        resume       = false;
+  bool        text_out     = false;
   std::size_t prefix_limit = 0x100000;
   std::size_t parallel_max = 300;
 };
