@@ -25,8 +25,10 @@ void define_options(CLI::App& app) {
   app.add_flag("--progress,!--no-progress", cli_config.progress,
                "Show a progress meter on stderr. This is the default.");
 
-  app.add_flag("--resume", cli_config.resume, "Attempt to resume an earlier download.");
-  app.add_flag("--text-out", cli_config.text_out, "Output text format, rather than the default custom binary format.");
+  app.add_flag("--resume", cli_config.resume,
+               "Attempt to resume an earlier download. Not with --text-out.");
+  app.add_flag("--text-out", cli_config.text_out,
+               "Output text format, rather than the default custom binary format.");
   app.add_option("--parallel-max", cli_config.parallel_max,
                  "The maximum number of requests that will be started concurrently (default: 300)");
 
@@ -42,10 +44,14 @@ int main(int argc, char* argv[]) {
   if (cli_config.debug) cli_config.progress = false;
 
   try {
-    auto mode =  std::ios_base::binary;
+    if (cli_config.text_out && cli_config.resume) {
+      throw std::runtime_error("can't use --resume and --text-out together");
+    }
+
+    auto mode = std::ios_base::binary;
 
     if (cli_config.resume) {
-      next_prefix = get_last_prefix() + 1;
+      next_prefix  = get_last_prefix() + 1;
       start_prefix = next_prefix; // to make progress correct
       mode |= std::ios_base::app;
       std::cerr << std::format("Resuming from file {}\n", start_prefix);
@@ -60,7 +66,7 @@ int main(int argc, char* argv[]) {
     auto writer = flat_file::stream_writer<hibp::pawned_pw>(output_db_stream);
 
     run_threads(writer);
-    
+
   } catch (const std::exception& e) {
     std::cerr << std::format("Error: {}: Terminating\n", e.what());
     return EXIT_FAILURE;
