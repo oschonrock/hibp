@@ -1,5 +1,6 @@
 #include "download/requests.hpp"
 #include "download/shared.hpp"
+#include <chrono>
 #include <condition_variable>
 #include <cstdlib>
 #include <curl/curl.h>

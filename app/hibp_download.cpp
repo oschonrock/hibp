@@ -61,7 +61,7 @@ int main(int argc, char* argv[]) {
     auto mode = std::ios_base::binary;
 
     if (cli_config.resume) {
-      next_prefix = get_last_prefix() + 1;
+      next_prefix = get_last_prefix(cli_config.output_db_filename) + 1;
       if (cli_config.prefix_limit <= next_prefix) {
         throw std::runtime_error(std::format("File '{}' contains {} records already, but you have "
                                              "specified --limit={}. Nothing to do. Aborting.",

@@ -63,9 +63,8 @@ void print_progress() {
   }
 }
 
-std::size_t get_last_prefix() {
-  flat_file::database<hibp::pawned_pw> db(cli_config.output_db_filename,
-                                          4096 / sizeof(hibp::pawned_pw));
+std::size_t get_last_prefix(const std::string& filename) {
+  flat_file::database<hibp::pawned_pw> db(filename);
 
   const auto& last = db.back();
 
@@ -79,7 +78,8 @@ std::size_t get_last_prefix() {
 
   auto pos = result_body.find_last_of(':');
   if (pos == std::string::npos || pos < 35 || suffix != result_body.substr(pos - 35, 35)) {
-    throw std::runtime_error("last converted hash not found at end of last retrieved file\n");
+    throw std::runtime_error("Last converted hash not found at end of last retrieved file. Cannot "
+                             "resume. You need to start afresh without `--resume`. Sorry.\n");
   }
   std::size_t last_prefix{};
   std::from_chars(prefix.c_str(), prefix.c_str() + prefix.length(), last_prefix,
