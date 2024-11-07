@@ -124,14 +124,10 @@ public:
   }
 
   const_iterator begin() { return {*this, 0}; }
-  const_iterator end() {
-    return {*this, dbsize_};
-  }
+  const_iterator end() { return {*this, dbsize_}; }
 
-  const ValueType& back() {
-    return get_record(dbsize_ - 1); // using iter here does not work (lifetime issue?)
-  }
-  
+  const ValueType& back() { return *std::prev(end()); }
+
   std::string filename() const { return filename_; }
   std::size_t filesize() const { return dbfsize_; }
   std::size_t number_records() const { return dbsize_; }
@@ -189,8 +185,8 @@ private:
   database*   ffdb_ = nullptr;
   std::size_t pos_{};
   // cur_ and cur_valid_ are mutable so that operator* can be const
-  mutable value_type cur_;
-  mutable bool       cur_valid_ = false;
+  mutable const value_type* cur_;
+  mutable bool              cur_valid_ = false;
 
   void set_pos(std::size_t pos) {
     pos_       = pos;
@@ -199,10 +195,10 @@ private:
 
   reference current() const {
     if (!cur_valid_) {
-      cur_       = ffdb_->get_record(pos_);
+      cur_       = &ffdb_->get_record(pos_);
       cur_valid_ = true;
     }
-    return cur_;
+    return *cur_;
   }
 };
 
