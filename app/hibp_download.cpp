@@ -28,9 +28,12 @@ void define_options(CLI::App& app) {
 
   app.add_flag("--resume", cli_config.resume,
                "Attempt to resume an earlier download. Not with --text-out.");
+
   app.add_flag("--text-out", cli_config.text_out,
                "Output text format, rather than the default custom binary format.");
+
   app.add_flag("--force", cli_config.force, "Overwrite any existing file!");
+
   app.add_option("--parallel-max", cli_config.parallel_max,
                  "The maximum number of requests that will be started concurrently (default: 300)");
 
