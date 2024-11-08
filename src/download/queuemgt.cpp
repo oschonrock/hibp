@@ -1,8 +1,7 @@
+#include "download/download.hpp"
 #include "download/queuemgt.hpp"
 #include "download/requests.hpp"
 #include "download/shared.hpp"
-#include "flat_file.hpp"
-#include "hibp.hpp"
 #include <chrono>
 #include <condition_variable>
 #include <cstdlib>
@@ -11,6 +10,7 @@
 #include <event2/event.h>
 #include <exception>
 #include <format>
+#include <iostream>
 #include <memory>
 #include <mutex>
 #include <queue>
@@ -41,9 +41,6 @@ static clk::time_point start_time; // NOLINT non-const-global, used in main()
 
 static std::queue<std::unique_ptr<download>> process_queue; // NOLINT non-const-global
 
-std::size_t start_prefix = 0x0UL; // NOLINT non-cost-gobal
-std::size_t next_prefix  = 0x0UL; // NOLINT non-cost-gobal
-
 static std::size_t files_processed = 0UL; // NOLINT non-const-global
 static std::size_t bytes_processed = 0UL; // NOLINT non-const-global
 
@@ -61,31 +58,6 @@ void print_progress() {
                              100.0 * static_cast<double>(files_processed) /
                                  static_cast<double>(files_todo));
   }
-}
-
-std::size_t get_last_prefix(const std::string& filename) {
-  flat_file::database<hibp::pawned_pw> db(filename);
-
-  const auto& last = db.back();
-
-  std::stringstream ss;
-  ss << last;
-  std::string last_hash = ss.str().substr(0, 40);
-  std::string prefix    = last_hash.substr(0, 5);
-  std::string suffix    = last_hash.substr(5, 40 - 5);
-
-  std::string result_body = curl_sync_get("https://api.pwnedpasswords.com/range/" + prefix);
-
-  auto pos = result_body.find_last_of(':');
-  if (pos == std::string::npos || pos < 35 || suffix != result_body.substr(pos - 35, 35)) {
-    throw std::runtime_error("Last converted hash not found at end of last retrieved file. Cannot "
-                             "resume. You need to start afresh without `--resume`. Sorry.\n");
-  }
-  std::size_t last_prefix{};
-  std::from_chars(prefix.c_str(), prefix.c_str() + prefix.length(), last_prefix,
-                  16); // known to be correct
-
-  return last_prefix;
 }
 
 static void fill_download_queue() {
@@ -117,8 +89,7 @@ static void process_completed_download_queue_entries() {
   fill_download_queue();
 }
 
-template <typename WriterType>
-static std::size_t write_lines(WriterType& writer, download& dl) {
+static std::size_t write_lines(write_fn_t& write_fn, download& dl) {
   // "embarrassing" copy onto std:string until C++26 P2495R3 Interfacing stringstreams with
   // string_view
   std::stringstream ss(std::string(dl.buffer.data(), dl.buffer.size()));
@@ -130,8 +101,8 @@ static std::size_t write_lines(WriterType& writer, download& dl) {
       prefixed_line = dl.prefix + line;
       prefixed_line.erase(prefixed_line.find_last_not_of('\r') + 1);
 
-       // calls text_writer or hibp_ff_sw, the latter via implicit conversion
-      writer.write(prefixed_line);
+      // calls text_writer or hibp_ff_sw, the latter via implicit conversion
+      write_fn(prefixed_line);
 
       recordcount++;
     }
@@ -141,11 +112,10 @@ static std::size_t write_lines(WriterType& writer, download& dl) {
   return recordcount;
 }
 
-template <typename WriterType>
-static void write_completed_process_queue_entries(WriterType& writer) {
+static void write_completed_process_queue_entries(write_fn_t& write_fn) {
   while (!process_queue.empty()) {
     auto& front = process_queue.front();
-    write_lines(writer, *front);
+    write_lines(write_fn, *front);
     // there may exist an optimisation that retains the `download` for future add_download()
     // so that the `buffer` allocation can be reused after being clear()'ed
     process_queue.pop();
@@ -154,8 +124,7 @@ static void write_completed_process_queue_entries(WriterType& writer) {
   }
 }
 
-template <typename WriterType>
-void service_queue(WriterType& writer) {
+void service_queue(write_fn_t& write_fn) {
   while (!download_queue.empty()) {
     {
       thrprinterr("waiting for curl");
@@ -168,8 +137,8 @@ void service_queue(WriterType& writer) {
       tstate = state::handle_requests;            // signal curl thread to continue
     }
     thrprinterr("notifying curl");
-    tstate_cv.notify_one();                        // send control back to curl thread
-    write_completed_process_queue_entries(writer); // do slow work writing to disk
+    tstate_cv.notify_one();                          // send control back to curl thread
+    write_completed_process_queue_entries(write_fn); // do slow work writing to disk
   }
   if (cli_config.progress) {
     std::cerr << "\n"; // clear line after progress if being shown, bit nasty
@@ -188,9 +157,7 @@ bool handle_exception(const std::exception_ptr& exception_ptr, std::thread::id t
   return false;
 }
 
-
-template <typename WriterType>
-void run_threads(WriterType&& writer) {
+void run_threads(write_fn_t& write_fn) {
   std::exception_ptr requests_exception;
   std::exception_ptr queuemgt_exception;
 
@@ -215,7 +182,7 @@ void run_threads(WriterType&& writer) {
   thrnames[req_thr_id] = "requests";
 
   try {
-    service_queue(writer);
+    service_queue(write_fn);
   } catch (...) {
     queuemgt_exception = std::current_exception();
   }
@@ -245,7 +212,3 @@ void run_threads(WriterType&& writer) {
   shutdown_curl_and_events();
 }
 
-// explicitly instantiate the writers we need, so all the code can stay here in cpp file
-using hibp_ff_sw = flat_file::stream_writer<hibp::pawned_pw>;
-template void run_threads<text_writer>(text_writer&&);
-template void run_threads<hibp_ff_sw>(hibp_ff_sw&&);

@@ -1,5 +1,5 @@
 #include "CLI/CLI.hpp"
-#include "download/queuemgt.hpp"
+#include "download/download.hpp"
 #include "download/shared.hpp"
 #include <cstdlib>
 #include <curl/curl.h>
@@ -80,9 +80,9 @@ int main(int argc, char* argv[]) {
                                            std::strerror(errno))); // NOLINT errno
     }
     if (cli_config.text_out) {
-      run_threads(text_writer(output_db_stream));
+      run_threads_text(output_db_stream);
     } else {
-      run_threads(flat_file::stream_writer<hibp::pawned_pw>(output_db_stream));
+      run_threads_ff(output_db_stream);
     }
 
   } catch (const std::exception& e) {

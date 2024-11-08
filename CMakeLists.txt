@@ -126,6 +126,7 @@ target_link_libraries(hibp_join PRIVATE hibp flat_file)
 
 add_executable(hibp_download
   app/hibp_download.cpp
+  src/download/download.cpp
   src/download/queuemgt.cpp
   src/download/requests.cpp
   src/download/shared.cpp)
