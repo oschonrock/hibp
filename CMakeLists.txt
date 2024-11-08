@@ -96,7 +96,7 @@ endif()
 
 add_executable(hibp_search app/hibp_search.cpp)
 target_compile_options(hibp_search PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_search PRIVATE sha1 hibp flat_file)
+target_link_libraries(hibp_search PRIVATE CLI11::CLI11 sha1 hibp flat_file)
 
 find_package(Threads)
 

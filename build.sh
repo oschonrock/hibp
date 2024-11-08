@@ -16,6 +16,7 @@ VERBOSE=
 TARGETS=
 
 USAGE=$(cat <<-END
+
 	Usage: $(basename $0) options
 
 	Options:
@@ -27,6 +28,7 @@ USAGE=$(cat <<-END
 	 --clean-first            cleans the selected targets before building (recompiles everything for those targets)
 	 -p | --purge 		  completely wipe the selected build directory (deletes cmake config, implies --clean-first)
 	 -v | --verbose 	  get verbose compiler command lines
+	 -h | --help              show this info
 
 END
 )
