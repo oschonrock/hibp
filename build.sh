@@ -32,11 +32,7 @@ END
 )
 
 options=$(getopt --options hvc:b:t:pg --long help,verbose,compiler:,buildtype:,targets:,purge,generate-only,clean-first -- "$@")
-[ $? -eq 0 ] || { 
-    echo "Incorrect options provided"
-    echo "$USAGE"
-    exit 1
-}
+
 eval set -- "$options"
 while true; do
     case "$1" in
@@ -113,4 +109,3 @@ $CMAKE -GNinja -S . -B $BUILD_DIR $CACHE -DCMAKE_COLOR_DIAGNOSTICS=ON $COMPILER_
 [[ -n $GENERATEONLY ]] && exit $?
 
 $CMAKE --build $BUILD_DIR $CLEAN_FIRST $TARGETS -- $VERBOSE
-
