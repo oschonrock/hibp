@@ -2,40 +2,86 @@
 
 set -o errexit
 set -o nounset
-USAGE="Usage: $(basename $0) [-v | --verbose] [ gcc | clang ] [ test | bench | reset | generateonly | clean | debug | release | relwithdebinfo]"
 
 CMAKE=cmake
-BUILD=./build
-TYPE=debug
-COMPILER=clang
+BUILDROOT=./build
+BUILDTYPE=debug
+COMPILER=gcc
 TEST=
 BENCH=
-CLEAN=
-RESET=
+PURGE=
 GENERATEONLY=
 VERBOSE=
+TARGETS=
 
-for arg; do
-  case "$arg" in
-    --help|-h)    echo $USAGE; exit 0;;
-    -v|--verbose) VERBOSE='--verbose'  ;;
-    debug)        TYPE=debug ;;
-    release)      TYPE=release ;;
-    relwithdebinfo)      TYPE=relwithdebinfo ;;
-    clang)        COMPILER=clang ;;
-    gcc)          COMPILER=gcc ;;
-    clean)        CLEAN=1 ;;
-    test)         TEST="-DHIBP_TEST=ON";;
-    bench)        BENCH="-DHIBP_BENCH=ON";;
-    reset)        RESET=1 ;;
-    generateonly) GENERATEONLY=1 ;;
-    *)            echo -e "unknown option $arg\n$USAGE" >&2;  exit 1 ;;
-  esac
+USAGE=$(cat <<-END
+	Usage: $(basename $0) options
+
+	Options:
+
+	[ -c | --compiler ]	  specify the compile [ gcc | clang ] default is ${COMPILER}
+	[ -b | --buildtype ]	  select buildtype [ debug | release | relwithdebinfo ]. default is ${BUILDTYPE}
+	[ -t | --targets ]	  spefify targets  tgt1,tgt2,tgt3 
+	[ -p | --purge ]	  complete wipe the selected build directory
+	[ -g | --generate-only ]  only generate, don't build
+	[ -v | --verbose]	  get verbose compiler command lines
+
+END
+)
+
+
+options=$(getopt --options hvc:b:t:pg --long help,verbose,compiler:,buildtype:,targets:,purge,generate-only -- "$@")
+[ $? -eq 0 ] || { 
+    echo "Incorrect options provided"
+    echo "$USAGE"
+    exit 1
+}
+eval set -- "$options"
+while true; do
+    case "$1" in
+	--help|-h)
+	    echo "$USAGE";
+	    exit 0;;
+	-v|--verbose)
+	    VERBOSE='--verbose'
+	    ;;
+	-c|--compiler)
+	    shift
+	    COMPILER=$1
+	    [[ ! $COMPILER =~ gcc|clang ]] && {
+		echo "[--compiler | -c] must be gcc or clang"
+		exit 1
+            }
+	    ;;
+	-b|--buildtype)
+	    shift
+	    BUILDTYPE=${1,,} # lowercase, requires bash 4.0
+	    [[ ! $BUILDTYPE =~ debug|release|relwithdebinfo ]] && {
+		echo "[--buildtype | -b] must be debug|release|relwithdebinfo"
+		exit 1
+            }
+	    ;;
+	-t|--targets)
+	    shift;
+	    TARGETS="--target ${1/,/ }"; 
+	    ;;
+	-p|--purge)
+            PURGE=1
+	    ;;
+	-g|--generateonly)
+	    GENERATEONLY=1
+	    ;;
+	--)
+	    shift
+	    break
+	    ;;
+    esac
+    shift
 done
 
 cd "$(realpath $(dirname $0))"
 
-BUILD_DIR=$BUILD/$COMPILER/$TYPE
+BUILD_DIR=$BUILDROOT/$COMPILER/$BUILDTYPE
 
 if [[ "$COMPILER" == "clang" ]]
 then
@@ -54,19 +100,13 @@ else
     CACHE=""
 fi
 
-COMPILER_OPTIONS="-DCMAKE_C_COMPILER=$C_COMPILER -DCMAKE_CXX_COMPILER=$CXX_COMPILER "
+COMPILER_OPTIONS="-DCMAKE_C_COMPILER=$C_COMPILER -DCMAKE_CXX_COMPILER=$CXX_COMPILER -DCMAKE_BUILD_TYPE=$BUILDTYPE"
 
-[[ -n $RESET && -d $BUILD_DIR ]] && rm -rf $BUILD_DIR
-    
-$CMAKE -GNinja -S . -B $BUILD_DIR $CACHE -DCMAKE_COLOR_DIAGNOSTICS=ON $COMPILER_OPTIONS -DCMAKE_BUILD_TYPE=$TYPE $TEST $BENCH
+[[ -n $PURGE && -d $BUILD_DIR ]] && rm -rf $BUILD_DIR
 
-if [[ -n $GENERATEONLY ]]
-then
-    exit $?
-fi
+$CMAKE -GNinja -S . -B $BUILD_DIR $CACHE -DCMAKE_COLOR_DIAGNOSTICS=ON $COMPILER_OPTIONS
 
-[[ -n $CLEAN ]] && $CMAKE --build $BUILD_DIR --target clean
+[[ -n $GENERATEONLY ]] && exit $?
 
-$CMAKE --build $BUILD_DIR -- $VERBOSE
+$CMAKE --build $BUILD_DIR $TARGETS -- $VERBOSE
 
-cd $BUILD_DIR
