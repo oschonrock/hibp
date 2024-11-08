@@ -10,6 +10,7 @@ COMPILER=gcc
 TEST=
 BENCH=
 PURGE=
+CLEAN_FIRST=
 GENERATEONLY=
 VERBOSE=
 TARGETS=
@@ -19,18 +20,18 @@ USAGE=$(cat <<-END
 
 	Options:
 
-	[ -c | --compiler ]	  specify the compile [ gcc | clang ] default is ${COMPILER}
-	[ -b | --buildtype ]	  select buildtype [ debug | release | relwithdebinfo ]. default is ${BUILDTYPE}
-	[ -t | --targets ]	  spefify targets  tgt1,tgt2,tgt3 
-	[ -p | --purge ]	  complete wipe the selected build directory
-	[ -g | --generate-only ]  only generate, don't build
-	[ -v | --verbose]	  get verbose compiler command lines
+	 -c | --compiler 	  specify the compile [ gcc | clang ] default is ${COMPILER}
+	 -b | --buildtype 	  select buildtype [ debug | release | relwithdebinfo ]. default is ${BUILDTYPE}
+	 -t | --targets 	  spefify targets  tgt1,tgt2,tgt3 
+	 -g | --generate-only     only generate, don't build
+	 --clean-first            cleans the selected targets before building (recompiles everything for those targets)
+	 -p | --purge 		  completely wipe the selected build directory (deletes cmake config, implies --clean-first)
+	 -v | --verbose 	  get verbose compiler command lines
 
 END
 )
 
-
-options=$(getopt --options hvc:b:t:pg --long help,verbose,compiler:,buildtype:,targets:,purge,generate-only -- "$@")
+options=$(getopt --options hvc:b:t:pg --long help,verbose,compiler:,buildtype:,targets:,purge,generate-only,clean-first -- "$@")
 [ $? -eq 0 ] || { 
     echo "Incorrect options provided"
     echo "$USAGE"
@@ -71,6 +72,9 @@ while true; do
 	-g|--generateonly)
 	    GENERATEONLY=1
 	    ;;
+	--clean-first)
+	    CLEAN_FIRST="--clean-first"
+	    ;;
 	--)
 	    shift
 	    break
@@ -108,5 +112,5 @@ $CMAKE -GNinja -S . -B $BUILD_DIR $CACHE -DCMAKE_COLOR_DIAGNOSTICS=ON $COMPILER_
 
 [[ -n $GENERATEONLY ]] && exit $?
 
-$CMAKE --build $BUILD_DIR $TARGETS -- $VERBOSE
+$CMAKE --build $BUILD_DIR $CLEAN_FIRST $TARGETS -- $VERBOSE
 
