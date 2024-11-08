@@ -58,7 +58,7 @@ int main(int argc, char* argv[]) {
                                            cli_config.output_db_filename));
     }
 
-    auto mode = std::ios_base::binary;
+    auto mode = cli_config.text_out ? std::ios_base::out : std::ios_base::binary;
 
     if (cli_config.resume) {
       next_prefix = get_last_prefix(cli_config.output_db_filename) + 1;
@@ -79,9 +79,11 @@ int main(int argc, char* argv[]) {
                                            cli_config.output_db_filename,
                                            std::strerror(errno))); // NOLINT errno
     }
-    auto writer = flat_file::stream_writer<hibp::pawned_pw>(output_db_stream);
-
-    run_threads(writer);
+    if (cli_config.text_out) {
+      run_threads(text_writer(output_db_stream));
+    } else {
+      run_threads(flat_file::stream_writer<hibp::pawned_pw>(output_db_stream));
+    }
 
   } catch (const std::exception& e) {
     std::cerr << std::format("Error: {}\n", e.what());

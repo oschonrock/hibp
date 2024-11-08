@@ -3,16 +3,23 @@
 #include "arrcmp.hpp"
 #include <array>
 #include <cassert>
+#include <charconv>
 #include <compare>
 #include <cstddef>
 #include <cstdint>
 #include <format>
 #include <ostream>
-#include <charconv>
 
 namespace hibp {
 
+struct pawned_pw;
+
+inline pawned_pw convert_to_binary(const std::string& text);
+
 struct pawned_pw {
+  pawned_pw() = default;
+  
+  pawned_pw(const std::string& text) : pawned_pw(hibp::convert_to_binary(text)) {} // NOLINT implicit conversion
 
   std::strong_ordering operator<=>(const pawned_pw& rhs) const {
     return arrcmp::array_compare(hash, rhs.hash, arrcmp::three_way{});

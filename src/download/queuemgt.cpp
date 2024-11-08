@@ -117,7 +117,8 @@ static void process_completed_download_queue_entries() {
   fill_download_queue();
 }
 
-static std::size_t write_lines(flat_file::stream_writer<hibp::pawned_pw>& writer, download& dl) {
+template <typename WriterType>
+static std::size_t write_lines(WriterType& writer, download& dl) {
   // "embarrassing" copy onto std:string until C++26 P2495R3 Interfacing stringstreams with
   // string_view
   std::stringstream ss(std::string(dl.buffer.data(), dl.buffer.size()));
@@ -127,12 +128,11 @@ static std::size_t write_lines(flat_file::stream_writer<hibp::pawned_pw>& writer
   for (std::string line, prefixed_line; std::getline(ss, line);) {
     if (line.size() > 0) {
       prefixed_line = dl.prefix + line;
-      if (cli_config.text_out) {
-        prefixed_line.erase(prefixed_line.find_last_not_of('\r') + 1);
-        writer.write_text(prefixed_line + '\n');
-      } else {
-        writer.write(hibp::convert_to_binary(prefixed_line));
-      }
+      prefixed_line.erase(prefixed_line.find_last_not_of('\r') + 1);
+
+       // calls text_writer or hibp_ff_sw, the latter via implicit conversion
+      writer.write(prefixed_line);
+
       recordcount++;
     }
   }
@@ -141,8 +141,8 @@ static std::size_t write_lines(flat_file::stream_writer<hibp::pawned_pw>& writer
   return recordcount;
 }
 
-static void
-write_completed_process_queue_entries(flat_file::stream_writer<hibp::pawned_pw>& writer) {
+template <typename WriterType>
+static void write_completed_process_queue_entries(WriterType& writer) {
   while (!process_queue.empty()) {
     auto& front = process_queue.front();
     write_lines(writer, *front);
@@ -154,7 +154,8 @@ write_completed_process_queue_entries(flat_file::stream_writer<hibp::pawned_pw>&
   }
 }
 
-void service_queue(flat_file::stream_writer<hibp::pawned_pw>& writer) {
+template <typename WriterType>
+void service_queue(WriterType& writer) {
   while (!download_queue.empty()) {
     {
       thrprinterr("waiting for curl");
@@ -187,7 +188,9 @@ bool handle_exception(const std::exception_ptr& exception_ptr, std::thread::id t
   return false;
 }
 
-void run_threads(flat_file::stream_writer<hibp::pawned_pw>& writer) {
+
+template <typename WriterType>
+void run_threads(WriterType&& writer) {
   std::exception_ptr requests_exception;
   std::exception_ptr queuemgt_exception;
 
@@ -241,3 +244,8 @@ void run_threads(flat_file::stream_writer<hibp::pawned_pw>& writer) {
   }
   shutdown_curl_and_events();
 }
+
+// explicitly instantiate the writers we need, so all the code can stay here in cpp file
+using hibp_ff_sw = flat_file::stream_writer<hibp::pawned_pw>;
+template void run_threads<text_writer>(text_writer&&);
+template void run_threads<hibp_ff_sw>(hibp_ff_sw&&);

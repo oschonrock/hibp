@@ -66,7 +66,7 @@ public:
   ~stream_writer() { flush(); }
 
 private:
-  std::ostream&          db_;
+  std::ostream&          db_; // NOLINT ref
   std::size_t            buf_pos_ = 0;
   std::vector<ValueType> buf_;
 };
@@ -109,7 +109,7 @@ public:
   struct const_iterator;
 
   const ValueType& get_record(std::size_t pos) {
-    if (!(pos >= buf_start_ && pos < buf_end_)) {
+    if (!(pos >= buf_start_ && pos < buf_end_)) { // NOLINT can be simplified
       db_.seekg(static_cast<long>(pos * sizeof(ValueType)));
 
       std::size_t nrecs = std::min(buf_.size(), dbsize_ - pos);
