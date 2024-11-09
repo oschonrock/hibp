@@ -3,6 +3,7 @@
 #include "hibp.hpp"
 #include "restinio/traits.hpp"
 #include "sha1.hpp"
+#include "toc.hpp"
 #include <cstdint>
 #include <cstdlib>
 #include <restinio/core.hpp>
@@ -14,12 +15,15 @@ struct cli_config_t {
   unsigned int  threads      = std::thread::hardware_concurrency();
   bool          json         = false;
   bool          perf_test    = false;
+  bool          toc          = false;
+  std::size_t   toc_entries  = 1U << 16U; // 64k chapters
 };
 
 static cli_config_t cli_config; // NOLINT non-const global
 
 static std::atomic<int> uniq{}; // NOLINT for performance testing, uniq across threads
 
+//
 void define_options(CLI::App& app) {
 
   app.add_option("db_filename", cli_config.db_filename,
@@ -43,13 +47,20 @@ void define_options(CLI::App& app) {
       "--perf-test", cli_config.perf_test,
       "Use this to uniquefy the password provided for each query, "
       "thereby defeating the cache. The results will be wrong, but good for performance tests");
+
+  app.add_flag("--toc", cli_config.toc, "Use a table of contents for extra performance.");
+
+  app.add_option("--toc-entries", cli_config.toc_entries,
+                 std::format("Specify how may table of contents entries to use. default {}",
+                             cli_config.toc_entries));
 }
 
-auto get_router(const std::string& db_file) {
+auto get_router(const std::string& db_filename) {
   auto router = std::make_unique<restinio::router::express_router_t<>>();
   router->http_get(R"(/:password)", [&](auto req, auto params) {
     // one db object (ie set of buffers and pointers) per thread
-    thread_local flat_file::database<hibp::pawned_pw> db(db_file, 4096 / sizeof(hibp::pawned_pw));
+    thread_local flat_file::database<hibp::pawned_pw> db(db_filename,
+                                                         4096 / sizeof(hibp::pawned_pw));
 
     SHA1 sha1;
     auto pw = std::string(params["password"]);
@@ -61,7 +72,9 @@ auto get_router(const std::string& db_file) {
 
     std::optional<hibp::pawned_pw> maybe_ppw;
 
-    if (auto iter = std::lower_bound(db.begin(), db.end(), needle);
+    if (cli_config.toc) {
+      maybe_ppw = toc_search(db, needle);
+    } else if (auto iter = std::lower_bound(db.begin(), db.end(), needle);
         iter != db.end() && *iter == needle) {
       maybe_ppw = *iter;
     }
@@ -111,6 +124,12 @@ int main(int argc, char* argv[]) {
   CLI11_PARSE(app, argc, argv);
 
   try {
+    if (cli_config.toc) {
+      // local, temp db separate from the thread_local ones
+      flat_file::database<hibp::pawned_pw> db(cli_config.db_filename, 4096 / sizeof(hibp::pawned_pw)); 
+      build_toc(db, cli_config.db_filename, cli_config.toc_entries);
+    }
+
     run_server();
   } catch (const std::exception& e) {
     std::cerr << "something went wrong: " << e.what() << "\n";
