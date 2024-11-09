@@ -10,7 +10,7 @@ if (MSVC)
   set(PROJECT_COMPILE_OPTIONS /W3)
   string(APPEND CMAKE_CXX_FLAGS_DEBUG " /fsanitize=address")
 else() # unix'ish
-  set(PROJECT_COMPILE_OPTIONS -Wall -Wextra -Wpedantic -Wshadow -Wextra-semi
+  set(PROJECT_COMPILE_OPTIONS -Wall -Wextra -Wpedantic -Wshadow -Wextra-semi # -ftime-trace  for compile time reporting
     -Wmissing-noreturn -Wconversion -Wsign-conversion -Wno-ignored-attributes)
 
   # sanatizers
@@ -42,10 +42,12 @@ if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
   link_directories(/usr/local/lib)
 endif()
 
+set(CLI11_PRECOMPILED ON) # improves compile speed by ~2x
 add_subdirectory(ext/CLI11)
 
 add_library(sha1 INTERFACE)
 target_include_directories(sha1 INTERFACE ext/sha1)
+target_precompile_headers(sha1 INTERFACE [["sha1.hpp"]])
 if (NOT MSVC)
   target_compile_options(sha1 INTERFACE -Wno-sign-conversion)
 endif()
@@ -64,6 +66,7 @@ find_package(TBB REQUIRED)
 add_library(flat_file INTERFACE)
 target_include_directories(flat_file INTERFACE include)
 target_compile_features(flat_file INTERFACE cxx_std_20)
+target_precompile_headers(flat_file INTERFACE [["flat_file.hpp"]]) # INTERFACE, because perpetuate to clients of this lib
 
 if (MSVC)
   target_link_libraries(flat_file INTERFACE tBB::tbb)
@@ -72,7 +75,6 @@ elseif (MINGW)
 else()
   target_link_libraries(flat_file INTERFACE tbb)
 endif()
-
 
 set(RESTINIO_EXPLICIT_CPPSTD 20)
 set(RESTINIO_ASIO_SOURCE standalone)
@@ -97,11 +99,13 @@ endif()
 add_executable(hibp_search app/hibp_search.cpp src/toc.cpp)
 target_compile_options(hibp_search PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_search PRIVATE CLI11::CLI11 sha1 hibp flat_file)
+target_precompile_headers(hibp_search PRIVATE [["CLI/CLI.hpp"]])
 
 find_package(Threads)
 
-add_executable(hibp_server app/hibp_server.cpp)
+add_executable(hibp_server app/hibp_server.cpp src/toc.cpp)
 target_compile_options(hibp_server PRIVATE ${PROJECT_COMPILE_OPTIONS})
+target_precompile_headers(hibp_server PRIVATE [["restinio/traits.hpp"]]  [["CLI/CLI.hpp"]])
 if (MINGW)
   target_link_libraries(hibp_server PRIVATE CLI11::CLI11 sha1 hibp flat_file restinio gdi32 wsock32 ws2_32)
 else()
@@ -133,6 +137,7 @@ add_executable(hibp_download
 target_compile_features(hibp_download PRIVATE cxx_std_20)
 target_compile_options(hibp_download PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_download PRIVATE CLI11::CLI11 curl event hibp flat_file ${CMAKE_THREAD_LIBS_INIT})
+target_precompile_headers(hibp_download REUSE_FROM hibp_search)
 
 option(HIBP_TEST "Enable HIBP tests" OFF)
 if(HIBP_TEST)
