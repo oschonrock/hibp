@@ -94,7 +94,7 @@ if (NOT MSVC)
   target_compile_options(expected-lite INTERFACE -Wno-missing-noreturn)
 endif()
 
-add_executable(hibp_search app/hibp_search.cpp)
+add_executable(hibp_search app/hibp_search.cpp src/toc.cpp)
 target_compile_options(hibp_search PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_search PRIVATE CLI11::CLI11 sha1 hibp flat_file)
 
