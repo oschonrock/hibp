@@ -1,7 +1,6 @@
 #include "CLI/CLI.hpp"
 #include "flat_file.hpp"
 #include "hibp.hpp"
-#include "restinio/traits.hpp"
 #include "sha1.hpp"
 #include "toc.hpp"
 #include <cstdint>
@@ -75,7 +74,7 @@ auto get_router(const std::string& db_filename) {
     if (cli_config.toc) {
       maybe_ppw = toc_search(db, needle);
     } else if (auto iter = std::lower_bound(db.begin(), db.end(), needle);
-        iter != db.end() && *iter == needle) {
+               iter != db.end() && *iter == needle) {
       maybe_ppw = *iter;
     }
 
@@ -126,7 +125,8 @@ int main(int argc, char* argv[]) {
   try {
     if (cli_config.toc) {
       // local, temp db separate from the thread_local ones
-      flat_file::database<hibp::pawned_pw> db(cli_config.db_filename, 4096 / sizeof(hibp::pawned_pw)); 
+      flat_file::database<hibp::pawned_pw> db(cli_config.db_filename,
+                                              4096 / sizeof(hibp::pawned_pw));
       build_toc(db, cli_config.db_filename, cli_config.toc_entries);
     }
 
