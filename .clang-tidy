@@ -19,10 +19,13 @@ Checks: '*,-fuchsia*,
 -cppcoreguidelines-pro-type-union-access,
 -altera-unroll-loops,
 -altera-id-dependent-backward-branch,
--Wunused-parameter,
 -bugprone-easily-swappable-parameters,
 -google-readability-todo,
 -llvm-header-guard,
+-readability-identifier-length
+-cppcoreguidelines-avoid-c-arrays,
+-modernize-avoid-c-arrays,
+-hicpp-avoid-c-arrays,
 -readability-identifier-length'
 
 CheckOptions:
