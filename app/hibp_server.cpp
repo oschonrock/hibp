@@ -1,7 +1,7 @@
 #include "CLI/CLI.hpp"
 #include "flat_file.hpp"
 #include "hibp.hpp"
-#include "sha1.hpp"
+#include "sha1.h"
 #include "toc.hpp"
 #include <cstdint>
 #include <cstdlib>
@@ -66,8 +66,7 @@ auto get_router(const std::string& db_filename) {
     if (cli_config.perf_test) {
       pw += std::to_string(uniq++);
     }
-    sha1.update(pw);
-    hibp::pawned_pw needle = hibp::convert_to_binary(sha1.final());
+    hibp::pawned_pw needle = hibp::convert_to_binary(sha1(pw));
 
     std::optional<hibp::pawned_pw> maybe_ppw;
 
