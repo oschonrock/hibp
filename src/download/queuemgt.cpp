@@ -1,5 +1,5 @@
-#include "download/download.hpp"
 #include "download/queuemgt.hpp"
+#include "download/download.hpp"
 #include "download/requests.hpp"
 #include "download/shared.hpp"
 #include <chrono>
@@ -46,17 +46,17 @@ static std::size_t bytes_processed = 0UL; // NOLINT non-const-global
 
 void print_progress() {
   if (cli_config.progress) {
-    auto elapsed     = clk::now() - start_time;
-    auto elapsed_sec = std::chrono::duration_cast<std::chrono::duration<double>>(elapsed).count();
-    auto elapsed_sec_trunc = floor<std::chrono::seconds>(elapsed);
+    auto elapsed       = clk::now() - start_time;
+    auto elapsed_trunc = floor<std::chrono::seconds>(elapsed);
+    auto elapsed_sec   = std::chrono::duration_cast<std::chrono::duration<double>>(elapsed).count();
 
     std::lock_guard lk(cerr_mutex);
     auto            files_todo = cli_config.prefix_limit - start_prefix;
-    std::cerr << std::format("Elapsed: {:%M:%S}  Progress: {} / {} files  {:.1f}MB/s  {:5.1f}%\r",
-                             elapsed_sec_trunc, files_processed, files_todo,
-                             static_cast<double>(bytes_processed) / (1U << 20U) / elapsed_sec,
-                             100.0 * static_cast<double>(files_processed) /
-                                 static_cast<double>(files_todo));
+    std::cerr << std::format(
+        "Elapsed: {:%H:%M:%S}  Progress: {} / {} files  {:.1f}MB/s  {:5.1f}%\r", elapsed_trunc,
+        files_processed, files_todo,
+        static_cast<double>(bytes_processed) / (1U << 20U) / elapsed_sec,
+        100.0 * static_cast<double>(files_processed) / static_cast<double>(files_todo));
   }
 }
 
@@ -211,4 +211,3 @@ void run_threads(write_fn_t& write_fn) {
   }
   shutdown_curl_and_events();
 }
-

@@ -5,7 +5,6 @@
 #include "hibp.hpp"
 #include <cstddef>
 #include <filesystem>
-#include <functional>
 #include <iterator>
 #include <ostream>
 #include <string>
@@ -23,13 +22,13 @@ std::size_t get_last_prefix(const std::string& filename) {
 
   flat_file::database<hibp::pawned_pw> db(filename);
 
-  const auto& last = db.back();
+  const auto& last_db_ppw = db.back();
 
   std::stringstream ss;
-  ss << last;
-  std::string last_hash = ss.str().substr(0, 40);
-  std::string prefix    = last_hash.substr(0, 5);
-  std::string suffix    = last_hash.substr(5, 40 - 5);
+  ss << last_db_ppw;
+  std::string last_db_hash = ss.str().substr(0, 40);
+  std::string prefix       = last_db_hash.substr(0, 5);
+  std::string suffix       = last_db_hash.substr(5, 40 - 5);
 
   std::string filebody = curl_sync_get("https://api.pwnedpasswords.com/range/" + prefix);
 
@@ -42,14 +41,13 @@ std::size_t get_last_prefix(const std::string& filename) {
 
   if (last_file_hash == suffix) {
     std::size_t last_prefix{};
-    std::from_chars(prefix.c_str(), prefix.c_str() + prefix.length(), last_prefix,
-                    16); // known to be correct
+    std::from_chars(prefix.c_str(), prefix.c_str() + prefix.length(), last_prefix, 16);
 
     return last_prefix; // last file was completely written, so we can continue with next one
   }
 
   // more complex resume technique
-  
+
   std::cerr << std::format(
       "Last converted hash not found at end of last retrieved file.\n"
       "Searching backward to hash just before beginning of last retrieved file.\n");
@@ -60,7 +58,8 @@ std::size_t get_last_prefix(const std::string& filename) {
   auto rend            = std::make_reverse_iterator(db.begin());
   auto found_iter      = std::find(rbegin, rend, needle);
   if (found_iter == rend) {
-    throw std::runtime_error("Not found at all, sorry you will need to start afresh without `--resume`.\n");
+    throw std::runtime_error(
+        "Not found at all, sorry you will need to start afresh without `--resume`.\n");
   }
 
   auto trimmed_file_size =
@@ -69,11 +68,9 @@ std::size_t get_last_prefix(const std::string& filename) {
 
   std::filesystem::resize_file(filename, trimmed_file_size);
   db = flat_file::database<hibp::pawned_pw>{filename}; // reload, does this work safely?
-  std::string ffh_prefix = first_file_hash.substr(0, 5);
 
   std::size_t last_prefix{};
-  std::from_chars(ffh_prefix.c_str(), ffh_prefix.c_str() + ffh_prefix.length(), last_prefix,
-                  16); // known to be correct
+  std::from_chars(first_file_hash.c_str(), first_file_hash.c_str() + 5, last_prefix, 16);
 
   // the last file was incompletely written, so we have trimmed and will do it again
   return last_prefix - 1;
