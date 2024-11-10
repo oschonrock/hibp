@@ -16,6 +16,60 @@
 #include <string>
 #include <vector>
 
+// namespace newimpl {
+
+// static void curl_perform_event_cb(evutil_socket_t fd, short event, void* arg);
+
+// struct curl_context_t {
+//   explicit curl_context_t(curl_socket_t sockfd_)
+//       : sockfd{sockfd_}, event(event_new(base, static_cast<evutil_socket_t>(sockfd), 0,
+//                                          curl_perform_event_cb, this)) {}
+//   ~curl_context_t() {
+//     event_del(event);
+//     event_free(event);
+//   }
+
+//   // resource manager, no copies
+//   curl_context_t(const curl_context_t& other) = delete;
+//   curl_context_t& operator=(const curl_context_t& rhs) = delete;
+
+//   // normal move (only)
+//   curl_context_t(curl_context_t&& other) = default;
+//   curl_context_t& operator=(curl_context_t&& rhs) = default;
+  
+//   curl_socket_t sockfd;
+//   event*        event;
+// };
+
+// static void curl_perform_event_cb(evutil_socket_t /*fd*/, short event, void* arg) {
+//   int running_handles = 0;
+//   int flags           = 0;
+
+//   if (event & EV_READ) flags |= CURL_CSELECT_IN;   // NOLINT -> bool & bitwise
+//   if (event & EV_WRITE) flags |= CURL_CSELECT_OUT; // NOLINT -> bool & bitwise
+
+//   auto* context = static_cast<curl_context_t*>(arg);
+
+//   curl_multi_socket_action(curl_multi_handle, context->sockfd, flags, &running_handles);
+
+//   process_curl_messages();
+// }
+
+// static void timeout_event_cb(evutil_socket_t /*fd*/, short /*events*/, void* /*arg*/) {
+//   int running_handles = 0;
+//   curl_multi_socket_action(curl_multi_handle, CURL_SOCKET_TIMEOUT, 0, &running_handles);
+//   process_curl_messages();
+// }
+
+// class curl_multi_engine {
+//   curl_multi_engine() {}
+
+//   CURLM*               curl_multi_handle; // NOLINT non-const-global
+//   static struct event* timeout;           // NOLINT non-const-global
+// };
+
+// } // namespace newimpl
+
 // high volume concurrent requests using curl multi and libevent
 // curl internal queue management and event driven callbacks
 

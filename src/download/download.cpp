@@ -48,19 +48,19 @@ std::size_t get_last_prefix(const std::string& filename) {
     return last_prefix; // last file was completely written, so we can continue with next one
   }
 
+  // more complex resume technique
+  
   std::cerr << std::format(
       "Last converted hash not found at end of last retrieved file.\n"
       "Searching backward to hash just before beginning of last retrieved file.\n");
 
   auto first_file_hash = prefix + filebody.substr(0, 35);
-  std::cerr << "first_file_hash: " << first_file_hash << "\n";
-  auto needle = hibp::pawned_pw(first_file_hash);
-  std::cerr << "needle: " << needle << "\n";
-  auto rbegin     = std::make_reverse_iterator(db.end());
-  auto rend       = std::make_reverse_iterator(db.begin());
-  auto found_iter = std::find(rbegin, rend, needle);
+  auto needle          = hibp::pawned_pw(first_file_hash);
+  auto rbegin          = std::make_reverse_iterator(db.end());
+  auto rend            = std::make_reverse_iterator(db.begin());
+  auto found_iter      = std::find(rbegin, rend, needle);
   if (found_iter == rend) {
-    throw std::runtime_error("not found at all\n");
+    throw std::runtime_error("Not found at all, sorry you will need to start afresh without `--resume`.\n");
   }
 
   auto trimmed_file_size =
