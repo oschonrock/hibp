@@ -47,8 +47,8 @@ while true; do
 	-c|--compiler)
 	    shift
 	    COMPILER=$1
-	    [[ ! $COMPILER =~ gcc|clang ]] && {
-		echo "[--compiler | -c] must be gcc or clang"
+	    [[ ! $COMPILER =~ ^(gcc(-[0-9]+)?|clang(-[0-9]+)?)$ ]] && {
+		echo "[--compiler | -c] must be gcc[-xx] or clang[-xx]"
 		exit 1
             }
 	    ;;
@@ -85,16 +85,16 @@ cd "$(realpath $(dirname $0))"
 
 BUILD_DIR=$BUILDROOT/$COMPILER/$BUILDTYPE
 
-if [[ "$COMPILER" == "clang" ]]
+if [[ "$COMPILER" =~ ^clang ]]
 then
-    C_COMPILER=clang 
-    CXX_COMPILER=clang++
+    C_COMPILER=$COMPILER
+    CXX_COMPILER=${COMPILER/clang/clang++}
 else
-    C_COMPILER=gcc 
-    CXX_COMPILER=g++
+    C_COMPILER=$COMPILER
+    CXX_COMPILER=${COMPILER/gcc/g++}
 fi
 
-if command -v ccache &> /dev/null
+if command -v ccache > /dev/null 2>&1
 then
     CACHE="-DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache"
 else
