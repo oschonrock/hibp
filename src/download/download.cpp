@@ -1,8 +1,12 @@
-#include "flat_file.hpp"
+#include "download/download.hpp"
 #include "download/queuemgt.hpp"
 #include "download/requests.hpp"
+#include "flat_file.hpp"
 #include "hibp.hpp"
+#include <cstddef>
+#include <filesystem>
 #include <functional>
+#include <iterator>
 #include <ostream>
 #include <string>
 
@@ -10,6 +14,13 @@ std::size_t start_prefix = 0x0UL; // NOLINT non-cost-gobal
 std::size_t next_prefix  = 0x0UL; // NOLINT non-cost-gobal
 
 std::size_t get_last_prefix(const std::string& filename) {
+  auto filesize = std::filesystem::file_size(filename);
+  if (auto tailsize = filesize % sizeof(hibp::pawned_pw); tailsize != 0) {
+    std::cerr << std::format("db_file '{}' size was not a multiple of {}, trimmed off {} bytes.\n",
+                             filename, sizeof(hibp::pawned_pw), tailsize);
+    std::filesystem::resize_file(filename, filesize - tailsize);
+  }
+
   flat_file::database<hibp::pawned_pw> db(filename);
 
   const auto& last = db.back();
@@ -20,18 +31,52 @@ std::size_t get_last_prefix(const std::string& filename) {
   std::string prefix    = last_hash.substr(0, 5);
   std::string suffix    = last_hash.substr(5, 40 - 5);
 
-  std::string result_body = curl_sync_get("https://api.pwnedpasswords.com/range/" + prefix);
+  std::string filebody = curl_sync_get("https://api.pwnedpasswords.com/range/" + prefix);
 
-  auto pos = result_body.find_last_of(':');
-  if (pos == std::string::npos || pos < 35 || suffix != result_body.substr(pos - 35, 35)) {
-    throw std::runtime_error("Last converted hash not found at end of last retrieved file. Cannot "
-                             "resume. You need to start afresh without `--resume`. Sorry.\n");
+  auto pos_colon = filebody.find_last_of(':');
+  if (pos_colon == std::string::npos || pos_colon < 35) {
+    throw std::runtime_error(std::format("Corrupt last file download with prefix '{}'.", prefix));
   }
+
+  auto last_file_hash = filebody.substr(pos_colon - 35, 35);
+
+  if (last_file_hash == suffix) {
+    std::size_t last_prefix{};
+    std::from_chars(prefix.c_str(), prefix.c_str() + prefix.length(), last_prefix,
+                    16); // known to be correct
+
+    return last_prefix; // last file was completely written, so we can continue with next one
+  }
+
+  std::cerr << std::format(
+      "Last converted hash not found at end of last retrieved file.\n"
+      "Searching backward to hash just before beginning of last retrieved file.\n");
+
+  auto first_file_hash = prefix + filebody.substr(0, 35);
+  std::cerr << "first_file_hash: " << first_file_hash << "\n";
+  auto needle = hibp::pawned_pw(first_file_hash);
+  std::cerr << "needle: " << needle << "\n";
+  auto rbegin     = std::make_reverse_iterator(db.end());
+  auto rend       = std::make_reverse_iterator(db.begin());
+  auto found_iter = std::find(rbegin, rend, needle);
+  if (found_iter == rend) {
+    throw std::runtime_error("not found at all\n");
+  }
+
+  auto trimmed_file_size =
+      static_cast<std::size_t>(rend - found_iter - 1) * sizeof(hibp::pawned_pw);
+  std::cerr << std::format("found: trimming file to {}.\n", trimmed_file_size);
+
+  std::filesystem::resize_file(filename, trimmed_file_size);
+  db = flat_file::database<hibp::pawned_pw>{filename}; // reload, does this work safely?
+  std::string ffh_prefix = first_file_hash.substr(0, 5);
+
   std::size_t last_prefix{};
-  std::from_chars(prefix.c_str(), prefix.c_str() + prefix.length(), last_prefix,
+  std::from_chars(ffh_prefix.c_str(), ffh_prefix.c_str() + ffh_prefix.length(), last_prefix,
                   16); // known to be correct
 
-  return last_prefix;
+  // the last file was incompletely written, so we have trimmed and will do it again
+  return last_prefix - 1;
 }
 
 // alternative simple text writer
@@ -46,10 +91,6 @@ struct text_writer {
 private:
   std::ostream& os_; // NOLINT reference
 };
-
-// prefer use of std::function (ie stdlib type erasure) rather than templates to keep .hpp interface
-// clean
-using write_fn_t = std::function<void(const std::string&)>;
 
 // provide simple interface to main
 // offer 2 writers
