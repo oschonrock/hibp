@@ -10,7 +10,8 @@ if (MSVC)
   set(PROJECT_COMPILE_OPTIONS /W3)
   string(APPEND CMAKE_CXX_FLAGS_DEBUG " /fsanitize=address")
 else() # unix'ish
-  set(PROJECT_COMPILE_OPTIONS -Wall -Wextra -Wpedantic -Wshadow -Wextra-semi # -ftime-trace  for compile time reporting
+  set(PROJECT_COMPILE_OPTIONS -Wall -Wextra -Wpedantic -Wshadow -Wextra-semi
+    -ftime-trace # for compile time reporting
     -Wmissing-noreturn -Wconversion -Wsign-conversion -Wno-ignored-attributes)
 
   # sanatizers
