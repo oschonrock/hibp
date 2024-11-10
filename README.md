@@ -1,4 +1,5 @@
 # hibp
+
 Have I been pwned database: High performance downloader, query tool, server and utilities
 
 This very useful database is somewhat challengint to use locally because the data size is so large. 
@@ -17,7 +18,7 @@ These utilities are written in C++ and centre around a `flat_file` class to mode
 - restinio is used for the local server
 - libtbb is used for local sorting in parallel (mainly deprecated)
 
-## Building
+## Build environment and dependencies
 
 refer to 
 
@@ -27,7 +28,7 @@ refer to
 
 ## Compiling
 
-#### Compile in debug mode
+### Compile in debug mode
 ```bash
 # for compiling with gcc
 ./build.sh -c gcc -b debug
@@ -37,13 +38,13 @@ refer to
 
 ```
 
-#### Run download in debug mode 
+### Run download in debug mode 
 ```bash
 ./build/gcc/debug/hibp_download --debug --limit=256 --parallel-max=10 hibp_sample.bin
 ```
 You should see a bunch thread debug output, but no error and  `ls -lh hibp_sample.bin` should show ~5.3M
 
-#### compile for release
+### compile for release
 ```bash
 
 ./build.sh -c gcc -b release
@@ -51,7 +52,7 @@ You should see a bunch thread debug output, but no error and  `ls -lh hibp_sampl
 
 ## Usage
 
-#### run full download: `hibp_download`
+### run full download: `hibp_download`
 Program will download the currently ~38GB of 1million 30-40kB text files from api.haveibeenpawned.com 
 It does this using libcurl with curl_multi and 300 parallel requests on a single thread.
 With a second thread doing the conversion to binary format and writing to disk.
@@ -138,18 +139,24 @@ Time per request:       24.578 [ms] (mean)
 Time per request:       0.983 [ms] (mean, across all concurrent requests)
 ```
 
+You can try the `--toc` feature on hibp_server which may improve
+performance signficantly especially if you have limited free RAM for
+to OS to cache the disk.
 
-### Other utilities
+
+## Other utilities
 
 `./fetch.sh` : curl command line to directly download the ~1M text files (approx 30-40kB each)
                also has find command line to join the above together (in arbitrary order!) and prefix the lines witin appropriately
 
-`./build/gcc/release/hibp_join`    : join the ~1M text files into one large binary one in arbitrary order (not useful since hibp_download)
-
-`./build/gcc/release/hibp_convert` : convert a text file into a binary one
+`./build/gcc/release/hibp_convert` : convert a text file into a binary file or vice-a-versa
 
 `./build/gcc/release/hibp_sort`    : sort a binary file using external disk space (takes 3x space on disk)!
 
-### Future uses
+`./build/gcc/release/hibp_join`    : join the ~1M text files into one large binary one in arbitrary order (not useful since hibp_download)
 
-- I was considering adding a php/pyhton/javascript extension so that queries can be trivially made from within those scripting environments
+## Future uses
+
+- Considering adding a php/pyhton/javascript extension so that queries
+  can be trivially made from within those scripting environments
+  without going through an http server
