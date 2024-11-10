@@ -37,6 +37,11 @@ else() # unix'ish
   endif()
 endif()
 
+#  LTO -- quite slow, enable if you think you benefit
+# set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
+# set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+
+
 if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
   # add the `local` paths common on FreeBSD
   include_directories(/usr/local/include)
