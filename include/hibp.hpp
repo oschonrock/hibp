@@ -7,7 +7,6 @@
 #include <compare>
 #include <cstddef>
 #include <cstdint>
-#include <format>
 #include <ostream>
 
 namespace hibp {
@@ -16,10 +15,18 @@ struct pawned_pw;
 
 inline pawned_pw convert_to_binary(const std::string& text);
 
+inline char nibble_to_char(unsigned nibble) {
+  if (nibble < 10) {
+    return static_cast<char>('0' + nibble);
+  }
+  return static_cast<char>('A' + nibble - 10); 
+}
+
 struct pawned_pw {
   pawned_pw() = default;
-  
-  pawned_pw(const std::string& text) : pawned_pw(hibp::convert_to_binary(text)) {} // NOLINT implicit conversion
+
+  pawned_pw(const std::string& text) // NOLINT implicit conversion
+      : pawned_pw(hibp::convert_to_binary(text)) {}
 
   std::strong_ordering operator<=>(const pawned_pw& rhs) const {
     return arrcmp::array_compare(hash, rhs.hash, arrcmp::three_way{});
@@ -29,9 +36,21 @@ struct pawned_pw {
     return arrcmp::array_compare(hash, rhs.hash, arrcmp::equal{});
   }
 
+  [[nodiscard]] std::string to_string() const {
+    std::string buffer(60, '\0');
+    char*       strptr = buffer.data();
+    for (auto i: hash) {
+      *strptr++ = nibble_to_char((static_cast<unsigned>(i) & 0xF0U) >> 4U);
+      *strptr++ = nibble_to_char(static_cast<unsigned>(i) & 0x0FU);
+    }
+    *strptr++      = ':';
+    auto [ptr, ec] = std::to_chars(strptr, buffer.data() + buffer.size(), count);
+    buffer.resize(static_cast<std::size_t>(ptr - buffer.data()));
+    return buffer;
+  }
+
   friend std::ostream& operator<<(std::ostream& os, const pawned_pw& rhs) {
-    for (auto&& b: rhs.hash) os << std::format("{:02X}", static_cast<unsigned>(b));
-    return os << std::format(":{:d}", rhs.count);
+    return os << rhs.to_string();
   }
 
   std::array<std::byte, 20> hash;
