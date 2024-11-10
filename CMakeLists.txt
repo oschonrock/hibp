@@ -122,15 +122,18 @@ endif()
 
 add_executable(hibp_sort app/hibp_sort.cpp)
 target_compile_options(hibp_sort PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_sort PRIVATE hibp flat_file)
+target_link_libraries(hibp_sort PRIVATE CLI11 hibp flat_file)
+target_precompile_headers(hibp_sort REUSE_FROM hibp_search)
 
 add_executable(hibp_convert app/hibp_convert.cpp)
 target_compile_options(hibp_convert PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_convert PRIVATE sha1 hibp flat_file)
+target_link_libraries(hibp_convert PRIVATE CLI11 sha1 hibp flat_file)
+target_precompile_headers(hibp_convert REUSE_FROM hibp_search)
 
 add_executable(hibp_join app/hibp_join.cpp)
 target_compile_options(hibp_join PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_join PRIVATE hibp flat_file)
+target_link_libraries(hibp_join PRIVATE hibp CLI11 flat_file)
+target_precompile_headers(hibp_join REUSE_FROM hibp_search)
 
 # don't seem to need these? 
 # find_package(CURL REQUIRED)
@@ -145,6 +148,7 @@ add_executable(hibp_download
 target_compile_features(hibp_download PRIVATE cxx_std_20)
 target_compile_options(hibp_download PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_download PRIVATE CLI11 curl event hibp flat_file ${CMAKE_THREAD_LIBS_INIT})
+target_precompile_headers(hibp_download REUSE_FROM hibp_search)
 
 option(HIBP_TEST "Enable HIBP tests" OFF)
 if(HIBP_TEST)
