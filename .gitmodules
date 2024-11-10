@@ -1,9 +1,9 @@
-[submodule "ext/sha1"]
-	path = ext/sha1
-	url = https://github.com/vog/sha1.git
 [submodule "ext/restinio"]
 	path = ext/restinio
 	url = https://github.com/Stiffstream/restinio.git
 [submodule "ext/CLI11"]
 	path = ext/CLI11
 	url = https://github.com/CLIUtils/CLI11.git
+[submodule "ext/hash-library"]
+	path = ext/hash-library
+	url = https://github.com/stbrumme/hash-library.git

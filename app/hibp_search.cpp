@@ -1,7 +1,7 @@
 #include "CLI/CLI.hpp"
 #include "flat_file.hpp"
 #include "hibp.hpp"
-#include "sha1.hpp"
+#include "sha1.h"
 #include "toc.hpp"
 #include <chrono>
 #include <cstddef>
@@ -48,9 +48,8 @@ int main(int argc, char* argv[]) {
       build_toc(db, cli_config.db_filename, cli_config.toc_entries);
     }
 
-    SHA1 sha1;
-    sha1.update(cli_config.plain_text_password);
-    hibp::pawned_pw needle = hibp::convert_to_binary(sha1.final());
+    SHA1 hash;
+    hibp::pawned_pw needle = hibp::convert_to_binary(hash(cli_config.plain_text_password));
 
     std::optional<hibp::pawned_pw> maybe_ppw;
 

@@ -43,13 +43,17 @@ if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
   link_directories(/usr/local/lib)
 endif()
 
+# consitently we go for static
+set(CMAKE_POLICY_DEFAULT_CMP0077 NEW) # for restioni which has an option()
+set(BUILD_STATIC_LIBS ON)
+set(BUILD_SHARED_LIBS OFF)
+
 set(CLI11_PRECOMPILED ON) # improves compile speed by ~2x
 add_subdirectory(ext/CLI11)
 target_precompile_headers(CLI11 INTERFACE [["CLI/CLI.hpp"]]) # INTERFACE, because perpetuate to clients of this lib
 
-add_library(sha1 INTERFACE)
-target_include_directories(sha1 INTERFACE ext/sha1)
-target_precompile_headers(sha1 INTERFACE [["sha1.hpp"]])
+add_library(sha1 ext/hash-library/sha1.cpp)
+target_include_directories(sha1 INTERFACE ext/hash-library)
 if (NOT MSVC)
   target_compile_options(sha1 INTERFACE -Wno-sign-conversion)
 endif()
@@ -81,9 +85,6 @@ endif()
 set(RESTINIO_EXPLICIT_CPPSTD 20)
 set(RESTINIO_ASIO_SOURCE standalone)
 set(asio_INCLUDE_DIRS ../asio/include) # relative to ext/restinio/dev/restinio
-set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
-set(BUILD_STATIC_LIBS ON)
-set(BUILD_SHARED_LIBS OFF)
 add_subdirectory(ext/restinio/dev/nodejs/llhttp)
 add_subdirectory(ext/restinio/dev/fmt)
 add_subdirectory(ext/restinio/dev/expected-lite)
