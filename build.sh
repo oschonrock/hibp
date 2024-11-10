@@ -109,7 +109,7 @@ COMPILER_OPTIONS="-DCMAKE_C_COMPILER=$C_COMPILER -DCMAKE_CXX_COMPILER=$CXX_COMPI
 $CMAKE -GNinja -S . -B $BUILD_DIR $CACHE -DCMAKE_COLOR_DIAGNOSTICS=ON $COMPILER_OPTIONS
 GEN_RET=$?
 
-[[ $GEN_RET ]] && cp $BUILD_DIR/compile_commands.json .
+[[ $GEN_RET ]] && rm -f ./compile_commands.json && ln -s $BUILD_DIR/compile_commands.json .
 
 [[ -n $GENERATEONLY ]] && exit $GEN_RET
 
