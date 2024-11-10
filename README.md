@@ -30,10 +30,10 @@ refer to
 #### Compile in debug mode
 ```bash
 # for compiling with gcc
-./build.sh gcc debug
+./build.sh -c gcc -b debug
 
 # Optional: for compiling with clang
-./build.sh clang debug
+./build.sh -c clang -b debug
 
 ```
 
@@ -46,7 +46,7 @@ You should see a bunch thread debug output, but no error and  `ls -lh hibp_sampl
 #### compile for release
 ```bash
 
-./build.sh gcc release
+./build.sh -c gcc -b release
 ```
 
 ## Usage
