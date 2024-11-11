@@ -54,7 +54,7 @@ while true; do
 	    ;;
 	-b|--buildtype)
 	    shift
-	    BUILDTYPE=${1,,} # lowercase, requires bash 4.0
+	    BUILDTYPE=${1,,}
 	    [[ ! $BUILDTYPE =~ debug|release|relwithdebinfo ]] && {
 		echo "[--buildtype | -b] must be debug|release|relwithdebinfo"
 		exit 1
@@ -62,7 +62,7 @@ while true; do
 	    ;;
 	-t|--targets)
 	    shift;
-	    TARGETS="--target ${1/,/ }"; 
+	    TARGETS="--target ${1//,/ }"; 
 	    ;;
 	-p|--purge)
             PURGE=1
