@@ -15,11 +15,13 @@ struct pawned_pw;
 
 inline pawned_pw convert_to_binary(const std::string& text);
 
-inline char nibble_to_char(unsigned nibble) {
-  if (nibble < 10) {
-    return static_cast<char>('0' + nibble);
+constexpr inline char nibble_to_char(std::byte nibble) {
+  auto uc = static_cast<char>(nibble);
+  assert(uc >= 0 && uc <= 15);
+  if (uc < 10) {
+    return static_cast<char>('0' + uc);
   }
-  return static_cast<char>('A' + nibble - 10); 
+  return static_cast<char>('A' + uc - 10); 
 }
 
 struct pawned_pw {
@@ -39,9 +41,9 @@ struct pawned_pw {
   [[nodiscard]] std::string to_string() const {
     std::string buffer(60, '\0');
     char*       strptr = buffer.data();
-    for (auto i: hash) {
-      *strptr++ = nibble_to_char((static_cast<unsigned>(i) & 0xF0U) >> 4U);
-      *strptr++ = nibble_to_char(static_cast<unsigned>(i) & 0x0FU);
+    for (auto h: hash) {
+      *strptr++ = nibble_to_char(h & std::byte(0xF0U) >> 4U);
+      *strptr++ = nibble_to_char(h & std::byte(0x0FU));
     }
     *strptr++      = ':';
     auto [ptr, ec] = std::to_chars(strptr, buffer.data() + buffer.size(), count);
@@ -60,7 +62,7 @@ struct pawned_pw {
 constexpr inline std::byte make_nibble(char nibblechr) {
   auto nibble = nibblechr - '0';
   if (nibble > 9) nibble = (nibble & ~('a' - 'A')) - ('A' - '0') + 10; // NOLINT signed
-  assert(nibble >= 0 && nibble <= 15);                                 // NOLINT assert array to ptr
+  assert(nibble >= 0 && nibble <= 15);
   return static_cast<std::byte>(nibble);
 }
 
