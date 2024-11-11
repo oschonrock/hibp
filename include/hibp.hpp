@@ -15,13 +15,11 @@ struct pawned_pw;
 
 inline pawned_pw convert_to_binary(const std::string& text);
 
+
 constexpr inline char nibble_to_char(std::byte nibble) {
-  auto uc = static_cast<char>(nibble);
-  assert(uc >= 0 && uc <= 15);
-  if (uc < 10) {
-    return static_cast<char>('0' + uc);
-  }
-  return static_cast<char>('A' + uc - 10); 
+  auto n = std::to_integer<uint8_t>(nibble);
+  assert(n <= 15);
+  return static_cast<char>(n + (n < 10 ? '0' : 'A' - 10));
 }
 
 struct pawned_pw {
@@ -42,7 +40,7 @@ struct pawned_pw {
     std::string buffer(60, '\0');
     char*       strptr = buffer.data();
     for (auto h: hash) {
-      *strptr++ = nibble_to_char(h & std::byte(0xF0U) >> 4U);
+      *strptr++ = nibble_to_char(h >> 4U);
       *strptr++ = nibble_to_char(h & std::byte(0x0FU));
     }
     *strptr++      = ':';
@@ -87,8 +85,9 @@ inline pawned_pw convert_to_binary(const std::string& text) {
   }
 
   ppw.count = -1;
-  if (text.size() > ppw.hash.size() * 2 + 1) {
-    std::from_chars(text.c_str() + ppw.hash.size() * 2 + 1, text.c_str() + text.size(), ppw.count);
+  auto count_idx = ppw.hash.size() * 2 + 1;
+  if (text.size() > count_idx) {
+    std::from_chars(text.c_str() + count_idx, text.c_str() + text.size(), ppw.count);
   }
   return ppw;
 }
