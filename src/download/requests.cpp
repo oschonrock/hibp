@@ -36,7 +36,7 @@
 //   // normal move (only)
 //   curl_context_t(curl_context_t&& other) = default;
 //   curl_context_t& operator=(curl_context_t&& rhs) = default;
-  
+
 //   curl_socket_t sockfd;
 //   event*        event;
 // };
@@ -135,7 +135,7 @@ static bool process_curl_done_msg(CURLMsg* message) {
     // during state::process_queues and we only process new messages (ie this code) during
     // state::handle_requests
     dl->complete = true;
-    thrprinterr(std::format("setting '{}' complete = {}", dl->prefix, dl->complete));
+    logger.log(std::format("setting '{}' complete = {}", dl->prefix, dl->complete));
     curl_easy_cleanup(easy_handle);
     dl->easy = nullptr; // prevent further attempts at cleanup
     return true;        // successful completion
@@ -172,7 +172,7 @@ static void process_curl_messages() {
       break;
 
     default:
-      thrprinterr("CURLMSG default");
+      logger.log("CURLMSG default");
       break;
     }
   }
@@ -181,14 +181,14 @@ static void process_curl_messages() {
       std::lock_guard lk(thrmutex);
       tstate = state::process_queues;
     }
-    thrprinterr("notifying main");
+    logger.log("notifying main");
     tstate_cv.notify_one();
 
     // must pause this thread here, as otherwise the callbacks could fire any time
     // and access curls internal queue structures which could still be being modified
     // by queuemgt thread
     std::unique_lock lk(thrmutex);
-    thrprinterr("waiting for main");
+    logger.log("waiting for main");
     if (!tstate_cv.wait_for(lk, std::chrono::seconds(10),
                             []() { return tstate == state::handle_requests; })) {
       throw std::runtime_error("Timed out waiting for queuemgt thread");

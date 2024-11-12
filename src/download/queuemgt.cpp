@@ -44,14 +44,16 @@ static std::queue<std::unique_ptr<download>> process_queue; // NOLINT non-const-
 static std::size_t files_processed = 0UL; // NOLINT non-const-global
 static std::size_t bytes_processed = 0UL; // NOLINT non-const-global
 
+static cli_config_t cli;
+
 void print_progress() {
-  if (cli_config.progress) {
+  if (cli.progress) {
     auto elapsed       = clk::now() - start_time;
     auto elapsed_trunc = floor<std::chrono::seconds>(elapsed);
     auto elapsed_sec   = std::chrono::duration_cast<std::chrono::duration<double>>(elapsed).count();
 
     std::lock_guard lk(cerr_mutex);
-    auto            files_todo = cli_config.prefix_limit - start_prefix;
+    auto            files_todo = cli.prefix_limit - start_prefix;
     std::cerr << std::format(
         "Elapsed: {:%H:%M:%S}  Progress: {} / {} files  {:.1f}MB/s  {:5.1f}%\r", elapsed_trunc,
         files_processed, files_todo,
@@ -61,8 +63,8 @@ void print_progress() {
 }
 
 static void fill_download_queue() {
-  while (download_queue.size() != cli_config.parallel_max &&
-         next_prefix != cli_config.prefix_limit) {
+  while (download_queue.size() != cli.parallel_max &&
+         next_prefix != cli.prefix_limit) {
     auto prefix = std::format("{:05X}", next_prefix++);
     // safe to add_download(), which adds items to curl' internal queue structure,
     // because main (ie this) thread only does this during state::process_queues
@@ -72,8 +74,8 @@ static void fill_download_queue() {
 }
 
 static void process_completed_download_queue_entries() {
-  thrprinterr(std::format("download_queue.size() = {}", download_queue.size()));
-  thrprinterr(std::format("front.complete = {}", download_queue.front()->complete));
+  logger.log(std::format("download_queue.size() = {}", download_queue.size()));
+  logger.log(std::format("front.complete = {}", download_queue.front()->complete));
   while (!download_queue.empty()) {
     auto& front = download_queue.front();
     // safe to check complete flagwithout lock, because main (ie this) thread only does this
@@ -82,7 +84,7 @@ static void process_completed_download_queue_entries() {
     if (!front->complete) {
       break; // these must be done in order, so we don't have to sort afterwards
     }
-    thrprinterr(std::format("shuffling {}", front->prefix));
+    logger.log(std::format("shuffling {}", front->prefix));
     process_queue.push(std::move(front));
     download_queue.pop();
   }
@@ -107,7 +109,7 @@ static std::size_t write_lines(write_fn_t& write_fn, download& dl) {
       recordcount++;
     }
   }
-  thrprinterr(std::format("wrote '{}' in binary, recordcount = {}", dl.prefix, recordcount));
+  logger.log(std::format("wrote '{}' in binary, recordcount = {}", dl.prefix, recordcount));
   bytes_processed += dl.buffer.size();
   return recordcount;
 }
@@ -127,7 +129,7 @@ static void write_completed_process_queue_entries(write_fn_t& write_fn) {
 void service_queue(write_fn_t& write_fn) {
   while (!download_queue.empty()) {
     {
-      thrprinterr("waiting for curl");
+      logger.log("waiting for curl");
       std::unique_lock lk(thrmutex);
       if (!tstate_cv.wait_for(lk, std::chrono::seconds(10),
                               []() { return tstate == state::process_queues; })) {
@@ -136,11 +138,11 @@ void service_queue(write_fn_t& write_fn) {
       process_completed_download_queue_entries(); // shuffle and fill queues
       tstate = state::handle_requests;            // signal curl thread to continue
     }
-    thrprinterr("notifying curl");
+    logger.log("notifying curl");
     tstate_cv.notify_one();                          // send control back to curl thread
     write_completed_process_queue_entries(write_fn); // do slow work writing to disk
   }
-  if (cli_config.progress) {
+  if (cli.progress) {
     std::cerr << "\n"; // clear line after progress if being shown, bit nasty
   }
 }
@@ -157,7 +159,8 @@ bool handle_exception(const std::exception_ptr& exception_ptr, std::thread::id t
   return false;
 }
 
-void run_threads(write_fn_t& write_fn) {
+void run_threads(write_fn_t& write_fn, const cli_config_t& cli_config) {
+  cli = cli_config;
   std::exception_ptr requests_exception;
   std::exception_ptr queuemgt_exception;
 

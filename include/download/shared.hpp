@@ -54,8 +54,16 @@ extern std::mutex cerr_mutex; // NOLINT non-const-global
 
 extern std::unordered_map<std::thread::id, std::string> thrnames; // NOLINT non-const-global
 
-extern cli_config_t cli_config; // NOLINT non-const-global
+// simple logging
 
-// shared free functions
+struct thread_logger {
+  void log(const std::string& msg) const {
+    if (debug) {
+      std::lock_guard lk(cerr_mutex);
+      std::cerr << std::format("thread: {:>9}: {}\n", thrnames[std::this_thread::get_id()], msg);
+    }
+  }
+  bool debug = false;
+};
 
-void thrprinterr([[maybe_unused]] const std::string& msg);
+extern thread_logger logger; // NOLINT non-const-global
