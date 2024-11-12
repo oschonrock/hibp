@@ -10,32 +10,37 @@
 struct cli_config_t {
   std::string output_filename;
   std::string input_filename;
-  bool        force    = false;
-  bool        text_out = false;
-  bool        bin_out  = false;
-  std::size_t limit    = -1; // ie max
+  bool        force      = false;
+  bool        stdout     = false;
+  bool        stdin      = false;
+  bool        bin_to_txt = false;
+  bool        txt_to_bin = false;
+  std::size_t limit      = -1; // ie max
 };
 
 void define_options(CLI::App& app, cli_config_t& cli_config) {
 
-  app.add_option("input_filename", cli_config.input_filename,
-                 "The file that the downloaded binary database will be written to")
-      ->required();
+  app.add_flag("--txt-to-bin", cli_config.txt_to_bin,
+               "From text to binary format. Choose either --txt-to-bin or --bin-to-txt");
 
-  app.add_option("output_filename", cli_config.output_filename,
-                 "The file that the downloaded binary database will be written to")
-      ->required();
+  app.add_flag("--bin-to-txt", cli_config.bin_to_txt,
+               "From binary to text format. Choose either --txt-to-bin or --bin-to-txt");
 
-  app.add_flag("--text-out", cli_config.text_out,
-               "Output text format. Choose one of --bin-out and --text-out");
+  app.add_option("-i,--input", cli_config.input_filename,
+                 "The file that the downloaded binary database will be read from");
 
-  app.add_flag("--bin-out", cli_config.bin_out,
-               "Output binary format. Choose one of --bin-out and --text-out");
+  app.add_flag("--stdin", cli_config.stdin,
+               "Instead of an input file read input from stdin. Only for text input.");
 
-  app.add_option("--limit", cli_config.limit,
+  app.add_option("-o,--output", cli_config.output_filename,
+                 "The file that the downloaded binary database will be written to");
+
+  app.add_flag("--stdout", cli_config.stdout, "Instead of an output file write output to stdout.");
+
+  app.add_option("-l,--limit", cli_config.limit,
                  "The maximum number of records that will be converted (default: all)");
 
-  app.add_flag("--force", cli_config.force, "Overwrite any existing file!");
+  app.add_flag("-f,--force", cli_config.force, "Overwrite any existing output file!");
 }
 
 std::ifstream get_input_stream(const std::string& input_filename) {
@@ -63,17 +68,9 @@ std::ofstream get_output_stream(const std::string& output_filename, bool force) 
   return output_stream;
 }
 
-void convert_to_binary(const std::string& input_filename, const std::string& output_filename,
-                       bool force, std::size_t limit) {
-  std::cerr << std::format("Reading `have i been pawned` text database from {} "
-                           "converting to binary format and writing to {}.",
-                           input_filename, output_filename);
-
-  auto output_stream = get_output_stream(output_filename, force);
+void txt_to_bin(std::istream& input_stream, std::ostream& output_stream, std::size_t limit) {
 
   auto writer = flat_file::stream_writer<hibp::pawned_pw>(output_stream);
-
-  auto input_stream = get_input_stream(input_filename);
 
   std::size_t count = 0;
   for (std::string line; std::getline(input_stream, line) && count != limit; count++) {
@@ -81,13 +78,8 @@ void convert_to_binary(const std::string& input_filename, const std::string& out
   }
 }
 
-void convert_to_text(const std::string& input_filename, const std::string& output_filename,
-                     bool force, std::size_t limit) {
-  std::cerr << std::format("Reading `have i been pawned` binary database from {} "
-                           "converting to text format and writing to {}.\n",
-                           input_filename, output_filename);
-
-  auto output_stream = get_output_stream(output_filename, force);
+void bin_to_txt(const std::string& input_filename, std::ostream& output_stream,
+                     std::size_t limit) {
 
   flat_file::database<hibp::pawned_pw> db{input_filename, 4096 / sizeof(hibp::pawned_pw)};
 
@@ -103,22 +95,63 @@ void convert_to_text(const std::string& input_filename, const std::string& outpu
 int main(int argc, char* argv[]) {
   cli_config_t cli; // NOLINT non-const global
 
-  CLI::App app;
+  CLI::App app("Converting 'Have I been pawned' databases between text and binary formats");
   define_options(app, cli);
   CLI11_PARSE(app, argc, argv);
 
   try {
-    if ((cli.text_out && cli.bin_out) || (!cli.text_out && !cli.bin_out)) {
+    if ((cli.bin_to_txt && cli.txt_to_bin) || (!cli.bin_to_txt && !cli.txt_to_bin)) {
       throw std::runtime_error(
-          "Please use exactly one of --text-out and --bin-out, not both, and not neither.");
+          "Please use exactly one of --bin-to-txt and --txt-to-bin, not both, and not neither.");
     }
 
-    if (cli.bin_out) {
-      convert_to_binary(cli.input_filename, cli.output_filename, cli.force, cli.limit);
-    } else if (cli.text_out) {
-      convert_to_text(cli.input_filename, cli.output_filename, cli.force, cli.limit);
+    if ((!cli.input_filename.empty() && cli.stdin) || (cli.input_filename.empty() && !cli.stdin)) {
+      throw std::runtime_error(
+          "Please use exactly one of -i|--input and --stdin, not both, and not neither.");
     }
 
+    if (cli.bin_to_txt && cli.stdin) {
+      throw std::runtime_error("Sorry, cannot read binary database from stdin. Please use a file.");
+    }
+
+    if ((!cli.output_filename.empty() && cli.stdout) ||
+        (cli.output_filename.empty() && !cli.stdout)) {
+      throw std::runtime_error(
+          "Please use exactly one of -o|--output and --stdout, not both, and not neither.");
+    }
+
+    std::istream* input_stream      = &std::cin;
+    std::string   input_stream_name = "stdin";
+    std::ifstream ifs;
+    if (!cli.stdin) {
+      ifs               = get_input_stream(cli.input_filename);
+      input_stream      = &ifs;
+      input_stream_name = cli.input_filename;
+    }
+
+    std::ostream* output_stream      = &std::cout;
+    std::string   output_stream_name = "stdout";
+    std::ofstream ofs;
+    if (!cli.stdout) {
+      ofs                = get_output_stream(cli.output_filename, cli.force);
+      output_stream      = &ofs;
+      output_stream_name = cli.output_filename;
+    }
+
+    if (cli.txt_to_bin) {
+      std::cerr << std::format("Reading `have i been pawned` text database from {}, "
+                               "converting to binary format and writing to {}.\n",
+                               input_stream_name, output_stream_name);
+
+      txt_to_bin(*input_stream, *output_stream, cli.limit);
+    } else if (cli.bin_to_txt) {
+
+      std::cerr << std::format("Reading `have i been pawned` binary database from {}, "
+                               "converting to text format and writing to {}.\n",
+                               input_stream_name, output_stream_name);
+
+      bin_to_txt(cli.input_filename, *output_stream, cli.limit);
+    }
   } catch (const std::exception& e) {
     std::cerr << std::format("Error: {}\n", e.what());
     return EXIT_FAILURE;
