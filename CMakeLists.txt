@@ -142,7 +142,6 @@ target_precompile_headers(hibp_join REUSE_FROM hibp_search)
 
 add_executable(hibp_download
   app/hibp_download.cpp
-  src/download/download.cpp
   src/download/queuemgt.cpp
   src/download/requests.cpp
   src/download/shared.cpp)

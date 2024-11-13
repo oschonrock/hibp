@@ -1,5 +1,5 @@
 #include "CLI/CLI.hpp"
-#include "download/download.hpp"
+#include "download/queuemgt.hpp"
 #include "download/shared.hpp"
 #include "hibp.hpp"
 #include <cstdlib>
