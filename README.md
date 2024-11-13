@@ -4,7 +4,7 @@ Have I been pwned database: High performance downloader, query tool, server and 
 
 This very useful database is somewhat challengint to use locally because the data size is so large. 
 This set of utilities uses a binary format to store and search the data. The orginal text records are a 
-40char SHA1 + ":" + an integer count + <CR><LF>
+40char SHA1 + ":" + an integer count + CR LF.
 
 The binary format just stored the 20byte binary bytes of the SHA1 + 4 bytes integer
 No delimiter is required because the record size is constant. Searches become easy, if the binary data is sorted, 
@@ -40,7 +40,7 @@ refer to
 
 ### Run download in debug mode 
 ```bash
-./build/gcc/debug/hibp_download --debug --limit=256 --parallel-max=10 hibp_sample.bin
+./build/gcc/debug/hibp_download --debug --limit=10 --parallel-max=3 hibp_sample.bin
 ```
 You should see a bunch thread debug output, but no error and  `ls -lh hibp_sample.bin` should show ~5.3M
 
@@ -154,6 +154,8 @@ to OS to cache the disk.
 `./build/gcc/release/hibp_sort`    : sort a binary file using external disk space (takes 3x space on disk)!
 
 `./build/gcc/release/hibp_join`    : join the ~1M text files into one large binary one in arbitrary order (not useful since hibp_download)
+
+In each case for all options run `program_name --help`.
 
 ## Future uses
 

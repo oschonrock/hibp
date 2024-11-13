@@ -7,7 +7,7 @@ Open the "gold" MSYS2 UCRT64 console from start menu (always use this one in fut
 
 ```bash
 pacman -S pactoys git unzip
-pacboy -S gcc cmake ccmake ruby tbb curl libevent
+pacboy -S gcc ccache cmake ccmake ruby tbb curl libevent
 
 git clone https://github.com/oschonrock/hibp.git
 cd hibp
@@ -29,7 +29,7 @@ But this is only important for hibp_sort, which is mostly deprecated
 
 You can also build with `clang`, by install it in the UCRT64 environment.
 ```
-pacboy -S clang
+pacboy -S clang clang-tools-extra
 ```
 
 ### Using sanitizers
@@ -41,12 +41,12 @@ more complete set of libs with the compiler-rt package.
 in MSYS2 clang64:
 ```
 pacman -S pactoys git unzip
-pacboy -S clang cmake ccmake ruby tbb curl libevent
+pacboy -S clang ccache cmake ccmake ruby tbb curl libevent
 ```
 
 and then use `-fsanitize=adrress,undefined` (leak is not
 supported). You will need to edit CMakeLists.txt, as sanitizers are
-normally disabled for mingw/MSYS2. 
+normally disabled for mingw/MSYS2 for above reason.
 
 ## Running executables / loading shared libraries
 
