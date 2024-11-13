@@ -1,5 +1,4 @@
 #include "download/requests.hpp"
-#include "download/queuemgt.hpp"
 #include "download/shared.hpp"
 #include <cstddef>
 #include <cstdlib>
@@ -24,6 +23,8 @@ static CURLM*        curl_multi_handle; // NOLINT non-const-global
 static struct event* timeout;           // NOLINT non-const-global
 
 static event_base* base; // NOLINT non-const-global
+
+static std::size_t next_index = 0x0UL; // NOLINT non-cost-gobal
 
 // connects an event with a socketfd
 struct curl_context_t {
@@ -52,7 +53,7 @@ static void destroy_curl_context(curl_context_t* context) {
 static std::size_t write_data_curl_cb(char* ptr, std::size_t size, std::size_t nmemb,
                                       void* userdata);
 
-void add_download(std::size_t index) {
+static void add_download(std::size_t index) {
   auto [dl_iter, inserted] =
       download_queue.insert(std::make_pair(index, std::make_unique<download>(index)));
 
@@ -75,9 +76,9 @@ void add_download(std::size_t index) {
   dl->easy = easy;
 }
 
-void fill_download_queue() {
-  while (download_queue.size() != cli.parallel_max && next_prefix != cli.prefix_limit) {
-    add_download(next_prefix++);
+static void fill_download_queue() {
+  while (download_queue.size() != cli.parallel_max && next_index != cli.index_limit) {
+    add_download(next_index++);
   }
 }
 
@@ -261,7 +262,12 @@ void init_curl_and_events() {
   curl_multi_setopt(curl_multi_handle, CURLMOPT_TIMERFUNCTION, start_timeout_curl_cb);
 }
 
-void run_event_loop() { event_base_dispatch(base); }
+void run_event_loop(std::size_t start_index) {
+  next_index = start_index;
+  fill_download_queue();
+  event_base_dispatch(base);
+  finished_downloads();
+}
 
 void shutdown_curl_and_events() {
   if (auto res = curl_multi_cleanup(curl_multi_handle); res != CURLM_OK) {
@@ -289,9 +295,5 @@ void curl_and_event_cleanup() {
     }
   }
   download_queue.clear(); // more efficient to clear all at once
-
-  // todo.. also cleanup msq_queue and process_queue?? maybe not required, because
-  // curl_easy_cleanup(dl->easy) has already been called
-
   shutdown_curl_and_events();
 }

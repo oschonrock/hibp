@@ -4,9 +4,6 @@
 
 std::size_t get_last_prefix(const std::string& filename);
 
-extern std::size_t start_prefix; // NOLINT non-cost-gobal
-extern std::size_t next_prefix;  // NOLINT non-cost-gobal
-
 // alternative simple text writer
 
 struct text_writer {
@@ -23,6 +20,5 @@ private:
 // prefer use of std::function (ie stdlib type erasure) rather than templates to keep .hpp interface
 // clean
 using write_fn_t = std::function<void(const std::string&)>;
-void run_downloads(write_fn_t write_fn, std::size_t next_process_index);
-
+void run_downloads(write_fn_t write_fn, std::size_t start_index_);
 

@@ -2,6 +2,7 @@
 #include "download/queuemgt.hpp"
 #include "download/shared.hpp"
 #include "hibp.hpp"
+#include <cstddef>
 #include <cstdlib>
 #include <curl/curl.h>
 #include <curl/easy.h>
@@ -36,7 +37,7 @@ void define_options(CLI::App& app, cli_config_t& cli_) {
   app.add_option("--parallel-max", cli_.parallel_max,
                  "The maximum number of requests that will be started concurrently (default: 300)");
 
-  app.add_option("--limit", cli_.prefix_limit,
+  app.add_option("--limit", cli_.index_limit,
                  "The maximum number (prefix) files that will be downloaded (default: 100 000 hex "
                  "or 1 048 576 dec)");
 }
@@ -65,20 +66,20 @@ int main(int argc, char* argv[]) {
                                            cli.output_db_filename));
     }
 
+    std::size_t start_index = 0;
     auto mode = cli.text_out ? std::ios_base::out : std::ios_base::binary;
 
     if (cli.resume) {
-      next_prefix = get_last_prefix(cli.output_db_filename) + 1;
+      start_index = get_last_prefix(cli.output_db_filename) + 1;
 
-      if (cli.prefix_limit <= next_prefix) {
+      if (cli.index_limit <= start_index) {
         throw std::runtime_error(std::format("File '{}' contains {} records already, but you have "
                                              "specified --limit={}. Nothing to do. Aborting.",
-                                             cli.output_db_filename, next_prefix,
-                                             cli.prefix_limit));
+                                             cli.output_db_filename, start_index,
+                                             cli.index_limit));
       }
-      start_prefix = next_prefix; // to make progress correct
       mode |= std::ios_base::app;
-      std::cerr << std::format("Resuming from file {}\n", start_prefix);
+      std::cerr << std::format("Resuming from file {}\n", start_index);
     }
 
     auto output_db_stream = std::ofstream(cli.output_db_filename, mode);
@@ -89,11 +90,11 @@ int main(int argc, char* argv[]) {
     }
     if (cli.text_out) {
       auto tw = text_writer(output_db_stream);
-      run_downloads([&](const std::string& line) { tw.write(line); }, next_prefix);
+      run_downloads([&](const std::string& line) { tw.write(line); }, start_index);
 
     } else {
       auto ffsw = flat_file::stream_writer<hibp::pawned_pw>(output_db_stream);
-      run_downloads([&](const std::string& line) { ffsw.write(line); }, next_prefix);
+      run_downloads([&](const std::string& line) { ffsw.write(line); }, start_index);
     }
 
   } catch (const std::exception& e) {

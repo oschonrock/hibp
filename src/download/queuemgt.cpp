@@ -67,7 +67,8 @@
 // we use uniq_ptr<download> to keep the address of the downloads stable as queues changes
 
 using clk = std::chrono::high_resolution_clock;
-static clk::time_point start_time; // NOLINT non-const-global, used in main()
+static clk::time_point start_time;          // NOLINT non-const-global, used in main()
+static std::size_t     start_index = 0x0UL; // NOLINT non-cost-gobal
 
 static auto process_queue_compare = [](const auto& a, auto& b) { // NOLINT non-const-global
   return *a > *b; // smallest first (logic inverted in std::priority_queue)
@@ -93,13 +94,14 @@ void print_progress() {
     auto elapsed_sec   = std::chrono::duration_cast<std::chrono::duration<double>>(elapsed).count();
 
     std::lock_guard lk(cerr_mutex);
-    auto            files_todo = cli.prefix_limit - start_prefix;
-    std::cerr << std::format(
-        "Elapsed: {:%H:%M:%S}  Progress: {} / {} files  {:.1f}MB/s  {:5.1f}%    Write queue size: {}\r",
-        elapsed_trunc, files_processed, files_todo,
-        static_cast<double>(bytes_processed) / (1U << 20U) / elapsed_sec,
-        100.0 * static_cast<double>(files_processed) / static_cast<double>(files_todo),
-        process_queue.size());
+    auto            files_todo = cli.index_limit - start_index;
+    std::cerr << std::format("Elapsed: {:%H:%M:%S}  Progress: {} / {} files  {:.1f}MB/s  {:5.1f}%  "
+                             "  Write queue size: {}\r",
+                             elapsed_trunc, files_processed, files_todo,
+                             static_cast<double>(bytes_processed) / (1U << 20U) / elapsed_sec,
+                             100.0 * static_cast<double>(files_processed) /
+                                 static_cast<double>(files_todo),
+                             process_queue.size());
   }
 }
 
@@ -144,7 +146,7 @@ void finished_downloads() {
 
 // end of msg API
 
-void service_queue(write_fn_t& write_fn, std::size_t next_process_index) {
+void service_queue(write_fn_t& write_fn, std::size_t next_index) {
 
   while (true) {
     std::unique_lock lk(msgmutex);
@@ -164,13 +166,13 @@ void service_queue(write_fn_t& write_fn, std::size_t next_process_index) {
     logger.log(std::format("process_queue.size() = {}", process_queue.size()));
     while (!process_queue.empty()) {
       const auto& top = process_queue.top();
-      if (top->index != next_process_index) {
+      if (top->index != next_index) {
         break; // must wait for an earlier batch
       }
       logger.log(std::format("service_queue: writing prefix = {}", top->prefix));
       write_lines(write_fn, *top);
       process_queue.pop();
-      next_process_index++;
+      next_index++;
       files_processed++;
       print_progress();
     }
@@ -193,22 +195,21 @@ bool handle_exception(const std::exception_ptr& exception_ptr, std::thread::id t
   return false;
 }
 
-void run_downloads(write_fn_t write_fn, std::size_t next_process_index) {
+void run_downloads(write_fn_t write_fn, std::size_t start_index_) {
 
   std::exception_ptr requests_exception;
   std::exception_ptr queuemgt_exception;
 
-  start_time = clk::now();
+  start_time  = clk::now();   // for progress
+  start_index = start_index_; // for progress
   init_curl_and_events();
 
   auto que_thr_id      = std::this_thread::get_id();
   thrnames[que_thr_id] = "queuemgt";
-  fill_download_queue();
 
   std::thread requests_thread([&]() {
     try {
-      run_event_loop();
-      finished_downloads();
+      run_event_loop(start_index_);
     } catch (...) {
       requests_exception = std::current_exception();
     }
@@ -218,7 +219,7 @@ void run_downloads(write_fn_t write_fn, std::size_t next_process_index) {
   thrnames[req_thr_id] = "requests";
 
   try {
-    service_queue(write_fn, next_process_index);
+    service_queue(write_fn, start_index_);
   } catch (...) {
     queuemgt_exception = std::current_exception();
   }
@@ -236,9 +237,8 @@ void run_downloads(write_fn_t write_fn, std::size_t next_process_index) {
   shutdown_curl_and_events();
 }
 
-std::size_t start_prefix = 0x0UL; // NOLINT non-cost-gobal
-std::size_t next_prefix  = 0x0UL; // NOLINT non-cost-gobal
 
+// utility function for --resume
 std::size_t get_last_prefix(const std::string& filename) {
   auto filesize = std::filesystem::file_size(filename);
   if (auto tailsize = filesize % sizeof(hibp::pawned_pw); tailsize != 0) {
@@ -302,5 +302,3 @@ std::size_t get_last_prefix(const std::string& filename) {
   // the last file was incompletely written, so we have trimmed and will do it again
   return last_prefix - 1;
 }
-
-
