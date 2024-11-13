@@ -29,7 +29,6 @@ struct download {
   std::string       prefix;
   std::vector<char> buffer;
   int               retries_left = max_retries;
-  bool              complete     = false;
 };
 
 // thread messaging API
