@@ -6,9 +6,6 @@
 #include <condition_variable>
 #include <cstddef>
 #include <cstdlib>
-#include <curl/curl.h>
-#include <curl/multi.h>
-#include <event2/event.h>
 #include <exception>
 #include <format>
 #include <iostream>
@@ -76,8 +73,6 @@ static bool                    finished_dls = false; // NOLINT non-const-global
 static std::size_t files_processed = 0UL; // NOLINT non-const-global
 static std::size_t bytes_processed = 0UL; // NOLINT non-const-global
 
-enum class state { handle_requests, process_queues };
-
 void print_progress() {
   if (cli.progress) {
     auto elapsed       = clk::now() - start_time;
@@ -114,7 +109,7 @@ static std::size_t write_lines(write_fn_t& write_fn, download& dl) {
       recordcount++;
     }
   }
-  logger.log(std::format("wrote '{}' in binary, recordcount = {}", dl.prefix, recordcount));
+  logger.log(std::format("wrote {} binary records with prefix {}", recordcount, dl.prefix));
   bytes_processed += dl.buffer.size();
   return recordcount;
 }
@@ -143,6 +138,7 @@ void service_queue(write_fn_t& write_fn, std::size_t next_index) {
     std::unique_lock lk(msgmutex);
     msg_cv.wait(lk, [] { return !msg_queue.empty() || finished_dls; });
 
+    // bring messages over into process_queue
     while (!msg_queue.empty()) {
       auto& msg = msg_queue.front();
       logger.log(std::format("processing message: msg.size() = {}", msg.size()));
@@ -153,12 +149,13 @@ void service_queue(write_fn_t& write_fn, std::size_t next_index) {
     }
     lk.unlock(); // free up other thread to pass us more messages
 
+    // now do the work in the process queue
     // there is no contention on this queue, and this is slow processing
     logger.log(std::format("process_queue.size() = {}", process_queue.size()));
     while (!process_queue.empty()) {
       const auto& top = process_queue.top();
       if (top->index != next_index) {
-        break; // must wait for an earlier batch
+        break; // must wait for an earlier batch to preserve the correct order
       }
       logger.log(std::format("service_queue: writing prefix = {}", top->prefix));
       write_lines(write_fn, *top);
