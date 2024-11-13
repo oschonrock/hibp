@@ -47,6 +47,11 @@ if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
   # add the `local` paths common on FreeBSD
   include_directories(/usr/local/include)
   link_directories(/usr/local/lib)
+  message(WARNING "FreeBSD detected: skipping 'pre-compiled headers' compiling will be a bit slower.")
+  # ensure to link against the correct libstdc++
+  if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set(CMAKE_BUILD_RPATH /usr/local/lib/gcc13)
+  endif()
 endif()
 
 # consitently we go for static
