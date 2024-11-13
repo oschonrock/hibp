@@ -1,6 +1,8 @@
 #pragma once
 
 #include <functional>
+#include <string>
+#include <iostream>
 
 std::size_t get_last_prefix(const std::string& filename);
 

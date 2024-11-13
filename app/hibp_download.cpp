@@ -1,8 +1,10 @@
 #include "CLI/CLI.hpp"
 #include "download/queuemgt.hpp"
 #include "download/shared.hpp"
+#include "flat_file.hpp"
 #include "hibp.hpp"
 #include <cstddef>
+#include <cstring>
 #include <cstdlib>
 #include <curl/curl.h>
 #include <curl/easy.h>
@@ -13,6 +15,7 @@
 #include <fstream>
 #include <ios>
 #include <iostream>
+#include <exception>
 #include <stdexcept>
 
 void define_options(CLI::App& app, cli_config_t& cli_) {

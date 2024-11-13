@@ -1,6 +1,7 @@
 #include "download/queuemgt.hpp"
 #include "download/requests.hpp"
 #include "download/shared.hpp"
+#include "flat_file.hpp"
 #include "hibp.hpp"
 #include <chrono>
 #include <condition_variable>
@@ -12,6 +13,7 @@
 #include <exception>
 #include <format>
 #include <iostream>
+#include <filesystem>
 #include <memory>
 #include <mutex>
 #include <queue>
