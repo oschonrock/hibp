@@ -26,45 +26,36 @@
 // We have 2 threads:
 //
 // 1. the `requests` thread, which handles the curl/libevent event
-// loop to affect the downloads and which manages the `download_queue`
+// loop to affect the downloads. It also manages the `download_queue`
 //
-// 2. the `queuemgt` thread, which manages the `process_queue` and
-// writes the downloads to disk.
+// 2. the `queuemgt`(main) thread, which manages the `process_queue` and
+// the `message_queue` writes the downloads to disk.
 
 // We have 3 queues:
 //
-// 1. `download_queue` managed by `requests.cpp` (the `requests` thread),
-// contains the current set of parallel downloads. the `download`
-// struct contains a `complete` flag. `requests.cpp` sets this when
-// curl/libevent signal that the download is complete, but it does not
-// send an `enq_msg_t` message to queuemgt.cpp (running in the main
-// thread), until the `front` item in its `download_queue` is
-// `complete`. This is done such that the `enq_msg_t`s are sent in the
-// order that they are scheduled. Actually maybe this should be
-// reviewed, such that this "ordering" function is some by the done by
-// the main thread (here in `queuemgt.cpp`, maybe by using a
-// `std::priority_queue`), because otherwise, the `complete` but not
-// yet at front of queue `download` slots in `download_queue` are
-// reducing the parallelism that `reuests` thread is able to achieve.
+// 1. `download_queue` managed by `requests.cpp` (the `requests`
+// thread), contains the current set of parallel downloads. it is a
+// std::unordered_map<download>, so not really a 'queue' as such. Just
+// a collection of 'slots' which are used for downloading. As each set
+// of downloads completes the requests thread sends an `enq_msg_t` message to
+// queuemgt.cpp (running in the main thread) by calling
+// enqueue_downloads_for_writing(). This inserts the message into the
+// `message_queue`.  When all dowloads are done it calls
+// finished_downloads().
 //
-// 2. `process_queue`, managed by queuemgt.cpp (the `queuemgt`
-// thread), contains the completed downloads in order. The `queuemgt`
-// thread, takes items from this queue and writes them to disk. The
-// items are already in the correct order.
+// 2. `message_queue` managed by queuemgr.cpp. When receiving messages
+// from the requests thread, the main thread is notified and it
+// shuffles the contents of the messages into the process_queue. The
+// `message_queue` is the minimal communication interface between the
+// two threads. 
+//
+// 3. The `process_queue` is a std::priority_queue which reorders the
+// dowloads into index order and items are only removed when the
+// `next_process_index` is at top(). 
 
-// Both queues are managed by the main thread
-//
-// we feed process_queue from download_queue to be able to unclock curl thread ASAP
-// before we do the hard work of converting to binary format and writing to disk
-//
-// curl_event_thread notifies main thread, when there is work to be done on download_queue
-// main thread then shuffles completed items to process_queue and refills the download_queue with
-// new items.
-//
-// main thread notifies curl thread when it has finished updating both queues so curl
-// thread can continue
-//
-// we use uniq_ptr<download> to keep the address of the downloads stable as queues changes
+// we use std::unique_ptr<download> as the queue and message elements
+// throughout to keep the address of the downloads stable as they move
+// through the 3 queues. This ensures the curl C-APi has stable pointers.
 
 using clk = std::chrono::high_resolution_clock;
 static clk::time_point start_time;          // NOLINT non-const-global, used in main()
