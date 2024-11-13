@@ -69,6 +69,7 @@ int main(int argc, char* argv[]) {
 
     if (cli.resume) {
       next_prefix = get_last_prefix(cli.output_db_filename) + 1;
+
       if (cli.prefix_limit <= next_prefix) {
         throw std::runtime_error(std::format("File '{}' contains {} records already, but you have "
                                              "specified --limit={}. Nothing to do. Aborting.",
@@ -88,11 +89,11 @@ int main(int argc, char* argv[]) {
     }
     if (cli.text_out) {
       auto tw = text_writer(output_db_stream);
-      run_downloads([&](const std::string& line) { tw.write(line); });
+      run_downloads([&](const std::string& line) { tw.write(line); }, next_prefix);
 
     } else {
       auto ffsw = flat_file::stream_writer<hibp::pawned_pw>(output_db_stream);
-      run_downloads([&](const std::string& line) { ffsw.write(line); });
+      run_downloads([&](const std::string& line) { ffsw.write(line); }, next_prefix);
     }
 
   } catch (const std::exception& e) {

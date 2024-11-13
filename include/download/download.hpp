@@ -21,5 +21,5 @@ private:
 // prefer use of std::function (ie stdlib type erasure) rather than templates to keep .hpp interface
 // clean
 using write_fn_t = std::function<void(const std::string&)>;
-void run_downloads(write_fn_t write_fn);
+void run_downloads(write_fn_t write_fn, std::size_t next_process_index);
 

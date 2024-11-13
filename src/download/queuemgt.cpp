@@ -142,8 +142,7 @@ void finished_downloads() {
 
 // end of msg API
 
-void service_queue(write_fn_t& write_fn) {
-  std::size_t next_process_index = 0;
+void service_queue(write_fn_t& write_fn, std::size_t next_process_index) {
 
   while (true) {
     std::unique_lock lk(msgmutex);
@@ -192,7 +191,7 @@ bool handle_exception(const std::exception_ptr& exception_ptr, std::thread::id t
   return false;
 }
 
-void run_downloads(write_fn_t write_fn) {
+void run_downloads(write_fn_t write_fn, std::size_t next_process_index) {
 
   std::exception_ptr requests_exception;
   std::exception_ptr queuemgt_exception;
@@ -217,7 +216,7 @@ void run_downloads(write_fn_t write_fn) {
   thrnames[req_thr_id] = "requests";
 
   try {
-    service_queue(write_fn);
+    service_queue(write_fn, next_process_index);
   } catch (...) {
     queuemgt_exception = std::current_exception();
   }
