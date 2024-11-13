@@ -91,11 +91,11 @@ static void process_curl_done_msg(CURLMsg* message, enq_msg_t& msg) {
   curl_multi_remove_handle(curl_multi_handle, easy_handle);
 
   if (result == CURLE_OK) {
-    auto nh = download_queue.extract(dl->index);
-    logger.log(std::format("download {} complete. batching up into message", dl->prefix));
-    msg.emplace_back(std::move(nh.mapped())); // batch up to avoid mutex too many times
     curl_easy_cleanup(easy_handle);
     dl->easy = nullptr; // prevent further attempts at cleanup
+    auto nh  = download_queue.extract(dl->index);
+    logger.log(std::format("download {} complete. batching up into message", dl->prefix));
+    msg.emplace_back(std::move(nh.mapped())); // batch up to avoid mutex too many times
     return;
   }
 
@@ -121,7 +121,6 @@ static void process_curl_messages() {
   int      pending = 0;
 
   enq_msg_t msg;
-  msg.reserve(16); // avoid many early small allocations
   while ((message = curl_multi_info_read(curl_multi_handle, &pending)) != nullptr) {
     switch (message->msg) {
     case CURLMSG_DONE:

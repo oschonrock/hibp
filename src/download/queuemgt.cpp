@@ -94,10 +94,11 @@ void print_progress() {
     std::lock_guard lk(cerr_mutex);
     auto            files_todo = cli.prefix_limit - start_prefix;
     std::cerr << std::format(
-        "Elapsed: {:%H:%M:%S}  Progress: {} / {} files  {:.1f}MB/s  {:5.1f}%\r", elapsed_trunc,
-        files_processed, files_todo,
+        "Elapsed: {:%H:%M:%S}  Progress: {} / {} files  {:.1f}MB/s  {:5.1f}%    Write queue size: {}\r",
+        elapsed_trunc, files_processed, files_todo,
         static_cast<double>(bytes_processed) / (1U << 20U) / elapsed_sec,
-        100.0 * static_cast<double>(files_processed) / static_cast<double>(files_todo));
+        100.0 * static_cast<double>(files_processed) / static_cast<double>(files_todo),
+        process_queue.size());
   }
 }
 
