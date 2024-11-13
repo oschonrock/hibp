@@ -6,10 +6,7 @@
 #include <string>
 
 struct cli_config_t {
-  std::string output_filename;
   std::string input_filename;
-  bool        force           = false;
-  bool        standard_output = false;
   bool        sort_by_count   = false;
   std::size_t max_memory      = 1000;
 };
@@ -20,46 +17,22 @@ void define_options(CLI::App& app, cli_config_t& cli) {
                  "The file that the downloaded binary database will be read from")
       ->required();
 
-  app.add_flag("-f,--force", cli.force, "Overwrite any existing output file!");
-
   app.add_flag("--sort-by-count", cli.sort_by_count,
-               "Sort by count (descending). Default is sort by hash.");
+               "Sort by count (descending). Default is to sort by hash (ascending).");
 
-  app.add_option("--max-memory", cli.max_memory,
-                 std::format("Use this maximum number of megabytes to sort each chunk of the "
-                             "database. (default = {}MB)",
-                             cli.max_memory));
-}
-
-std::ifstream get_input_stream(const std::string& input_filename) {
-  auto input_stream = std::ifstream(input_filename);
-  if (!input_stream) {
-    throw std::runtime_error(std::format("Error opening '{}' for reading. Because: \"{}\".\n",
-                                         input_filename,
-                                         std::strerror(errno))); // NOLINT errno
-  }
-  return input_stream;
-}
-
-std::ofstream get_output_stream(const std::string& output_filename, bool force) {
-  if (!force && std::filesystem::exists(output_filename)) {
-    throw std::runtime_error(
-        std::format("File '{}' exists. Use `--force` to overwrite.", output_filename));
-  }
-
-  auto output_stream = std::ofstream(output_filename, std::ios_base::binary);
-  if (!output_stream) {
-    throw std::runtime_error(std::format("Error opening '{}' for writing. Because: \"{}\".\n",
-                                         output_filename,
-                                         std::strerror(errno))); // NOLINT errno
-  }
-  return output_stream;
+  app.add_option(
+      "--max-memory", cli.max_memory,
+      std::format("The maximum size of each chunk to sort in memory (in MB). The peak memory "
+                  "consumption of the process will be about two times this value. Smaller values "
+                  "will, result in more chunks being written to disk, which is slower."
+                  "(default = {}MB)",
+                  cli.max_memory));
 }
 
 int main(int argc, char* argv[]) {
   cli_config_t cli;
 
-  CLI::App app;
+  CLI::App app("Specialised disk sort for binary HIBP databases.");
   define_options(app, cli);
   CLI11_PARSE(app, argc, argv);
 
