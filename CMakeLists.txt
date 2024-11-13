@@ -56,7 +56,6 @@ set(BUILD_SHARED_LIBS OFF)
 
 set(CLI11_PRECOMPILED ON) # improves compile speed by ~2x
 add_subdirectory(ext/CLI11)
-target_precompile_headers(CLI11 INTERFACE [["CLI/CLI.hpp"]]) # INTERFACE, because perpetuate to clients of this lib
 
 add_library(sha1 ext/hash-library/sha1.cpp)
 target_include_directories(sha1 INTERFACE ext/hash-library)
@@ -78,7 +77,6 @@ find_package(TBB REQUIRED)
 add_library(flat_file INTERFACE)
 target_include_directories(flat_file INTERFACE include)
 target_compile_features(flat_file INTERFACE cxx_std_20)
-target_precompile_headers(flat_file INTERFACE [["flat_file.hpp"]]) # INTERFACE, because perpetuate to clients of this lib
 
 if (MSVC)
   target_link_libraries(flat_file INTERFACE tBB::tbb)
@@ -104,7 +102,6 @@ if (NOT MSVC)
   endif()
   target_compile_options(expected-lite INTERFACE -Wno-missing-noreturn)
 endif()
-target_precompile_headers(restinio INTERFACE [["restinio/core.hpp"]]) # INTERFACE, because perpetuate to clients of this lib
 
 add_executable(hibp_search app/hibp_search.cpp src/toc.cpp)
 target_compile_features(hibp_search PRIVATE cxx_std_20)
@@ -124,17 +121,14 @@ endif()
 add_executable(hibp_sort app/hibp_sort.cpp)
 target_compile_options(hibp_sort PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_sort PRIVATE CLI11 hibp flat_file)
-target_precompile_headers(hibp_sort REUSE_FROM hibp_search)
 
 add_executable(hibp_convert app/hibp_convert.cpp)
 target_compile_options(hibp_convert PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_convert PRIVATE CLI11 sha1 hibp flat_file)
-target_precompile_headers(hibp_convert REUSE_FROM hibp_search)
 
 add_executable(hibp_join app/hibp_join.cpp)
 target_compile_options(hibp_join PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_join PRIVATE hibp CLI11 flat_file)
-target_precompile_headers(hibp_join REUSE_FROM hibp_search)
 
 # don't seem to need these? 
 # find_package(CURL REQUIRED)
@@ -148,7 +142,17 @@ add_executable(hibp_download
 target_compile_features(hibp_download PRIVATE cxx_std_20)
 target_compile_options(hibp_download PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_download PRIVATE CLI11 curl event hibp flat_file ${CMAKE_THREAD_LIBS_INIT})
-target_precompile_headers(hibp_download REUSE_FROM hibp_search)
+
+if (NOT CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+  target_precompile_headers(CLI11 INTERFACE [["CLI/CLI.hpp"]]) # INTERFACE, because perpetuate to clients of this lib
+  target_precompile_headers(flat_file INTERFACE [["flat_file.hpp"]]) # INTERFACE, because perpetuate to clients of this lib
+  target_precompile_headers(restinio INTERFACE [["restinio/core.hpp"]]) # INTERFACE, because perpetuate to clients of this lib
+
+  target_precompile_headers(hibp_sort REUSE_FROM hibp_search)
+  target_precompile_headers(hibp_convert REUSE_FROM hibp_search)
+  target_precompile_headers(hibp_join REUSE_FROM hibp_search)
+  target_precompile_headers(hibp_download REUSE_FROM hibp_search)
+endif()
 
 option(HIBP_TEST "Enable HIBP tests" OFF)
 if(HIBP_TEST)
