@@ -33,7 +33,13 @@ USAGE=$(cat <<-END
 END
 )
 
-options=$(getopt --options hvc:b:t:pg --long help,verbose,compiler:,buildtype:,targets:,purge,generate-only,clean-first -- "$@")
+GETOPT=getopt
+if command -v /usr/local/bin/getopt > /dev/null 2>&1
+then
+    GETOPT='/usr/local/bin/getopt'
+fi
+
+options=$($GETOPT --options hvc:b:t:pg --long help,verbose,compiler:,buildtype:,targets:,purge,generate-only,clean-first -- "$@")
 
 eval set -- "$options"
 while true; do

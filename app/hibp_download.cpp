@@ -1,13 +1,16 @@
 #include "CLI/CLI.hpp"
 #include "download/queuemgt.hpp"
 #include "download/shared.hpp"
+#include "flat_file.hpp"
 #include "hibp.hpp"
 #include <cstddef>
 #include <cstdlib>
+#include <cstring>
 #include <curl/curl.h>
 #include <curl/easy.h>
 #include <curl/multi.h>
 #include <event2/event.h>
+#include <exception>
 #include <filesystem>
 #include <format>
 #include <fstream>

@@ -4,6 +4,7 @@
 #include <compare>
 #include <cstddef>
 #include <curl/curl.h>
+#include <iostream>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -60,7 +61,8 @@ struct thread_logger {
   void log(const std::string& msg) const {
     if (debug) {
       std::lock_guard lk(cerr_mutex);
-      auto            timestamp = std::chrono::high_resolution_clock::now();
+      // can't portably use high resolution clock here
+      auto timestamp = std::chrono::system_clock::now();
       std::cerr << std::format("{:%Y-%m-%d %H:%M:%S} thread: {:>9}: {}\n", timestamp,
                                thrnames[std::this_thread::get_id()], msg);
     }

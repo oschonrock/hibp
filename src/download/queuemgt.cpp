@@ -1,12 +1,14 @@
 #include "download/queuemgt.hpp"
 #include "download/requests.hpp"
 #include "download/shared.hpp"
+#include "flat_file.hpp"
 #include "hibp.hpp"
 #include <chrono>
 #include <condition_variable>
 #include <cstddef>
 #include <cstdlib>
 #include <exception>
+#include <filesystem>
 #include <format>
 #include <iostream>
 #include <memory>
@@ -82,7 +84,7 @@ void print_progress() {
     std::lock_guard lk(cerr_mutex);
     auto            files_todo = cli.index_limit - start_index;
     std::cerr << std::format("Elapsed: {:%H:%M:%S}  Progress: {} / {} files  {:.1f}MB/s  {:5.1f}%  "
-                             "  Write queue size: {}\r",
+                             "  Write queue size: {:4d}\r",
                              elapsed_trunc, files_processed, files_todo,
                              static_cast<double>(bytes_processed) / (1U << 20U) / elapsed_sec,
                              100.0 * static_cast<double>(files_processed) /

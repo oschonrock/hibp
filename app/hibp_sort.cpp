@@ -1,3 +1,4 @@
+#include "CLI/CLI.hpp"
 #include "flat_file.hpp"
 #include "hibp.hpp"
 #include <cstdlib>
