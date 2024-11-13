@@ -1,6 +1,7 @@
 #include "download/requests.hpp"
 #include "download/download.hpp"
 #include "download/shared.hpp"
+#include <cstddef>
 #include <cstdlib>
 #include <curl/curl.h>
 #include <curl/multi.h>
@@ -10,12 +11,14 @@
 #include <iterator>
 #include <memory>
 #include <mutex>
-#include <queue>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
-static std::queue<std::unique_ptr<download>> download_queue; // NOLINT non-const-global
+static std::unordered_map<std::size_t,
+                          std::unique_ptr<download>> // double indirection, strictly unecessary
+    download_queue;                                  // NOLINT non-const-global
 
 static CURLM*        curl_multi_handle; // NOLINT non-const-global
 static struct event* timeout;           // NOLINT non-const-global
@@ -49,10 +52,15 @@ static void destroy_curl_context(curl_context_t* context) {
 static std::size_t write_data_curl_cb(char* ptr, std::size_t size, std::size_t nmemb,
                                       void* userdata);
 
-void add_download(const std::string& prefix) {
-  auto url = "https://api.pwnedpasswords.com/range/" + prefix;
+void add_download(std::size_t index) {
+  auto [dl_iter, inserted] =
+      download_queue.insert(std::make_pair(index, std::make_unique<download>(index)));
 
-  auto& dl = download_queue.emplace(std::make_unique<download>(prefix));
+  if (!inserted) {
+    throw std::runtime_error(std::format("unexpected condition: index {} already existed", index));
+  }
+  auto& dl  = dl_iter->second;
+  auto  url = "https://api.pwnedpasswords.com/range/" + dl->prefix;
 
   CURL* easy = curl_easy_init();
   curl_easy_setopt(easy, CURLOPT_PIPEWAIT, 1L); // wait for multiplexing! key for perf
@@ -69,31 +77,11 @@ void add_download(const std::string& prefix) {
 
 void fill_download_queue() {
   while (download_queue.size() != cli.parallel_max && next_prefix != cli.prefix_limit) {
-    auto prefix = std::format("{:05X}", next_prefix++);
-    add_download(prefix);
+    add_download(next_prefix++);
   }
 }
 
-static void process_completed_download_queue_entries() {
-  logger.log(std::format("download_queue.size() = {}", download_queue.size()));
-  logger.log(std::format("front.complete = {}", download_queue.front()->complete));
-  enq_msg_t msg;
-  while (!download_queue.empty()) {
-    auto& front = download_queue.front();
-    if (!front->complete) {
-      break; // these must be done in order, so we don't have to sort afterwards
-    }
-    logger.log(std::format("shuffling {}", front->prefix));
-    msg.emplace_back(std::move(front)); // batch up to avoid mutex too many times
-    download_queue.pop();
-  }
-  if (!msg.empty()) {
-    enqueue_downloads_for_writing(std::move(msg));
-  }
-  fill_download_queue();
-}
-
-static bool process_curl_done_msg(CURLMsg* message) {
+static void process_curl_done_msg(CURLMsg* message, enq_msg_t& msg) {
   CURL* easy_handle = message->easy_handle;
 
   auto result = message->data.result;
@@ -103,11 +91,12 @@ static bool process_curl_done_msg(CURLMsg* message) {
   curl_multi_remove_handle(curl_multi_handle, easy_handle);
 
   if (result == CURLE_OK) {
-    dl->complete = true;
-    logger.log(std::format("setting '{}' complete = {}", dl->prefix, dl->complete));
+    auto nh = download_queue.extract(dl->index);
+    logger.log(std::format("download {} complete. batching up into message", dl->prefix));
+    msg.emplace_back(std::move(nh.mapped())); // batch up to avoid mutex too many times
     curl_easy_cleanup(easy_handle);
     dl->easy = nullptr; // prevent further attempts at cleanup
-    return true;        // successful completion
+    return;
   }
 
   if (dl->retries_left == 0) {
@@ -125,19 +114,18 @@ static bool process_curl_done_msg(CURLMsg* message) {
                              curl_easy_strerror(message->data.result), dl->retries_left);
   }
   curl_multi_add_handle(curl_multi_handle, easy_handle); // try again with same handle
-
-  return false; // no successful completion
 }
 
 static void process_curl_messages() {
   CURLMsg* message = nullptr;
   int      pending = 0;
 
-  bool found_successful_completions = false;
+  enq_msg_t msg;
+  msg.reserve(16); // avoid many early small allocations
   while ((message = curl_multi_info_read(curl_multi_handle, &pending)) != nullptr) {
     switch (message->msg) {
     case CURLMSG_DONE:
-      found_successful_completions |= process_curl_done_msg(message);
+      process_curl_done_msg(message, msg);
       break;
 
     default:
@@ -145,9 +133,10 @@ static void process_curl_messages() {
       break;
     }
   }
-  if (found_successful_completions) {
-    process_completed_download_queue_entries();
+  if (!msg.empty()) {
+    enqueue_downloads_for_writing(std::move(msg));
   }
+  fill_download_queue();
 }
 
 // event callbacks
@@ -289,8 +278,9 @@ void shutdown_curl_and_events() {
 
 void curl_and_event_cleanup() {
   event_base_loopbreak(base); // not sure if required, but to be safe
-  while (!download_queue.empty()) {
-    auto& dl = download_queue.front();
+
+  for (auto& dl_item: download_queue) {
+    auto& dl = dl_item.second;
     if (dl->easy != nullptr) {
       if (auto res = curl_multi_remove_handle(curl_multi_handle, dl->easy); res != CURLM_OK) {
         std::cerr << std::format("error in curl_multi_remove_handle(): '{}'\n",
@@ -298,7 +288,11 @@ void curl_and_event_cleanup() {
       }
       curl_easy_cleanup(dl->easy);
     }
-    download_queue.pop();
   }
+  download_queue.clear(); // more efficient to clear all at once
+
+  // todo.. also cleanup msq_queue and process_queue?? maybe not required, because
+  // curl_easy_cleanup(dl->easy) has already been called
+
   shutdown_curl_and_events();
 }

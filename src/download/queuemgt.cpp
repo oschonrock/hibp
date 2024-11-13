@@ -3,6 +3,7 @@
 #include "download/shared.hpp"
 #include <chrono>
 #include <condition_variable>
+#include <cstddef>
 #include <cstdlib>
 #include <curl/curl.h>
 #include <curl/multi.h>
@@ -21,7 +22,36 @@
 
 // queue management
 
-// We have 2 queues. Both queues are managed by the main thread
+// We have 2 threads:
+//
+// 1. the `requests` thread, which handles the curl/libevent event
+// loop to affect the downloads and which manages the `download_queue`
+//
+// 2. the `queuemgt` thread, which manages the `process_queue` and
+// writes the downloads to disk.
+
+// We have 3 queues:
+//
+// 1. `download_queue` managed by `requests.cpp` (the `requests` thread),
+// contains the current set of parallel downloads. the `download`
+// struct contains a `complete` flag. `requests.cpp` sets this when
+// curl/libevent signal that the download is complete, but it does not
+// send an `enq_msg_t` message to queuemgt.cpp (running in the main
+// thread), until the `front` item in its `download_queue` is
+// `complete`. This is done such that the `enq_msg_t`s are sent in the
+// order that they are scheduled. Actually maybe this should be
+// reviewed, such that this "ordering" function is some by the done by
+// the main thread (here in `queuemgt.cpp`, maybe by using a
+// `std::priority_queue`), because otherwise, the `complete` but not
+// yet at front of queue `download` slots in `download_queue` are
+// reducing the parallelism that `reuests` thread is able to achieve.
+//
+// 2. `process_queue`, managed by queuemgt.cpp (the `queuemgt`
+// thread), contains the completed downloads in order. The `queuemgt`
+// thread, takes items from this queue and writes them to disk. The
+// items are already in the correct order.
+
+// Both queues are managed by the main thread
 //
 // we feed process_queue from download_queue to be able to unclock curl thread ASAP
 // before we do the hard work of converting to binary format and writing to disk
@@ -38,7 +68,12 @@
 using clk = std::chrono::high_resolution_clock;
 static clk::time_point start_time; // NOLINT non-const-global, used in main()
 
-static std::queue<std::unique_ptr<download>> process_queue; // NOLINT non-const-global
+static auto process_queue_compare = [](const auto& a, auto& b) { // NOLINT non-const-global
+  return *a > *b; // smallest first (logic inverted in std::priority_queue)
+};
+static std::priority_queue<std::unique_ptr<download>, std::vector<std::unique_ptr<download>>,
+                           decltype(process_queue_compare)>
+    process_queue(process_queue_compare); // NOLINT non-const-global
 
 static std::mutex              msgmutex;             // NOLINT non-const-global
 static std::queue<enq_msg_t>   msg_queue;            // NOLINT non-const-global
@@ -94,7 +129,7 @@ static std::size_t write_lines(write_fn_t& write_fn, download& dl) {
 void enqueue_downloads_for_writing(enq_msg_t&& msg) {
   {
     std::lock_guard lk(msgmutex);
-    logger.log("message received");
+    logger.log(std::format("message received: msg.size() = {}", msg.size()));
     msg_queue.emplace(std::move(msg));
   }
   msg_cv.notify_one();
@@ -108,13 +143,15 @@ void finished_downloads() {
 // end of msg API
 
 void service_queue(write_fn_t& write_fn) {
+  std::size_t next_process_index = 0;
+
   while (true) {
     std::unique_lock lk(msgmutex);
     msg_cv.wait(lk, [] { return !msg_queue.empty() || finished_dls; });
 
     while (!msg_queue.empty()) {
       auto& msg = msg_queue.front();
-      logger.log("processing msg");
+      logger.log(std::format("processing message: msg.size() = {}", msg.size()));
       for (auto& dl: msg) {
         process_queue.emplace(std::move(dl));
       }
@@ -123,11 +160,16 @@ void service_queue(write_fn_t& write_fn) {
     lk.unlock(); // free up other thread to pass us more messages
 
     // there is no contention on this queue, and this is slow processing
+    logger.log(std::format("process_queue.size() = {}", process_queue.size()));
     while (!process_queue.empty()) {
-      auto& front = process_queue.front();
-      logger.log(std::format("service_queue: writing prefix = {}", front->prefix));
-      write_lines(write_fn, *front);
+      const auto& top = process_queue.top();
+      if (top->index != next_process_index) {
+        break; // must wait for an earlier batch
+      }
+      logger.log(std::format("service_queue: writing prefix = {}", top->prefix));
+      write_lines(write_fn, *top);
       process_queue.pop();
+      next_process_index++;
       files_processed++;
       print_progress();
     }
