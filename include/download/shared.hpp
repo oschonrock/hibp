@@ -60,9 +60,7 @@ struct thread_logger {
   void log(const std::string& msg) const {
     if (debug) {
       std::lock_guard lk(cerr_mutex);
-      auto            timestamp = std::chrono::high_resolution_clock::now();
-      std::cerr << std::format("{:%Y-%m-%d %H:%M:%S} thread: {:>9}: {}\n", timestamp,
-                               thrnames[std::this_thread::get_id()], msg);
+      std::cerr << std::format("thread: {:>9}: {}\n", thrnames[std::this_thread::get_id()], msg);
     }
   }
   bool debug = false;
