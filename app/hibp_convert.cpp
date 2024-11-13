@@ -10,12 +10,12 @@
 struct cli_config_t {
   std::string output_filename;
   std::string input_filename;
-  bool        force      = false;
-  bool        stdout     = false;
-  bool        stdin      = false;
-  bool        bin_to_txt = false;
-  bool        txt_to_bin = false;
-  std::size_t limit      = -1; // ie max
+  bool        force           = false;
+  bool        standard_output = false;
+  bool        standard_input  = false;
+  bool        bin_to_txt      = false;
+  bool        txt_to_bin      = false;
+  std::size_t limit           = -1; // ie max
 };
 
 void define_options(CLI::App& app, cli_config_t& cli_config) {
@@ -29,13 +29,14 @@ void define_options(CLI::App& app, cli_config_t& cli_config) {
   app.add_option("-i,--input", cli_config.input_filename,
                  "The file that the downloaded binary database will be read from");
 
-  app.add_flag("--stdin", cli_config.stdin,
-               "Instead of an input file read input from stdin. Only for text input.");
+  app.add_flag("--stdin", cli_config.standard_input,
+               "Instead of an input file read input from standard_input. Only for text input.");
 
   app.add_option("-o,--output", cli_config.output_filename,
                  "The file that the downloaded binary database will be written to");
 
-  app.add_flag("--stdout", cli_config.stdout, "Instead of an output file write output to stdout.");
+  app.add_flag("--stdout", cli_config.standard_output,
+               "Instead of an output file write output to standard output.");
 
   app.add_option("-l,--limit", cli_config.limit,
                  "The maximum number of records that will be converted (default: all)");
@@ -78,8 +79,7 @@ void txt_to_bin(std::istream& input_stream, std::ostream& output_stream, std::si
   }
 }
 
-void bin_to_txt(const std::string& input_filename, std::ostream& output_stream,
-                     std::size_t limit) {
+void bin_to_txt(const std::string& input_filename, std::ostream& output_stream, std::size_t limit) {
 
   flat_file::database<hibp::pawned_pw> db{input_filename, 4096 / sizeof(hibp::pawned_pw)};
 
@@ -105,34 +105,36 @@ int main(int argc, char* argv[]) {
           "Please use exactly one of --bin-to-txt and --txt-to-bin, not both, and not neither.");
     }
 
-    if ((!cli.input_filename.empty() && cli.stdin) || (cli.input_filename.empty() && !cli.stdin)) {
+    if ((!cli.input_filename.empty() && cli.standard_input) ||
+        (cli.input_filename.empty() && !cli.standard_input)) {
       throw std::runtime_error(
           "Please use exactly one of -i|--input and --stdin, not both, and not neither.");
     }
 
-    if (cli.bin_to_txt && cli.stdin) {
-      throw std::runtime_error("Sorry, cannot read binary database from stdin. Please use a file.");
+    if (cli.bin_to_txt && cli.standard_input) {
+      throw std::runtime_error(
+          "Sorry, cannot read binary database from standard_input. Please use a file.");
     }
 
-    if ((!cli.output_filename.empty() && cli.stdout) ||
-        (cli.output_filename.empty() && !cli.stdout)) {
-      throw std::runtime_error(
-          "Please use exactly one of -o|--output and --stdout, not both, and not neither.");
+    if ((!cli.output_filename.empty() && cli.standard_output) ||
+        (cli.output_filename.empty() && !cli.standard_output)) {
+      throw std::runtime_error("Please use exactly one of -o|--output and --stdout, not "
+                               "both, and not neither.");
     }
 
     std::istream* input_stream      = &std::cin;
-    std::string   input_stream_name = "stdin";
+    std::string   input_stream_name = "standard_input";
     std::ifstream ifs;
-    if (!cli.stdin) {
+    if (!cli.standard_input) {
       ifs               = get_input_stream(cli.input_filename);
       input_stream      = &ifs;
       input_stream_name = cli.input_filename;
     }
 
     std::ostream* output_stream      = &std::cout;
-    std::string   output_stream_name = "stdout";
+    std::string   output_stream_name = "standard_output";
     std::ofstream ofs;
-    if (!cli.stdout) {
+    if (!cli.standard_output) {
       ofs                = get_output_stream(cli.output_filename, cli.force);
       output_stream      = &ofs;
       output_stream_name = cli.output_filename;
