@@ -13,29 +13,29 @@
 #include <iostream>
 #include <stdexcept>
 
-void define_options(CLI::App& app, cli_config_t& cli) {
+void define_options(CLI::App& app, cli_config_t& cli_) {
 
-  app.add_option("output_db_filename", cli.output_db_filename,
+  app.add_option("output_db_filename", cli_.output_db_filename,
                  "The file that the downloaded binary database will be written to")
       ->required();
 
-  app.add_flag("--debug", cli.debug,
+  app.add_flag("--debug", cli_.debug,
                "Send verbose thread debug output to stderr. Turns off progress.");
-  app.add_flag("--progress,!--no-progress", cli.progress,
+  app.add_flag("--progress,!--no-progress", cli_.progress,
                "Show a progress meter on stderr. This is the default.");
 
-  app.add_flag("--resume", cli.resume,
+  app.add_flag("--resume", cli_.resume,
                "Attempt to resume an earlier download. Not with --text-out.");
 
-  app.add_flag("--text-out", cli.text_out,
+  app.add_flag("--text-out", cli_.text_out,
                "Output text format, rather than the default custom binary format.");
 
-  app.add_flag("--force", cli.force, "Overwrite any existing file!");
+  app.add_flag("--force", cli_.force, "Overwrite any existing file!");
 
-  app.add_option("--parallel-max", cli.parallel_max,
+  app.add_option("--parallel-max", cli_.parallel_max,
                  "The maximum number of requests that will be started concurrently (default: 300)");
 
-  app.add_option("--limit", cli.prefix_limit,
+  app.add_option("--limit", cli_.prefix_limit,
                  "The maximum number (prefix) files that will be downloaded (default: 100 000 hex "
                  "or 1 048 576 dec)");
 }

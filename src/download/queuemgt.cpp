@@ -41,10 +41,15 @@ static clk::time_point start_time; // NOLINT non-const-global, used in main()
 
 static std::queue<std::unique_ptr<download>> process_queue; // NOLINT non-const-global
 
+static std::mutex              msgmutex;             // NOLINT non-const-global
+static std::queue<enq_msg_t>   msg_queue;            // NOLINT non-const-global
+static std::condition_variable msg_cv;               // NOLINT non-const-global
+static bool                    finished_dls = false; // NOLINT non-const-global
+
 static std::size_t files_processed = 0UL; // NOLINT non-const-global
 static std::size_t bytes_processed = 0UL; // NOLINT non-const-global
 
-static cli_config_t cli;
+enum class state { handle_requests, process_queues };
 
 void print_progress() {
   if (cli.progress) {
@@ -60,35 +65,6 @@ void print_progress() {
         static_cast<double>(bytes_processed) / (1U << 20U) / elapsed_sec,
         100.0 * static_cast<double>(files_processed) / static_cast<double>(files_todo));
   }
-}
-
-static void fill_download_queue() {
-  while (download_queue.size() != cli.parallel_max &&
-         next_prefix != cli.prefix_limit) {
-    auto prefix = std::format("{:05X}", next_prefix++);
-    // safe to add_download(), which adds items to curl' internal queue structure,
-    // because main (ie this) thread only does this during state::process_queues
-    // and curl thread only examines its queue during state::handle_requests
-    add_download(prefix);
-  }
-}
-
-static void process_completed_download_queue_entries() {
-  logger.log(std::format("download_queue.size() = {}", download_queue.size()));
-  logger.log(std::format("front.complete = {}", download_queue.front()->complete));
-  while (!download_queue.empty()) {
-    auto& front = download_queue.front();
-    // safe to check complete flagwithout lock, because main (ie this) thread only does this
-    // during state::process_queues and curl thread only modifies complete flag during
-    // state::handle_requests
-    if (!front->complete) {
-      break; // these must be done in order, so we don't have to sort afterwards
-    }
-    logger.log(std::format("shuffling {}", front->prefix));
-    process_queue.push(std::move(front));
-    download_queue.pop();
-  }
-  fill_download_queue();
 }
 
 static std::size_t write_lines(write_fn_t& write_fn, download& dl) {
@@ -114,33 +90,51 @@ static std::size_t write_lines(write_fn_t& write_fn, download& dl) {
   return recordcount;
 }
 
-static void write_completed_process_queue_entries(write_fn_t& write_fn) {
-  while (!process_queue.empty()) {
-    auto& front = process_queue.front();
-    write_lines(write_fn, *front);
-    // there may exist an optimisation that retains the `download` for future add_download()
-    // so that the `buffer` allocation can be reused after being clear()'ed
-    process_queue.pop();
-    files_processed++;
-    print_progress();
+// the following 2 functions are the msg api and called from other thread(s)
+
+void enqueue_downloads_for_writing(enq_msg_t&& msg) {
+  {
+    std::lock_guard lk(msgmutex);
+    logger.log("message received");
+    msg_queue.emplace(std::move(msg));
   }
+  msg_cv.notify_one();
 }
 
+void finished_downloads() {
+  std::lock_guard lk(msgmutex);
+  finished_dls = true;
+}
+
+// end of msg API
+
 void service_queue(write_fn_t& write_fn) {
-  while (!download_queue.empty()) {
-    {
-      logger.log("waiting for curl");
-      std::unique_lock lk(thrmutex);
-      if (!tstate_cv.wait_for(lk, std::chrono::seconds(10),
-                              []() { return tstate == state::process_queues; })) {
-        throw std::runtime_error("Timed out waiting for requests thread");
+  while (true) {
+    std::unique_lock lk(msgmutex);
+    msg_cv.wait(lk, [] { return !msg_queue.empty() || finished_dls; });
+
+    while (!msg_queue.empty()) {
+      auto& msg = msg_queue.front();
+      logger.log("processing msg");
+      for (auto& dl: msg) {
+        process_queue.emplace(std::move(dl));
       }
-      process_completed_download_queue_entries(); // shuffle and fill queues
-      tstate = state::handle_requests;            // signal curl thread to continue
+      msg_queue.pop();
     }
-    logger.log("notifying curl");
-    tstate_cv.notify_one();                          // send control back to curl thread
-    write_completed_process_queue_entries(write_fn); // do slow work writing to disk
+    lk.unlock(); // free up other thread to pass us more messages
+
+    // there is no contention on this queue, and this is slow processing
+    while (!process_queue.empty()) {
+      auto& front = process_queue.front();
+      logger.log(std::format("service_queue: writing prefix = {}", front->prefix));
+      write_lines(write_fn, *front);
+      // there may exist an optimisation that retains the `download` for future add_download()
+      // so that the `buffer` allocation can be reused after being clear()'ed
+      process_queue.pop();
+      files_processed++;
+      print_progress();
+    }
+    if (finished_dls && msg_queue.empty()) break;
   }
   if (cli.progress) {
     std::cerr << "\n"; // clear line after progress if being shown, bit nasty
@@ -161,6 +155,7 @@ bool handle_exception(const std::exception_ptr& exception_ptr, std::thread::id t
 
 void run_threads(write_fn_t& write_fn, const cli_config_t& cli_config) {
   cli = cli_config;
+
   std::exception_ptr requests_exception;
   std::exception_ptr queuemgt_exception;
 
@@ -169,13 +164,12 @@ void run_threads(write_fn_t& write_fn, const cli_config_t& cli_config) {
 
   auto que_thr_id      = std::this_thread::get_id();
   thrnames[que_thr_id] = "queuemgt";
-  fill_download_queue(); // no need to lock mutex here, as curl_event thread is not running yet
-
-  tstate = state::handle_requests;
+  fill_download_queue();
 
   std::thread requests_thread([&]() {
     try {
       event_base_dispatch(base);
+      finished_downloads();
     } catch (...) {
       requests_exception = std::current_exception();
     }
@@ -196,19 +190,7 @@ void run_threads(write_fn_t& write_fn, const cli_config_t& cli_config) {
   bool ex_requests = handle_exception(requests_exception, req_thr_id);
   bool ex_queuemgt = handle_exception(queuemgt_exception, que_thr_id);
   if (ex_requests || ex_queuemgt) {
-    event_base_loopbreak(base); // not sure if required, but to be safe
-    while (!download_queue.empty()) {
-      auto& dl = download_queue.front();
-      if (dl->easy != nullptr) {
-        if (auto res = curl_multi_remove_handle(curl_multi_handle, dl->easy); res != CURLM_OK) {
-          std::cerr << std::format("error in curl_multi_remove_handle(): '{}'\n",
-                                   curl_multi_strerror(res));
-        }
-        curl_easy_cleanup(dl->easy);
-      }
-      download_queue.pop();
-    }
-    shutdown_curl_and_events();
+    curl_and_event_cleanup();
     throw std::runtime_error("Thread exceptions thrown as above. Sorry, we are aborting. You can "
                              "try rerunning with `--resume`");
   }

@@ -94,14 +94,14 @@ private:
 // offer 2 writers
 // must keep each alive while running
 
-void run_threads_text(std::ostream& output_db_stream, const cli_config_t& cli) {
+void run_threads_text(std::ostream& output_db_stream, const cli_config_t& cli_) {
   auto       tw         = text_writer(output_db_stream);
   write_fn_t write_func = {[&](const std::string& line) { tw.write(line); }};
-  run_threads(write_func, cli);
+  run_threads(write_func, cli_);
 }
 
-void run_threads_ff(std::ostream& output_db_stream, const cli_config_t& cli) {
+void run_threads_ff(std::ostream& output_db_stream, const cli_config_t& cli_) {
   auto       ffsw       = flat_file::stream_writer<hibp::pawned_pw>(output_db_stream);
   write_fn_t write_func = {[&](const std::string& line) { ffsw.write(line); }};
-  run_threads(write_func, cli);
+  run_threads(write_func, cli_);
 }

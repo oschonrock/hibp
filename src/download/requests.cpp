@@ -1,4 +1,5 @@
 #include "download/requests.hpp"
+#include "download/download.hpp"
 #include "download/shared.hpp"
 #include <chrono>
 #include <condition_variable>
@@ -73,6 +74,8 @@
 // high volume concurrent requests using curl multi and libevent
 // curl internal queue management and event driven callbacks
 
+static std::queue<std::unique_ptr<download>> download_queue; // NOLINT non-const-global
+
 CURLM*               curl_multi_handle; // NOLINT non-const-global
 static struct event* timeout;           // NOLINT non-const-global
 
@@ -119,6 +122,38 @@ void add_download(const std::string& prefix) {
   curl_easy_setopt(easy, CURLOPT_LOW_SPEED_LIMIT, 1000L);
   curl_multi_add_handle(curl_multi_handle, easy);
   dl->easy = easy;
+}
+
+void fill_download_queue() {
+  while (download_queue.size() != cli.parallel_max && next_prefix != cli.prefix_limit) {
+    auto prefix = std::format("{:05X}", next_prefix++);
+    // safe to add_download(), which adds items to curl' internal queue structure,
+    // because main (ie this) thread only does this during state::process_queues
+    // and curl thread only examines its queue during state::handle_requests
+    add_download(prefix);
+  }
+}
+
+static void process_completed_download_queue_entries() {
+  logger.log(std::format("download_queue.size() = {}", download_queue.size()));
+  logger.log(std::format("front.complete = {}", download_queue.front()->complete));
+  enq_msg_t msg;
+  while (!download_queue.empty()) {
+    auto& front = download_queue.front();
+    // safe to check complete flagwithout lock, because main (ie this) thread only does this
+    // during state::process_queues and curl thread only modifies complete flag during
+    // state::handle_requests
+    if (!front->complete) {
+      break; // these must be done in order, so we don't have to sort afterwards
+    }
+    logger.log(std::format("shuffling {}", front->prefix));
+    msg.emplace_back(std::move(front)); // batch up to avoid mutex too many times
+    download_queue.pop();
+  }
+  if (!msg.empty()) {
+    enqueue_downloads_for_writing(std::move(msg));
+  }
+  fill_download_queue();
 }
 
 static bool process_curl_done_msg(CURLMsg* message) {
@@ -177,22 +212,7 @@ static void process_curl_messages() {
     }
   }
   if (found_successful_completions) {
-    {
-      std::lock_guard lk(thrmutex);
-      tstate = state::process_queues;
-    }
-    logger.log("notifying main");
-    tstate_cv.notify_one();
-
-    // must pause this thread here, as otherwise the callbacks could fire any time
-    // and access curls internal queue structures which could still be being modified
-    // by queuemgt thread
-    std::unique_lock lk(thrmutex);
-    logger.log("waiting for main");
-    if (!tstate_cv.wait_for(lk, std::chrono::seconds(10),
-                            []() { return tstate == state::handle_requests; })) {
-      throw std::runtime_error("Timed out waiting for queuemgt thread");
-    }
+    process_completed_download_queue_entries();
   }
 }
 
@@ -329,4 +349,20 @@ void shutdown_curl_and_events() {
 
   libevent_global_shutdown();
   curl_global_cleanup();
+}
+
+void curl_and_event_cleanup() {
+  event_base_loopbreak(base); // not sure if required, but to be safe
+  while (!download_queue.empty()) {
+    auto& dl = download_queue.front();
+    if (dl->easy != nullptr) {
+      if (auto res = curl_multi_remove_handle(curl_multi_handle, dl->easy); res != CURLM_OK) {
+        std::cerr << std::format("error in curl_multi_remove_handle(): '{}'\n",
+                                 curl_multi_strerror(res));
+      }
+      curl_easy_cleanup(dl->easy);
+    }
+    download_queue.pop();
+  }
+  shutdown_curl_and_events();
 }

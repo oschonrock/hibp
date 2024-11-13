@@ -3,8 +3,8 @@
 #include <condition_variable>
 #include <cstddef>
 #include <curl/curl.h>
+#include <memory>
 #include <mutex>
-#include <queue>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -26,6 +26,11 @@ struct download {
   bool              complete     = false;
 };
 
+using enq_msg_t = std::vector<std::unique_ptr<download>>;
+void enqueue_downloads_for_writing(enq_msg_t&& msg);
+
+void finished_downloads();
+
 struct cli_config_t {
   std::string output_db_filename;
   bool        debug        = false;
@@ -37,15 +42,7 @@ struct cli_config_t {
   std::size_t parallel_max = 300;
 };
 
-enum class state { handle_requests, process_queues };
-
 // vars shared across threads
-
-extern std::queue<std::unique_ptr<download>> download_queue; // NOLINT non-const-global
-
-extern std::mutex              thrmutex;  // NOLINT non-const-global
-extern std::condition_variable tstate_cv; // NOLINT non-const-global
-extern state                   tstate;    // NOLINT non-const-global
 
 extern struct event_base* base;              // NOLINT non-const-global
 extern CURLM*             curl_multi_handle; // NOLINT non-const-global
@@ -53,6 +50,8 @@ extern CURLM*             curl_multi_handle; // NOLINT non-const-global
 extern std::mutex cerr_mutex; // NOLINT non-const-global
 
 extern std::unordered_map<std::thread::id, std::string> thrnames; // NOLINT non-const-global
+
+extern cli_config_t cli; // NOLINT non-const-global
 
 // simple logging
 
