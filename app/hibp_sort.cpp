@@ -2,8 +2,8 @@
 #include "flat_file.hpp"
 #include "hibp.hpp"
 #include <cstdlib>
+#include <exception>
 #include <iostream>
-#include <stdexcept>
 #include <string>
 
 struct cli_config_t {

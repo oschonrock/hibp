@@ -4,18 +4,18 @@
 #include "flat_file.hpp"
 #include "hibp.hpp"
 #include <cstddef>
-#include <cstring>
 #include <cstdlib>
+#include <cstring>
 #include <curl/curl.h>
 #include <curl/easy.h>
 #include <curl/multi.h>
 #include <event2/event.h>
+#include <exception>
 #include <filesystem>
 #include <format>
 #include <fstream>
 #include <ios>
 #include <iostream>
-#include <exception>
 #include <stdexcept>
 
 void define_options(CLI::App& app, cli_config_t& cli_) {
