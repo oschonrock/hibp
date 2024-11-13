@@ -30,6 +30,8 @@ using enq_msg_t = std::vector<std::unique_ptr<download>>;
 void enqueue_downloads_for_writing(enq_msg_t&& msg);
 void finished_downloads();
 
+// app wide cli_config
+
 struct cli_config_t {
   std::string output_db_filename;
   bool        debug        = false;
@@ -41,14 +43,12 @@ struct cli_config_t {
   std::size_t parallel_max = 300;
 };
 
-// vars shared across threads
-
 extern cli_config_t cli; // NOLINT non-const-global
+
+// simple logging
 
 extern std::mutex                                       cerr_mutex; // NOLINT non-const-global
 extern std::unordered_map<std::thread::id, std::string> thrnames;   // NOLINT non-const-global
-
-// simple logging
 
 struct thread_logger {
   void log(const std::string& msg) const {

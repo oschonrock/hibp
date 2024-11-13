@@ -1,6 +1,7 @@
 #include "CLI/CLI.hpp"
 #include "download/download.hpp"
 #include "download/shared.hpp"
+#include "hibp.hpp"
 #include <cstdlib>
 #include <curl/curl.h>
 #include <curl/easy.h>
@@ -41,7 +42,7 @@ void define_options(CLI::App& app, cli_config_t& cli_) {
 }
 
 thread_logger logger; // NOLINT non-const-global
-cli_config_t cli; // NOLINT non-const-global
+cli_config_t  cli;    // NOLINT non-const-global
 
 int main(int argc, char* argv[]) {
 
@@ -58,8 +59,7 @@ int main(int argc, char* argv[]) {
       throw std::runtime_error("can't use `--resume` and `--text-out` together");
     }
 
-    if (!cli.resume && !cli.force &&
-        std::filesystem::exists(cli.output_db_filename)) {
+    if (!cli.resume && !cli.force && std::filesystem::exists(cli.output_db_filename)) {
       throw std::runtime_error(std::format("File '{}' exists. Use `--force` to overwrite, or "
                                            "`--resume` to resume a previous download.",
                                            cli.output_db_filename));
@@ -87,9 +87,12 @@ int main(int argc, char* argv[]) {
                                            std::strerror(errno))); // NOLINT errno
     }
     if (cli.text_out) {
-      run_threads_text(output_db_stream);
+      auto tw = text_writer(output_db_stream);
+      run_downloads([&](const std::string& line) { tw.write(line); });
+
     } else {
-      run_threads_ff(output_db_stream);
+      auto ffsw = flat_file::stream_writer<hibp::pawned_pw>(output_db_stream);
+      run_downloads([&](const std::string& line) { ffsw.write(line); });
     }
 
   } catch (const std::exception& e) {

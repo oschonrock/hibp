@@ -1,13 +1,10 @@
 #include "download/download.hpp"
-#include "download/queuemgt.hpp"
 #include "download/requests.hpp"
-#include "download/shared.hpp"
 #include "flat_file.hpp"
 #include "hibp.hpp"
 #include <cstddef>
 #include <filesystem>
 #include <iterator>
-#include <ostream>
 #include <string>
 
 std::size_t start_prefix = 0x0UL; // NOLINT non-cost-gobal
@@ -77,31 +74,3 @@ std::size_t get_last_prefix(const std::string& filename) {
   return last_prefix - 1;
 }
 
-// alternative simple text writer
-
-struct text_writer {
-  explicit text_writer(std::ostream& os) : os_(os) {}
-  void write(const std::string& line) {
-    os_.write(line.c_str(), static_cast<std::streamsize>(line.length()));
-    os_.write("\n", 1);
-  }
-
-private:
-  std::ostream& os_; // NOLINT reference
-};
-
-// provide simple interface to main
-// offer 2 writers
-// must keep each alive while running
-
-void run_threads_text(std::ostream& output_db_stream) {
-  auto       tw         = text_writer(output_db_stream);
-  write_fn_t write_func = {[&](const std::string& line) { tw.write(line); }};
-  run_threads(write_func);
-}
-
-void run_threads_ff(std::ostream& output_db_stream) {
-  auto       ffsw       = flat_file::stream_writer<hibp::pawned_pw>(output_db_stream);
-  write_fn_t write_func = {[&](const std::string& line) { ffsw.write(line); }};
-  run_threads(write_func);
-}

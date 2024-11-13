@@ -1,4 +1,3 @@
-#include "download/queuemgt.hpp"
 #include "download/download.hpp"
 #include "download/requests.hpp"
 #include "download/shared.hpp"
@@ -128,8 +127,6 @@ void service_queue(write_fn_t& write_fn) {
       auto& front = process_queue.front();
       logger.log(std::format("service_queue: writing prefix = {}", front->prefix));
       write_lines(write_fn, *front);
-      // there may exist an optimisation that retains the `download` for future add_download()
-      // so that the `buffer` allocation can be reused after being clear()'ed
       process_queue.pop();
       files_processed++;
       print_progress();
@@ -153,7 +150,7 @@ bool handle_exception(const std::exception_ptr& exception_ptr, std::thread::id t
   return false;
 }
 
-void run_threads(write_fn_t& write_fn) {
+void run_downloads(write_fn_t write_fn) {
 
   std::exception_ptr requests_exception;
   std::exception_ptr queuemgt_exception;

@@ -70,9 +70,6 @@ void add_download(const std::string& prefix) {
 void fill_download_queue() {
   while (download_queue.size() != cli.parallel_max && next_prefix != cli.prefix_limit) {
     auto prefix = std::format("{:05X}", next_prefix++);
-    // safe to add_download(), which adds items to curl' internal queue structure,
-    // because main (ie this) thread only does this during state::process_queues
-    // and curl thread only examines its queue during state::handle_requests
     add_download(prefix);
   }
 }
@@ -83,9 +80,6 @@ static void process_completed_download_queue_entries() {
   enq_msg_t msg;
   while (!download_queue.empty()) {
     auto& front = download_queue.front();
-    // safe to check complete flagwithout lock, because main (ie this) thread only does this
-    // during state::process_queues and curl thread only modifies complete flag during
-    // state::handle_requests
     if (!front->complete) {
       break; // these must be done in order, so we don't have to sort afterwards
     }
@@ -109,9 +103,6 @@ static bool process_curl_done_msg(CURLMsg* message) {
   curl_multi_remove_handle(curl_multi_handle, easy_handle);
 
   if (result == CURLE_OK) {
-    // safe to change complete flag without lock, because main thread only accesses dl->complete
-    // during state::process_queues and we only process new messages (ie this code) during
-    // state::handle_requests
     dl->complete = true;
     logger.log(std::format("setting '{}' complete = {}", dl->prefix, dl->complete));
     curl_easy_cleanup(easy_handle);
