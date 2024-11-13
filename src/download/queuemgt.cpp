@@ -153,8 +153,7 @@ bool handle_exception(const std::exception_ptr& exception_ptr, std::thread::id t
   return false;
 }
 
-void run_threads(write_fn_t& write_fn, const cli_config_t& cli_config) {
-  cli = cli_config;
+void run_threads(write_fn_t& write_fn) {
 
   std::exception_ptr requests_exception;
   std::exception_ptr queuemgt_exception;
@@ -168,7 +167,7 @@ void run_threads(write_fn_t& write_fn, const cli_config_t& cli_config) {
 
   std::thread requests_thread([&]() {
     try {
-      event_base_dispatch(base);
+      run_event_loop();
       finished_downloads();
     } catch (...) {
       requests_exception = std::current_exception();

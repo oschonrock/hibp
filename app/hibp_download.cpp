@@ -41,9 +41,9 @@ void define_options(CLI::App& app, cli_config_t& cli_) {
 }
 
 thread_logger logger; // NOLINT non-const-global
+cli_config_t cli; // NOLINT non-const-global
 
 int main(int argc, char* argv[]) {
-  cli_config_t cli; // NOLINT non-const-global
 
   CLI::App app;
   define_options(app, cli);
@@ -87,9 +87,9 @@ int main(int argc, char* argv[]) {
                                            std::strerror(errno))); // NOLINT errno
     }
     if (cli.text_out) {
-      run_threads_text(output_db_stream, cli);
+      run_threads_text(output_db_stream);
     } else {
-      run_threads_ff(output_db_stream, cli);
+      run_threads_ff(output_db_stream);
     }
 
   } catch (const std::exception& e) {

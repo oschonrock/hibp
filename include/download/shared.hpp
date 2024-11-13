@@ -1,6 +1,5 @@
 #pragma once
 
-#include <condition_variable>
 #include <cstddef>
 #include <curl/curl.h>
 #include <memory>
@@ -26,9 +25,9 @@ struct download {
   bool              complete     = false;
 };
 
+// thread messaging API
 using enq_msg_t = std::vector<std::unique_ptr<download>>;
 void enqueue_downloads_for_writing(enq_msg_t&& msg);
-
 void finished_downloads();
 
 struct cli_config_t {
@@ -44,14 +43,10 @@ struct cli_config_t {
 
 // vars shared across threads
 
-extern struct event_base* base;              // NOLINT non-const-global
-extern CURLM*             curl_multi_handle; // NOLINT non-const-global
-
-extern std::mutex cerr_mutex; // NOLINT non-const-global
-
-extern std::unordered_map<std::thread::id, std::string> thrnames; // NOLINT non-const-global
-
 extern cli_config_t cli; // NOLINT non-const-global
+
+extern std::mutex                                       cerr_mutex; // NOLINT non-const-global
+extern std::unordered_map<std::thread::id, std::string> thrnames;   // NOLINT non-const-global
 
 // simple logging
 
