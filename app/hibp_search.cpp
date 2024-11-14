@@ -10,7 +10,6 @@
 #include <ratio>
 #include <string>
 
-// test2
 struct cli_config_t {
   std::string db_filename;
   std::string plain_text_password;
