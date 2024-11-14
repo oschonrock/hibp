@@ -46,11 +46,11 @@
 // from the requests thread, the main thread is notified and it
 // shuffles the contents of the messages into the process_queue. The
 // `message_queue` is the minimal communication interface between the
-// two threads. 
+// two threads.
 //
 // 3. The `process_queue` is a std::priority_queue which reorders the
 // dowloads into index order and items are only removed when the
-// `next_process_index` is at top(). 
+// `next_process_index` is at top().
 
 // we use std::unique_ptr<download> as the queue and message elements
 // throughout to keep the address of the downloads stable as they move
@@ -164,8 +164,8 @@ void service_queue(write_fn_t& write_fn, std::size_t next_index) {
       process_queue.pop();
       next_index++;
       files_processed++;
-      print_progress();
     }
+    print_progress();
     if (finished_dls && msg_queue.empty()) break;
   }
   if (cli.progress) {
@@ -226,7 +226,6 @@ void run_downloads(write_fn_t write_fn, std::size_t start_index_) {
   }
   shutdown_curl_and_events();
 }
-
 
 // utility function for --resume
 std::size_t get_last_prefix(const std::string& filename) {
