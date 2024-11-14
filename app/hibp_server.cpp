@@ -126,7 +126,7 @@ void run_server() {
   };
 
   std::cerr << std::format(
-      "Serving from {}:{}\nMake a request to http://{}:{}/check/plain/password123\nor to\n"
+      "Serving from {}:{}\nMake a request to either of\nhttp://{}:{}/check/plain/password123\n"
       "http://{}:{}/check/sha1/CBFDAC6008F9CAB4083784CBD1874F76618D2A97\n",
       cli_config.bind_address, cli_config.port, cli_config.bind_address, cli_config.port,
       cli_config.bind_address, cli_config.port);
