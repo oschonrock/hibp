@@ -70,11 +70,6 @@ int main(int argc, char* argv[]) {
 
   try {
 
-    if (cli.bin_to_txt && cli.standard_input) {
-      throw std::runtime_error(
-          "Sorry, cannot read binary database from standard_input. Please use a file.");
-    }
-
     if ((!cli.output_filename.empty() && cli.standard_output) ||
         (cli.output_filename.empty() && !cli.standard_output)) {
       throw std::runtime_error("Please use exactly one of -o|--output and --stdout, not "
