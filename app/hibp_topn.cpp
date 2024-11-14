@@ -112,21 +112,23 @@ int main(int argc, char* argv[]) {
 
     std::cerr << std::format("{:50}", "Sort by hash ascending...");
     start = clk::now();
-    std::sort(std::execution::par_unseq, output_db.begin(),
-              output_db.end()); // default sort by hash ascending
+    // default sort by hash ascending
+    std::sort(std::execution::par_unseq, output_db.begin(), output_db.end());
     stop = clk::now();
-    std::cerr << std::format("{:>10}\n", std::chrono::duration_cast<std::chrono::duration<double>>(
-                                         floor<std::chrono::milliseconds>(stop - start)));
+    std::cerr << std::format(
+        "{:9.3}s\n",
+        std::chrono::duration_cast<std::chrono::duration<double>>(stop - start).count());
 
     start = clk::now();
-    std::cerr << std::format("{:50}","Write TopN db to disk...");
+    std::cerr << std::format("{:50}", "Write TopN db to disk...");
     auto writer = flat_file::stream_writer<hibp::pawned_pw>(*output_stream);
     for (const auto& pw: output_db) {
       writer.write(pw);
     }
     stop = clk::now();
-    std::cerr << std::format("{:>10}\n", std::chrono::duration_cast<std::chrono::duration<double>>(
-                                         floor<std::chrono::milliseconds>(stop - start)));
+    std::cerr << std::format(
+        "{:9.3}s\n",
+        std::chrono::duration_cast<std::chrono::duration<double>>(stop - start).count());
 
   } catch (const std::exception& e) {
     std::cerr << std::format("Error: {}\n", e.what());
