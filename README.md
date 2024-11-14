@@ -19,27 +19,37 @@ binary format and writing to disk, takes *under 12 minutes*.
 
 On a full 1Gbit/s connection this should take *under 5 minutes*.
 
-### Peformance with a small memory footprint
+### High peformance with a small memory footprint
 
-By deafult, this set of utilities uses a binary format to store and search the
-data. The orginal text records are a 40char SHA1 + ":" + an integer
-count + CR LF. *You always ouput the conventional text version as
-well, if you prefer.*
+By deafult, this set of utilities uses a binary format to store and
+search the data. The orginal text records are about 45 bytes per
+password record, our binary format is 24 bytes, so storage
+requirements are almost halved (21GB currently).
 
-With the binary format, storage requirements are almost halved (21GB
-currently). Searches become very efficient, if the binary data is
-sorted, because we can use random access binary search. The in memory
-footprint of these utilities is also very small and measured - just a
-few megabytes.
+*If you don't like the binary format, you always ouput the
+conventional text version as well.*
+
+Now that each record is a fixed width, and the records are maintained
+in a sorted order, searches become very efficient, because we can use
+random access binary search. There is an additional "table of
+contents" feature to reduce disk access further at the expense of (dy
+default, but tunable) 2MB of memory. 
+
+The local http server component is both multi threaded and event loop
+driven for high efficiency. Even in a minimal configuration it should
+be more than sufficient to back almost any site. 
+
+The in memory footprint of these utilities is also very small and
+measured - just a few megabytes.
 
 ### How
 
 These utilities are written in C++ and centre around a `flat_file` class to model the db. 
 - mult threaded concurrency and parallelism is used in the downloader,
   the server and the sorter.
-- libcurl, libevent are used for the download
-- restinio is used for the local server
-- libtbb is used for local sorting in parallel
+- `libcurl`, `libevent` are used for the download
+- `restinio` is used for the local server, based on `ASIO` for efficient concurrency
+- libtbb is used for local sorting in `hibp-sort`
 
 ## Build environment and dependencies
 
@@ -69,7 +79,7 @@ Just to prove your build environment is good.
 ```
 You should see a bunch thread debug output, but no error and  `ls -lh hibp_sample.bin` should show ~228kB.
 
-### compile for release
+### Compile for release
 ```bash
 
 ./build.sh -c gcc -b release
@@ -77,7 +87,7 @@ You should see a bunch thread debug output, but no error and  `ls -lh hibp_sampl
 
 ## Usage
 
-### run full download: `hibp-download`
+### Run full download: `hibp-download`
 Program will download the currently ~38GB of 1million 30-40kB text files from api.haveibeenpawned.com 
 It does this using libcurl with curl_multi and 300 parallel requests on a single thread.
 With a second thread doing the conversion to binary format and writing to disk.
@@ -182,7 +192,10 @@ to OS to cache the disk.
 
 In each case for all options run `program_name --help`.
 
-## Future uses
+## Future plans
+
+- trying to it packaged: snap, .deb, .rpm and FreeBSD port are priority, then
+  windows installer. 
 
 - Considering adding a php/pyhton/javascript extension so that queries
   can be trivially made from within those scripting environments
