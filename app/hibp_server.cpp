@@ -1,6 +1,7 @@
 #include "CLI/CLI.hpp"
 #include "flat_file.hpp"
 #include "hibp.hpp"
+#include "restinio/http_headers.hpp"
 #include "sha1.h"
 #include "toc.hpp"
 #include <cstdint>
@@ -54,47 +55,67 @@ void define_options(CLI::App& app) {
                              cli_config.toc_entries));
 }
 
+auto search_and_respond(flat_file::database<hibp::pawned_pw>& db, const hibp::pawned_pw& needle,
+                        auto req) {
+  std::optional<hibp::pawned_pw> maybe_ppw;
+
+  if (cli_config.toc) {
+    maybe_ppw = toc_search(db, needle);
+  } else if (auto iter = std::lower_bound(db.begin(), db.end(), needle);
+             iter != db.end() && *iter == needle) {
+    maybe_ppw = *iter;
+  }
+
+  int count = maybe_ppw ? maybe_ppw->count : -1;
+
+  std::string content_type = cli_config.json ? "application/json" : "text/plain";
+
+  auto response = req->create_response().append_header(
+      restinio::http_field::content_type, std::format("{}; charset=utf-8", content_type));
+
+  if (cli_config.json) {
+    response.set_body(std::format("{{count:{}}}\n", count));
+  } else {
+    response.set_body(std::format("{}\n", count));
+  }
+  return response.done();
+}
+
 auto get_router(const std::string& db_filename) {
   auto router = std::make_unique<restinio::router::express_router_t<>>();
-  router->http_get(R"(/:password)", [&](auto req, auto params) {
+  router->http_get(R"(/check/:format/:password)", [&](auto req, auto params) {
     // one db object (ie set of buffers and pointers) per thread
     thread_local flat_file::database<hibp::pawned_pw> db(db_filename,
                                                          4096 / sizeof(hibp::pawned_pw));
 
-    SHA1 sha1;
-    auto pw = std::string(params["password"]);
-    if (cli_config.perf_test) {
-      pw += std::to_string(uniq++);
-    }
-    hibp::pawned_pw needle = hibp::convert_to_binary(sha1(pw));
-
-    std::optional<hibp::pawned_pw> maybe_ppw;
-
-    if (cli_config.toc) {
-      maybe_ppw = toc_search(db, needle);
-    } else if (auto iter = std::lower_bound(db.begin(), db.end(), needle);
-               iter != db.end() && *iter == needle) {
-      maybe_ppw = *iter;
+    if (params["format"] != "plain" && params["format"] != "sha1") {
+      return req->create_response(restinio::status_not_found()).connection_close().done();
     }
 
-    int count = maybe_ppw ? maybe_ppw->count : -1;
-
-    std::string content_type = cli_config.json ? "application/json" : "text/plain";
-
-    auto response = req->create_response().append_header(
-        restinio::http_field::content_type, std::format("{}; charset=utf-8", content_type));
-
-    if (cli_config.json) {
-      response.set_body(std::format("{{count:{}}}\n", count));
+    std::string sha1_txt_pw;
+    if (params["format"] == "plain") {
+      SHA1 sha1;
+      auto pw = std::string(params["password"]);
+      if (cli_config.perf_test) {
+        pw += std::to_string(uniq++);
+      }
+      sha1_txt_pw = sha1(pw);
     } else {
-      response.set_body(std::format("{}\n", count));
+      if (params["password"].size() != 40 ||
+          params["password"].find_first_not_of("0123456789ABCDEF") != std::string::npos) {
+        return req->create_response(restinio::status_bad_request()).connection_close().done();
+      }
+      sha1_txt_pw = std::string{params["password"]};
     }
-    return response.done();
+    hibp::pawned_pw needle = hibp::convert_to_binary(sha1_txt_pw);
+
+    return search_and_respond(db, needle, req);
   });
 
   router->non_matched_request_handler([](auto req) {
     return req->create_response(restinio::status_not_found()).connection_close().done();
   });
+
   return router;
 }
 
@@ -104,9 +125,11 @@ void run_server() {
     using request_handler_t = restinio::router::express_router_t<>;
   };
 
-  std::cerr << std::format("Serving from {}:{}\nMake a request to http://{}:{}/some-password\n",
-                           cli_config.bind_address, cli_config.port, cli_config.bind_address,
-                           cli_config.port);
+  std::cerr << std::format(
+      "Serving from {}:{}\nMake a request to http://{}:{}/check/plain/password123\nor to\n"
+      "http://{}:{}/check/sha1/CBFDAC6008F9CAB4083784CBD1874F76618D2A97\n",
+      cli_config.bind_address, cli_config.port, cli_config.bind_address, cli_config.port,
+      cli_config.bind_address, cli_config.port);
 
   auto settings = restinio::on_thread_pool<my_server_traits>(cli_config.threads)
                       .address(cli_config.bind_address)
