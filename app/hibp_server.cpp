@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <restinio/core.hpp>
 
+// test
 struct cli_config_t {
   std::string   db_filename;
   std::string   bind_address = "localhost";
