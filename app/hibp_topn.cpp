@@ -2,6 +2,7 @@
 #include "flat_file.hpp"
 #include "hibp.hpp"
 #include <algorithm>
+#include <chrono>
 #include <cstddef>
 #include <cstdlib>
 #include <execution>
@@ -92,25 +93,40 @@ int main(int argc, char* argv[]) {
       output_stream_name = cli.output_filename;
     }
 
-    flat_file::database<hibp::pawned_pw> db(cli.input_filename, (1U << 16U) / sizeof(hibp::pawned_pw));
+    flat_file::database<hibp::pawned_pw> db(cli.input_filename,
+                                            (1U << 16U) / sizeof(hibp::pawned_pw));
 
     std::vector<hibp::pawned_pw> output_db(cli.topn);
 
-    std::cerr << "before partial_sort_copy\n";
+    std::cerr << std::format("{:50}", "Read db from disk and topN sort by count desc...");
+    using clk  = std::chrono::high_resolution_clock;
+    auto start = clk::now();
 
+    // TopN sort descending by count (par_unseq makes no sense, as disk bound and flat_file not
+    // thread safe)
     std::partial_sort_copy(db.begin(), db.end(), output_db.begin(), output_db.end(),
                            [](auto& a, auto& b) { return a.count > b.count; });
 
-    std::cerr << "before sort\n";
-    std::sort(std::execution::par_unseq, output_db.begin(), output_db.end()); // default sort by hash ascending
+    auto stop = clk::now();
+    std::cerr << std::format("{:%M:%Ss}\n", floor<std::chrono::milliseconds>(stop - start));
 
-    std::cerr << "before write\n";
+    std::cerr << std::format("{:50}", "Sort by hash ascending...");
+    start = clk::now();
+    std::sort(std::execution::par_unseq, output_db.begin(),
+              output_db.end()); // default sort by hash ascending
+    stop = clk::now();
+    std::cerr << std::format("{:>10}\n", std::chrono::duration_cast<std::chrono::duration<double>>(
+                                         floor<std::chrono::milliseconds>(stop - start)));
+
+    start = clk::now();
+    std::cerr << std::format("{:50}","Write TopN db to disk...");
     auto writer = flat_file::stream_writer<hibp::pawned_pw>(*output_stream);
-
     for (const auto& pw: output_db) {
       writer.write(pw);
     }
-    std::cerr << "done\n";
+    stop = clk::now();
+    std::cerr << std::format("{:>10}\n", std::chrono::duration_cast<std::chrono::duration<double>>(
+                                         floor<std::chrono::milliseconds>(stop - start)));
 
   } catch (const std::exception& e) {
     std::cerr << std::format("Error: {}\n", e.what());
