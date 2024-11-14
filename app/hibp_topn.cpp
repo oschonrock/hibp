@@ -64,7 +64,7 @@ std::ofstream get_output_stream(const std::string& output_filename, bool force) 
 int main(int argc, char* argv[]) {
   cli_config_t cli; // NOLINT non-const global
 
-  CLI::App app("Converting 'Have I been pawned' databases between text and binary formats");
+  CLI::App app("Reducing 'Have I been pawned' binary databases to the top N most common entries.");
   define_options(app, cli);
   CLI11_PARSE(app, argc, argv);
 
