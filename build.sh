@@ -11,6 +11,7 @@ TEST=
 BENCH=
 PURGE=
 CLEAN_FIRST=
+NOPCH="-DNOPCH=OFF" # override cmake cache
 GENERATEONLY=
 VERBOSE=
 TARGETS=
@@ -39,7 +40,7 @@ then
     GETOPT='/usr/local/bin/getopt'
 fi
 
-options=$($GETOPT --options hvc:b:t:pg --long help,verbose,compiler:,buildtype:,targets:,purge,generate-only,clean-first -- "$@")
+options=$($GETOPT --options hvc:b:t:pg --long help,verbose,compiler:,buildtype:,targets:,purge,generate-only,clean-first,nopch -- "$@")
 
 eval set -- "$options"
 while true; do
@@ -79,6 +80,9 @@ while true; do
 	--clean-first)
 	    CLEAN_FIRST="--clean-first"
 	    ;;
+	--nopch)
+	    NOPCH="-DNOPCH=ON"
+	    ;;
 	--)
 	    shift
 	    break
@@ -112,7 +116,7 @@ COMPILER_OPTIONS="-DCMAKE_C_COMPILER=$C_COMPILER -DCMAKE_CXX_COMPILER=$CXX_COMPI
 
 [[ -n $PURGE && -d $BUILD_DIR ]] && rm -rf $BUILD_DIR
 
-GEN_CMD="$CMAKE -GNinja -S . -B $BUILD_DIR $CACHE -DCMAKE_COLOR_DIAGNOSTICS=ON $COMPILER_OPTIONS"
+GEN_CMD="$CMAKE -GNinja -S . -B $BUILD_DIR $CACHE -DCMAKE_COLOR_DIAGNOSTICS=ON $COMPILER_OPTIONS $NOPCH"
 [[ -n $VERBOSE ]] && echo "$GEN_CMD"
 $GEN_CMD
 GEN_RET=$?

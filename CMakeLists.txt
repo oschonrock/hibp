@@ -154,7 +154,9 @@ target_compile_features(hibp_download PRIVATE cxx_std_20)
 target_compile_options(hibp_download PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_download PRIVATE CLI11 curl event hibp flat_file ${CMAKE_THREAD_LIBS_INIT})
 
-if (NOT CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+option(NOPCH "Disable the use of precompiled headers" OFF)
+
+if (NOT NOPCH AND NOT CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
   target_precompile_headers(CLI11 INTERFACE [["CLI/CLI.hpp"]]) # INTERFACE, because perpetuate to clients of this lib
   target_precompile_headers(flat_file INTERFACE [["flat_file.hpp"]]) # INTERFACE, because perpetuate to clients of this lib
   target_precompile_headers(restinio INTERFACE [["restinio/core.hpp"]]) # INTERFACE, because perpetuate to clients of this lib
