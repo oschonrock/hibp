@@ -19,47 +19,47 @@ struct cli_config_t {
   std::size_t   toc_entries  = 1U << 16U; // 64k chapters
 };
 
-static cli_config_t cli_config; // NOLINT non-const global
+static cli_config_t cli; // NOLINT non-const global
 
 static std::atomic<int> uniq{}; // NOLINT for performance testing, uniq across threads
 
 //
 void define_options(CLI::App& app) {
 
-  app.add_option("db_filename", cli_config.db_filename,
+  app.add_option("db_filename", cli.db_filename,
                  "The file that contains the binary database you downloaded")
       ->required();
 
-  app.add_option("--bind-address", cli_config.bind_address,
-                 std::format("The IP4 address the server will bind to. (default: {})",
-                             cli_config.bind_address));
+  app.add_option(
+      "--bind-address", cli.bind_address,
+      std::format("The IP4 address the server will bind to. (default: {})", cli.bind_address));
 
-  app.add_option("--port", cli_config.port,
-                 std::format("The port the server will bind to (default: {})", cli_config.port));
+  app.add_option("--port", cli.port,
+                 std::format("The port the server will bind to (default: {})", cli.port));
 
-  app.add_option("--threads", cli_config.threads,
-                 std::format("The number of threads to use (default: {})", cli_config.threads))
-      ->check(CLI::Range(1U, cli_config.threads));
+  app.add_option("--threads", cli.threads,
+                 std::format("The number of threads to use (default: {})", cli.threads))
+      ->check(CLI::Range(1U, cli.threads));
 
-  app.add_flag("--json", cli_config.json, "Output a json response.");
+  app.add_flag("--json", cli.json, "Output a json response.");
 
   app.add_flag(
-      "--perf-test", cli_config.perf_test,
+      "--perf-test", cli.perf_test,
       "Use this to uniquefy the password provided for each query, "
       "thereby defeating the cache. The results will be wrong, but good for performance tests");
 
-  app.add_flag("--toc", cli_config.toc, "Use a table of contents for extra performance.");
+  app.add_flag("--toc", cli.toc, "Use a table of contents for extra performance.");
 
-  app.add_option("--toc-entries", cli_config.toc_entries,
-                 std::format("Specify how may table of contents entries to use. default {}",
-                             cli_config.toc_entries));
+  app.add_option(
+      "--toc-entries", cli.toc_entries,
+      std::format("Specify how may table of contents entries to use. default {}", cli.toc_entries));
 }
 
 auto search_and_respond(flat_file::database<hibp::pawned_pw>& db, const hibp::pawned_pw& needle,
                         auto req) {
   std::optional<hibp::pawned_pw> maybe_ppw;
 
-  if (cli_config.toc) {
+  if (cli.toc) {
     maybe_ppw = toc_search(db, needle);
   } else if (auto iter = std::lower_bound(db.begin(), db.end(), needle);
              iter != db.end() && *iter == needle) {
@@ -68,12 +68,12 @@ auto search_and_respond(flat_file::database<hibp::pawned_pw>& db, const hibp::pa
 
   int count = maybe_ppw ? maybe_ppw->count : -1;
 
-  std::string content_type = cli_config.json ? "application/json" : "text/plain";
+  std::string content_type = cli.json ? "application/json" : "text/plain";
 
   auto response = req->create_response().append_header(
       restinio::http_field::content_type, std::format("{}; charset=utf-8", content_type));
 
-  if (cli_config.json) {
+  if (cli.json) {
     response.set_body(std::format("{{count:{}}}\n", count));
   } else {
     response.set_body(std::format("{}\n", count));
@@ -96,7 +96,7 @@ auto get_router(const std::string& db_filename) {
     if (params["format"] == "plain") {
       SHA1 sha1;
       auto pw = std::string(params["password"]);
-      if (cli_config.perf_test) {
+      if (cli.perf_test) {
         pw += std::to_string(uniq++);
       }
       sha1_txt_pw = sha1(pw);
@@ -128,28 +128,34 @@ void run_server() {
   std::cerr << std::format(
       "Serving from {}:{}\nMake a request to either of\nhttp://{}:{}/check/plain/password123\n"
       "http://{}:{}/check/sha1/CBFDAC6008F9CAB4083784CBD1874F76618D2A97\n",
-      cli_config.bind_address, cli_config.port, cli_config.bind_address, cli_config.port,
-      cli_config.bind_address, cli_config.port);
+      cli.bind_address, cli.port, cli.bind_address, cli.port, cli.bind_address, cli.port);
 
-  auto settings = restinio::on_thread_pool<my_server_traits>(cli_config.threads)
-                      .address(cli_config.bind_address)
-                      .port(cli_config.port)
-                      .request_handler(get_router(cli_config.db_filename));
+  auto settings = restinio::on_thread_pool<my_server_traits>(cli.threads)
+                      .address(cli.bind_address)
+                      .port(cli.port)
+                      .request_handler(get_router(cli.db_filename));
 
   restinio::run(std::move(settings));
 }
 
 int main(int argc, char* argv[]) {
-  CLI::App app("Have I been Pawned Server");
+  CLI::App app("Have I been pawned Server");
   define_options(app);
   CLI11_PARSE(app, argc, argv);
 
   try {
-    if (cli_config.toc) {
+    if (cli.toc) {
       // local, temp db separate from the thread_local ones
-      flat_file::database<hibp::pawned_pw> db(cli_config.db_filename,
-                                              4096 / sizeof(hibp::pawned_pw));
-      build_toc(db, cli_config.db_filename, cli_config.toc_entries);
+      flat_file::database<hibp::pawned_pw> db(cli.db_filename, 4096 / sizeof(hibp::pawned_pw));
+      build_toc(db, cli.db_filename, cli.toc_entries);
+    } else {
+      auto input_stream = std::ifstream(cli.db_filename);
+      if (!input_stream) {
+        throw std::runtime_error(std::format("Error opening '{}' for reading. Because: \"{}\".\n",
+                                             cli.db_filename,
+                                             std::strerror(errno))); // NOLINT errno
+      }
+      // let stream die, was just to test because we branch into threads, and open it there N times
     }
 
     run_server();
