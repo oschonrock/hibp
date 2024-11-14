@@ -100,7 +100,7 @@ Note these are 100% accurate searches and not using some probabilistic "bloom fi
 
 ```bash
 ./build/gcc/release/hibp-server hibp_all.bin
-curl http://localhost:8082/password
+curl http://localhost:8082/check/plain/password
 
 # output should be:
 10434004
@@ -120,7 +120,7 @@ For all options run `hibp-server --help`.
 
 # and run apache bench like this (generate a somewhat random password to start):
 
-hash=$(date | sha1sum); ab -c100 -n10000 "http://localhost:8082/${hash:0:10}"
+hash=$(date | sha1sum); ab -c100 -n10000 "http://localhost:8082/check/plain/${hash:0:10}"
 
 # These the key figures from a short run on an old i5-3470 CPU @ 3.20GHz with 4 threads
 
@@ -134,7 +134,7 @@ This should be more than enough for almost any site, in fact you may want to red
 ```
 ./build/gcc/release/hibp-server data/hibp_all.bin --perf-test --threads=1
 
-hash=$(date | sha1sum); ab -c25 -n10000 "http://localhost:8082/${hash:0:10}"
+hash=$(date | sha1sum); ab -c25 -n10000 "http://localhost:8082/check/plain/${hash:0:10}"
 
 Requests per second:    1017.17 [#/sec] (mean)
 Time per request:       24.578 [ms] (mean)
