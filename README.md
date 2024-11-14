@@ -40,7 +40,7 @@ refer to
 
 ### Run download in debug mode 
 ```bash
-./build/gcc/debug/hibp_download --debug --limit=10 --parallel-max=3 hibp_sample.bin
+./build/gcc/debug/hibp-download --debug --limit=10 --parallel-max=3 hibp_sample.bin
 ```
 You should see a bunch thread debug output, but no error and  `ls -lh hibp_sample.bin` should show ~5.3M
 
@@ -52,7 +52,7 @@ You should see a bunch thread debug output, but no error and  `ls -lh hibp_sampl
 
 ## Usage
 
-### run full download: `hibp_download`
+### run full download: `hibp-download`
 Program will download the currently ~38GB of 1million 30-40kB text files from api.haveibeenpawned.com 
 It does this using libcurl with curl_multi and 300 parallel requests on a single thread.
 With a second thread doing the conversion to binary format and writing to disk.
@@ -60,27 +60,27 @@ With a second thread doing the conversion to binary format and writing to disk.
 *Warning* this will (currently) take at about 13mins on a 1Gb connection and consume ~21GB of disk space
 during this time:
 - your network connection should be saturated with HTTP2 multiplexed requests
-- `top` in threads mode (key `H`) should show 2 `hibp_download` threads.
+- `top` in threads mode (key `H`) should show 2 `hibp-download` threads.
 - One "curl thread" with ~50-80% CPU and
 - The "main thread" with ~15-30% CPU, primarily converting data to binary and writing to disk
 
 ```bash
-time ./build/gcc/release/hibp_download hibp_all.bin
+time ./build/gcc/release/hibp-download hibp_all.bin
 
 # you may see some warnings about failures and retries. If any transfers fails after 10 retries, programme will abort.
 # after a permanent failure / abort, you can try rerunnung with `--resume` 
 ```
 
-For all options run `hibp_download --help`.
+For all options run `hibp-download --help`.
 
-### Run some sample "pawned password" queries from command line: `hibp_search`
+### Run some sample "pawned password" queries from command line: `hibp-search`
 
 This is a tiny program / debug utility that runs a single query against the downloaded binary database.
 
 ```bash
 # replace 'password' as you wish
 
-./build/gcc/release/hibp_search hibp_all.bin 'password'
+./build/gcc/release/hibp-search hibp_all.bin 'password'
 # output should be 
 search took                0.2699 ms
 needle = 5BAA61E4C9B93F3F0682250B6CF8331B7EE68FD8:-1
@@ -88,7 +88,7 @@ found  = 5BAA61E4C9B93F3F0682250B6CF8331B7EE68FD8:10434004
 ```
 Performance will be mainly down to your disk and be around 15-20ms per uncached query, and <0.2ms cached.
 
-### Running a local server: `hibp_server`
+### Running a local server: `hibp-server`
 
 You can run a high performance server for "pawned password queries" as follows. 
 This is a simple "REST" server using the "restinio" library.
@@ -97,7 +97,7 @@ The process consumes <100Mb of virtual memory and < 5MB of resident memory.
 Note these are 100% accurate searches and not using some probabilistic "bloom filter" as in some similar projects.
 
 ```bash
-./build/gcc/release/hibp_server hibp_all.bin
+./build/gcc/release/hibp-server hibp_all.bin
 curl http://localhost:8082/password
 
 # output should be:
@@ -107,14 +107,14 @@ curl http://localhost:8082/password
 {count:10434004}
 ```
 
-For all options run `hibp_server --help`.
+For all options run `hibp-server --help`.
 
 #### Basic performance evaluation using apache bench
 
 ```
 # run server like this (--perf-test will uniquelt change the password for each request)
 
-./build/gcc/release/hibp_server data/hibp_all.bin --perf-test
+./build/gcc/release/hibp-server data/hibp_all.bin --perf-test
 
 # and run apache bench like this (generate a somewhat random password to start):
 
@@ -130,7 +130,7 @@ Time per request:       0.316 [ms] (mean, across all concurrent requests)
 This should be more than enough for almost any site, in fact you may want to reduce the server to just one thread like so:
 
 ```
-./build/gcc/release/hibp_server data/hibp_all.bin --perf-test --threads=1
+./build/gcc/release/hibp-server data/hibp_all.bin --perf-test --threads=1
 
 hash=$(date | sha1sum); ab -c25 -n10000 "http://localhost:8082/${hash:0:10}"
 
@@ -139,7 +139,7 @@ Time per request:       24.578 [ms] (mean)
 Time per request:       0.983 [ms] (mean, across all concurrent requests)
 ```
 
-You can try the `--toc` feature on hibp_server which may improve
+You can try the `--toc` feature on hibp-server which may improve
 performance signficantly especially if you have limited free RAM for
 to OS to cache the disk.
 
@@ -149,11 +149,11 @@ to OS to cache the disk.
 `./fetch.sh` : curl command line to directly download the ~1M text files (approx 30-40kB each)
                also has find command line to join the above together (in arbitrary order!) and prefix the lines witin appropriately
 
-`./build/gcc/release/hibp_convert` : convert a text file into a binary file or vice-a-versa
+`./build/gcc/release/hibp-convert` : convert a text file into a binary file or vice-a-versa
 
-`./build/gcc/release/hibp_sort`    : sort a binary file using external disk space (takes 3x space on disk)!
+`./build/gcc/release/hibp-sort`    : sort a binary file using external disk space (takes 3x space on disk)!
 
-`./build/gcc/release/hibp_join`    : join the ~1M text files into one large binary one in arbitrary order (not useful since hibp_download)
+`./build/gcc/release/hibp-join`    : join the ~1M text files into one large binary one in arbitrary order (not useful since hibp-download)
 
 In each case for all options run `program_name --help`.
 

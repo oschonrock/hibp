@@ -18,7 +18,7 @@ cd ../..
 
 #### Parallel STL algorithms (PSTL) not supported under libc++
 
-code will fall back to single threaded, but this only affects `hibp_sort`
+code will fall back to single threaded, but this only affects `hibp-sort`
 
 You can add `-fexperimental-library` in CMakeLists.txt and remove the 
 

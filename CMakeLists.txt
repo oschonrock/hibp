@@ -109,6 +109,7 @@ if (NOT MSVC)
 endif()
 
 add_executable(hibp_search app/hibp_search.cpp src/toc.cpp)
+set_target_properties(hibp_search PROPERTIES OUTPUT_NAME hibp-search)
 target_compile_features(hibp_search PRIVATE cxx_std_20)
 target_compile_options(hibp_search PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_search PRIVATE CLI11 sha1 hibp flat_file)
@@ -116,6 +117,7 @@ target_link_libraries(hibp_search PRIVATE CLI11 sha1 hibp flat_file)
 find_package(Threads)
 
 add_executable(hibp_server app/hibp_server.cpp src/toc.cpp)
+set_target_properties(hibp_server PROPERTIES OUTPUT_NAME hibp-server)
 target_compile_options(hibp_server PRIVATE ${PROJECT_COMPILE_OPTIONS})
 if (MINGW)
   target_link_libraries(hibp_server PRIVATE CLI11 sha1 hibp flat_file restinio gdi32 wsock32 ws2_32)
@@ -124,14 +126,17 @@ else()
 endif()
 
 add_executable(hibp_sort app/hibp_sort.cpp)
+set_target_properties(hibp_sort PROPERTIES OUTPUT_NAME hibp-sort)
 target_compile_options(hibp_sort PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_sort PRIVATE CLI11 hibp flat_file)
 
 add_executable(hibp_convert app/hibp_convert.cpp)
+set_target_properties(hibp_convert PROPERTIES OUTPUT_NAME hibp-convert)
 target_compile_options(hibp_convert PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_convert PRIVATE CLI11 sha1 hibp flat_file)
 
 add_executable(hibp_join app/hibp_join.cpp)
+set_target_properties(hibp_join PROPERTIES OUTPUT_NAME hibp-join)
 target_compile_options(hibp_join PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_join PRIVATE hibp CLI11 flat_file)
 
@@ -144,6 +149,7 @@ add_executable(hibp_download
   src/download/queuemgt.cpp
   src/download/requests.cpp
   src/download/shared.cpp)
+set_target_properties(hibp_download PROPERTIES OUTPUT_NAME hibp-download)
 target_compile_features(hibp_download PRIVATE cxx_std_20)
 target_compile_options(hibp_download PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_download PRIVATE CLI11 curl event hibp flat_file ${CMAKE_THREAD_LIBS_INIT})
