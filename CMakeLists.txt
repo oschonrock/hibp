@@ -180,3 +180,5 @@ if(HIBP_TEST)
 else(HIBP_TEST)
   message(STATUS "HIBP Tests are disabled. Set HIBP_TEST to ON to run tests.")
 endif(HIBP_TEST)
+
+install(TARGETS hibp_download hibp_sort hibp_search hibp_join hibp_convert hibp_server hibp_topn DESTINATION bin)
