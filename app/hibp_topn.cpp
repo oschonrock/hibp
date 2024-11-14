@@ -15,7 +15,7 @@ struct cli_config_t {
   std::string input_filename;
   bool        force           = false;
   bool        standard_output = false;
-  std::size_t topn            = 50'000'000; // ~75MB in memory, about 5% of the DB
+  std::size_t topn            = 50'000'000; // ~1GB in memory, about 5% of the DB
 };
 
 void define_options(CLI::App& app, cli_config_t& cli) {
