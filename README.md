@@ -26,13 +26,13 @@ search the data. The orginal text records are about 45 bytes per
 password record, our binary format is 24 bytes, so storage
 requirements are almost halved (21GB currently).
 
-*If you don't like the binary format, you always ouput the
+*If you don't like the binary format, you can always ouput the
 conventional text version as well.*
 
 Now that each record is a fixed width, and the records are maintained
 in a sorted order, searches become very efficient, because we can use
 random access binary search. There is an additional "table of
-contents" feature to reduce disk access further at the expense of (dy
+contents" feature to reduce disk access further at the expense of (by
 default, but tunable) 2MB of memory. 
 
 The local http server component is both multi threaded and event loop
@@ -140,6 +140,13 @@ curl http://localhost:8082/check/plain/password
 
 #if you pass --json to the server you will get
 {count:10434004}
+
+# if you feel more secure sha1 hashing the password in your client, you
+# can also.
+
+curl http://localhost:8082/check/sha1/5BAA61E4C9B93F3F0682250B6CF8331B7EE68FD8
+10434004
+
 ```
 
 For all options run `hibp-server --help`.
@@ -155,14 +162,15 @@ For all options run `hibp-server --help`.
 
 hash=$(date | sha1sum); ab -c100 -n10000 "http://localhost:8082/check/plain/${hash:0:10}"
 
-# These the key figures from a short run on an old i5-3470 CPU @ 3.20GHz with 4 threads
+# These are the key figures from a short run on an old i5-3470 CPU @ 3.20GHz with 4 threads
 
 Requests per second:    3166.96 [#/sec] (mean)
 Time per request:       31.576 [ms] (mean)
 Time per request:       0.316 [ms] (mean, across all concurrent requests)
 ```
 
-This should be more than enough for almost any site, in fact you may want to reduce the server to just one thread like so:
+This should be more than enough for almost any site, in fact you may
+want to reduce the server to just one thread like so:
 
 ```
 ./build/gcc/release/hibp-server data/hibp_all.bin --perf-test --threads=1
@@ -176,7 +184,7 @@ Time per request:       0.983 [ms] (mean, across all concurrent requests)
 
 You can try the `--toc` feature on hibp-server which may improve
 performance signficantly especially if you have limited free RAM for
-to OS to cache the disk.
+the OS to cache the disk.
 
 
 ## Other utilities
@@ -194,7 +202,7 @@ In each case for all options run `program_name --help`.
 
 ## Future plans
 
-- trying to it packaged: snap, .deb, .rpm and FreeBSD port are priority, then
+- trying to get it packaged: snap, .deb, .rpm and FreeBSD port are priority, then
   windows installer. 
 
 - Considering adding a php/pyhton/javascript extension so that queries
