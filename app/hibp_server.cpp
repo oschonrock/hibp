@@ -102,7 +102,7 @@ auto get_router(const std::string& db_filename) {
       sha1_txt_pw = sha1(pw);
     } else {
       if (params["password"].size() != 40 ||
-          params["password"].find_first_not_of("0123456789ABCDEF") != std::string::npos) {
+          params["password"].find_first_not_of("0123456789ABCDEF") != std::string_view::npos) {
         return req->create_response(restinio::status_bad_request()).connection_close().done();
       }
       sha1_txt_pw = std::string{params["password"]};
