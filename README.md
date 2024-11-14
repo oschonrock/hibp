@@ -192,6 +192,8 @@ the OS to cache the disk.
 `./fetch.sh` : curl command line to directly download the ~1M text files (approx 30-40kB each)
                also has find command line to join the above together (in arbitrary order!) and prefix the lines witin appropriately
 
+`./build/gcc/release/hibp-topn`    : reduce a db to the N most common passwords (saves diskspace)
+
 `./build/gcc/release/hibp-convert` : convert a text file into a binary file or vice-a-versa
 
 `./build/gcc/release/hibp-sort`    : sort a binary file using external disk space (takes 3x space on disk)!
