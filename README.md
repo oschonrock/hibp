@@ -62,10 +62,12 @@ refer to
 ```
 
 ### Run download in debug mode 
+Just to prove your build environment is good. 
+
 ```bash
 ./build/gcc/debug/hibp-download --debug --limit=10 --parallel-max=3 hibp_sample.bin
 ```
-You should see a bunch thread debug output, but no error and  `ls -lh hibp_sample.bin` should show ~5.3M
+You should see a bunch thread debug output, but no error and  `ls -lh hibp_sample.bin` should show ~228kB.
 
 ### compile for release
 ```bash
@@ -80,7 +82,7 @@ Program will download the currently ~38GB of 1million 30-40kB text files from ap
 It does this using libcurl with curl_multi and 300 parallel requests on a single thread.
 With a second thread doing the conversion to binary format and writing to disk.
 
-*Warning* this will (currently) take at about 13mins on a 1Gb connection and consume ~21GB of disk space
+*Warning* this will (currently) take just under 12mins on a 400Mbit/s connection and consume ~21GB of disk space
 during this time:
 - your network connection should be saturated with HTTP2 multiplexed requests
 - `top` in threads mode (key `H`) should show 2 `hibp-download` threads.
