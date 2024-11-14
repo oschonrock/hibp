@@ -2,6 +2,8 @@
 
 Have I been pwned database: High performance downloader, query tool, server and utilities
 
+![](https://github.com/oschonrock/hibp/blob/main/media/download.gif)
+
 This very useful database is somewhat challengint to use locally because the data size is so large. 
 This set of utilities uses a binary format to store and search the data. The orginal text records are a 
 40char SHA1 + ":" + an integer count + CR LF.
