@@ -21,7 +21,7 @@ static cli_config_t cli_config; // NOLINT non-const global
 
 void define_options(CLI::App& app) {
 
-  app.add_option("output_db_filename", cli_config.db_filename,
+  app.add_option("db_filename", cli_config.db_filename,
                  "The file that contains the binary database you downloaded")
       ->required();
 
