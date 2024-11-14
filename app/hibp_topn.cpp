@@ -15,28 +15,25 @@ struct cli_config_t {
   std::string input_filename;
   bool        force           = false;
   bool        standard_output = false;
-  bool        standard_input  = false;
-  bool        bin_to_txt      = false;
-  bool        txt_to_bin      = false;
   std::size_t topn            = 50'000'000; // ~75MB in memory, about 5% of the DB
 };
 
-void define_options(CLI::App& app, cli_config_t& cli_config) {
+void define_options(CLI::App& app, cli_config_t& cli) {
 
-  app.add_option("db_filename", cli_config.input_filename,
+  app.add_option("db_filename", cli.input_filename,
                  "The file that contains the binary database you downloaded")
       ->required();
 
-  app.add_option("-o,--output", cli_config.output_filename,
+  app.add_option("-o,--output", cli.output_filename,
                  "The file that the downloaded binary database will be written to");
 
-  app.add_flag("--stdout", cli_config.standard_output,
+  app.add_flag("--stdout", cli.standard_output,
                "Instead of an output file write output to standard output.");
 
-  app.add_option("-N,--topn", cli_config.topn,
-                 "Return the N most common password records (default: )");
+  app.add_option("-N,--topn", cli.topn,
+                 std::format("Return the N most common password records (default: {})", cli.topn));
 
-  app.add_flag("-f,--force", cli_config.force, "Overwrite any existing output file!");
+  app.add_flag("-f,--force", cli.force, "Overwrite any existing output file!");
 }
 
 std::ifstream get_input_stream(const std::string& input_filename) {
