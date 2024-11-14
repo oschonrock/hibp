@@ -1,24 +1,45 @@
-# hibp
+# hibp: "Have I been pawned" database utilities
 
-Have I been pwned database: High performance downloader, query tool, server and utilities
+## Intro
+
+High performance *downloader, query tool, server and utilities*
+
+This very useful database is somewhat challenging to use locally
+because of its sheer size. These utiliities make it easy and fast to
+deal with the large data volume while being very effiicent on disk and
+memory resouces.
+
+Here is `hibp-download` running on a 400Mbit/s connection, averaging
+~48MB/s which is very close to the theorectical maximum. At this
+network speed, a download of the entire HIBP database, including
+prefixing and joining the over 1 million files, converting to our
+binary format and writing to disk, takes *under 12 minutes*.
 
 ![](https://github.com/oschonrock/hibp/blob/main/media/download.gif)
 
-This very useful database is somewhat challengint to use locally because the data size is so large. 
-This set of utilities uses a binary format to store and search the data. The orginal text records are a 
-40char SHA1 + ":" + an integer count + CR LF.
+On a full 1Gbit/s connection this should take *under 5 minutes*.
 
-The binary format just stored the 20byte binary bytes of the SHA1 + 4 bytes integer
-No delimiter is required because the record size is constant. Searches become easy, if the binary data is sorted, 
-because we can use random access binary search.
+### Peformance with a small memory footprint
 
-Storage requirements are almost halved with the binary format (21GB currently). The in memory footprint of these 
-utilities is very small and measured in a few megabytes.
+By deafult, this set of utilities uses a binary format to store and search the
+data. The orginal text records are a 40char SHA1 + ":" + an integer
+count + CR LF. *You always ouput the conventional text version as
+well, if you prefer.*
+
+With the binary format, storage requirements are almost halved (21GB
+currently). Searches become very efficient, if the binary data is
+sorted, because we can use random access binary search. The in memory
+footprint of these utilities is also very small and measured - just a
+few megabytes.
+
+### How
 
 These utilities are written in C++ and centre around a `flat_file` class to model the db. 
+- mult threaded concurrency and parallelism is used in the downloader,
+  the server and the sorter.
 - libcurl, libevent are used for the download
 - restinio is used for the local server
-- libtbb is used for local sorting in parallel (mainly deprecated)
+- libtbb is used for local sorting in parallel
 
 ## Build environment and dependencies
 
