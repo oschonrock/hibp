@@ -105,7 +105,13 @@ int main(int argc, char* argv[]) {
     std::cerr << std::format("{:50}", "Sort by hash ascending...");
     start = clk::now();
     // default sort by hash ascending
-    std::sort(std::execution::par_unseq, output_db.begin(), output_db.end());
+    std::sort(
+#if __cpp_lib_parallel_algorithm
+        // it is also possible to use std::sort(par_unseq from PTSL in libc++ with
+        // -fexperimental-library
+        std::execution::par_unseq,
+#endif
+        output_db.begin(), output_db.end());
     stop = clk::now();
     std::cerr << std::format(
         "{:9.3}s\n",
