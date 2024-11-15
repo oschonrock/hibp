@@ -10,8 +10,7 @@ description: |
   while being very effiicent on disk and memory resouces.
 
 grade: stable
-confinement: classic
-
+confinement: strict
 lint:
   ignore:
     - library
@@ -19,18 +18,33 @@ lint:
 apps:
   download:
     command: usr/bin/hibp-download
+    plugs: [files, network]
   search:
     command: usr/bin/hibp-search
+    plugs: [files]
   server:
     command: usr/bin/hibp-server
+    plugs: [files, bind]
   join:
     command: usr/bin/hibp-join
+    plugs: [files]
   sort:
     command: usr/bin/hibp-sort
+    plugs: [files]
   topn:
     command: usr/bin/hibp-topn
+    plugs: [files]
   convert:
     command: usr/bin/hibp-convert
+    plugs: [files]
+
+plugs:
+  files:
+    interface: home
+  network:
+    interface: network
+  bind:
+    interface: network-bind
     
 parts:
   hibp:
