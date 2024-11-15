@@ -51,15 +51,36 @@ These utilities are written in C++ and centre around a `flat_file` class to mode
 - `restinio` is used for the local server, based on `ASIO` for efficient concurrency
 - libtbb is used for local sorting in `hibp-sort`
 
-## Build environment and dependencies
+## Quick start
+
+If you access to the `snap` store:
+
+```
+sudo snap install hibp
+
+# and straight to usage:
+
+hibp.download hibp_all.bin
+hibp.server hibp_all.bin
+
+```
+
+(NOTE: the snap versions are slightly different to the manually installed ones: 
+1. the use a "period" separator in their names, like `hibp.download` -
+because `snap` enforces that.
+2. they are restricted to where they can read and write files ($HOME
+and subdirs only), because `snap` senselessly tries to protect
+sysadmins from themselves.
+
+## Building from source
+
+### Installing build dependencies
 
 refer to 
 
 - [BUILD-linux.md](BUILD-linux.md)
 - [BUILD-FreeBSD.md](BUILD-FreeBSD.md)
 - [BUILD-Windows.md](BUILD-Windows.md)
-
-## Compiling
 
 ### Compile in debug mode
 ```bash
