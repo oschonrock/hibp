@@ -57,17 +57,21 @@ sudo snap install hibp
 
 # and straight to usage:
 
+# obtain data
 hibp.download hibp_all.bin
+
+# optionally limit data
+hibp.topn hibp_all.bin
+
+
 hibp.server hibp_all.bin
 
 ```
 
 NOTE: the snap versions are slightly different to the manually installed ones: 
-1. the use a "period" separator in their names, like `hibp.download`,
-because `snap` enforces that.
+1. the use a "period" separator in their names, like `hibp.download`
 2. they are restricted to where they can read and write files ($HOME
-and subdirs only), because `snap` senselessly tries to protect
-sysadmins from themselves.
+and subdirs only)
 
 ## Building from source
 
