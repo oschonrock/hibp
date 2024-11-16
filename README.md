@@ -19,7 +19,7 @@ binary format and writing to disk, takes *under 12 minutes*.
 
 On a full 1Gbit/s connection this should take *under 5 minutes*.
 
-### High peformance with a small memory footprint
+### High peformance with a small memory and disk footprint
 
 By deafult, this set of utilities uses a binary format to store and
 search the data. The orginal text records are about 45 bytes per
@@ -37,23 +37,20 @@ default, but tunable) 2MB of memory.
 
 The local http server component is both multi threaded and event loop
 driven for high efficiency. Even in a minimal configuration it should
-be more than sufficient to back almost any site. 
+be more than sufficient to back almost any site, at over 1,000req/s
+on a single core.
 
-The in memory footprint of these utilities is also very small and
-measured - just a few megabytes.
+The in memory footprint of these utilities is also very small, just a
+few megabytes.
 
-### How
-
-These utilities are written in C++ and centre around a `flat_file` class to model the db. 
-- mult threaded concurrency and parallelism is used in the downloader,
-  the server and the sorter.
-- `libcurl`, `libevent` are used for the download
-- `restinio` is used for the local server, based on `ASIO` for efficient concurrency
-- libtbb is used for local sorting in `hibp-sort`
+If you want to reduce diskspace even further, you could use utilities
+like `hibp-topn` which will conveniently reduce a file to the `N` most
+common pawned passwords. By default this is a ~1GB file for the 50,000,000
+most common records.
 
 ## Quick start
 
-If you access to the `snap` store:
+If you have access to the `snap` store:
 
 ```
 sudo snap install hibp
@@ -65,8 +62,8 @@ hibp.server hibp_all.bin
 
 ```
 
-(NOTE: the snap versions are slightly different to the manually installed ones: 
-1. the use a "period" separator in their names, like `hibp.download` -
+NOTE: the snap versions are slightly different to the manually installed ones: 
+1. the use a "period" separator in their names, like `hibp.download`,
 because `snap` enforces that.
 2. they are restricted to where they can read and write files ($HOME
 and subdirs only), because `snap` senselessly tries to protect
@@ -222,6 +219,17 @@ the OS to cache the disk.
 `./build/gcc/release/hibp-join`    : join the ~1M text files into one large binary one in arbitrary order (not useful since hibp-download)
 
 In each case for all options run `program_name --help`.
+
+## Under the hood
+
+These utilities are written in C++ and centre around a `flat_file` class to model the db. 
+- multi threaded concurrency and parallelism is used in the downloader,
+  the server and the sorter.
+- `libcurl`, `libevent` are used for the download
+- `restinio` is used for the local server, based on `ASIO` for efficient concurrency
+- libtbb is used for local sorting in `hibp-sort`
+
+
 
 ## Future plans
 
