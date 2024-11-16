@@ -18,41 +18,31 @@ lint:
 apps:
   download:
     command: usr/bin/hibp-download
-    plugs: [files, network]
+    plugs: [home, network]
   search:
     command: usr/bin/hibp-search
-    plugs: [files]
+    plugs: [home]
   server:
     command: usr/bin/hibp-server
-    plugs: [files, bind]
+    plugs: [home, network-bind, network]
   join:
     command: usr/bin/hibp-join
-    plugs: [files]
+    plugs: [home]
   sort:
     command: usr/bin/hibp-sort
-    plugs: [files]
+    plugs: [home]
   topn:
     command: usr/bin/hibp-topn
-    plugs: [files]
+    plugs: [home]
   convert:
     command: usr/bin/hibp-convert
-    plugs: [files]
+    plugs: [home]
 
-plugs:
-  files:
-    interface: home
-  network:
-    interface: network
-  bind:
-    interface: network-bind
-    
 parts:
   hibp:
     source: https://github.com/oschonrock/hibp.git
     plugin: cmake
     build-packages: [unzip, libcurl4-openssl-dev, libevent-dev, ruby, libtbb-dev]
-    build-attributes:
-      - enable-patchelf
     stage-packages: [libcurl4-openssl-dev, libevent-dev, libtbb-dev]
     override-build: |
       cd ../src
