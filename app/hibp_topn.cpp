@@ -101,7 +101,7 @@ int main(int argc, char* argv[]) {
                            [](auto& a, auto& b) { return a.count > b.count; });
 
     auto stop = clk::now();
-    std::cerr << std::format("{:%M:%Ss}\n", floor<std::chrono::milliseconds>(stop - start));
+    std::cerr << fmt::format("{:%M:%Ss}\n", floor<std::chrono::milliseconds>(stop - start));
 
     std::cerr << fmt::format("{:50}", "Sort by hash ascending...");
     start = clk::now();
