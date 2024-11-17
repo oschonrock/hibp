@@ -3,7 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdlib>
-#include <format>
+#include "fmt/core.h"
 #include <optional>
 #include <string>
 #include <vector>
@@ -13,8 +13,8 @@ struct toc_entry {
   std::array<std::byte, 20> hash;
 
   friend std::ostream& operator<<(std::ostream& os, const toc_entry& rhs) {
-    os << std::format("{:10d}: ", rhs.start);
-    for (auto&& b: rhs.hash) os << std::format("{:02X}", static_cast<unsigned>(b));
+    os << fmt::format("{:10d}: ", rhs.start);
+    for (auto&& b: rhs.hash) os << fmt::format("{:02X}", static_cast<unsigned>(b));
     return os;
   }
 

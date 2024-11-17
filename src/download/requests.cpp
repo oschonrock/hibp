@@ -5,7 +5,7 @@
 #include <curl/curl.h>
 #include <curl/multi.h>
 #include <event2/event.h>
-#include <format>
+#include "fmt/core.h"
 #include <iostream>
 #include <iterator>
 #include <memory>
@@ -58,7 +58,7 @@ static void add_download(std::size_t index) {
       download_queue.insert(std::make_pair(index, std::make_unique<download>(index)));
 
   if (!inserted) {
-    throw std::runtime_error(std::format("unexpected condition: index {} already existed", index));
+    throw std::runtime_error(fmt::format("unexpected condition: index {} already existed", index));
   }
   auto& dl  = dl_iter->second;
   auto  url = "https://api.pwnedpasswords.com/range/" + dl->prefix;
@@ -95,14 +95,14 @@ static void process_curl_done_msg(CURLMsg* message, enq_msg_t& msg) {
     curl_easy_cleanup(easy_handle);
     dl->easy = nullptr; // prevent further attempts at cleanup
     auto nh  = download_queue.extract(dl->index);
-    logger.log(std::format("download {} complete. batching up into message", dl->prefix));
+    logger.log(fmt::format("download {} complete. batching up into message", dl->prefix));
     msg.emplace_back(std::move(nh.mapped())); // batch up to avoid mutex too many times
     return;
   }
 
   if (dl->retries_left == 0) {
     // hard fail, will eventually terminate whole program
-    throw std::runtime_error(std::format("prefix '{}': returned result '{}' after {} retries",
+    throw std::runtime_error(fmt::format("prefix '{}': returned result '{}' after {} retries",
                                          dl->prefix, curl_easy_strerror(message->data.result),
                                          download::max_retries));
   }
@@ -111,7 +111,7 @@ static void process_curl_done_msg(CURLMsg* message, enq_msg_t& msg) {
   dl->buffer.clear(); // throw away anything that was returned
   {
     std::lock_guard lk(cerr_mutex);
-    std::cerr << std::format("prefix '{}': returned result '{}'. {} retries left\n", dl->prefix,
+    std::cerr << fmt::format("prefix '{}': returned result '{}'. {} retries left\n", dl->prefix,
                              curl_easy_strerror(message->data.result), dl->retries_left);
   }
   curl_multi_add_handle(curl_multi_handle, easy_handle); // try again with same handle
@@ -240,7 +240,7 @@ std::string curl_sync_get(const std::string& url) {
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, &result_body);
   if (auto res = curl_easy_perform(curl); res != CURLE_OK) {
     curl_easy_cleanup(curl);
-    throw std::runtime_error(std::format("curl_sync_get: Couldn't retrieve '{}'. Error: {}", url,
+    throw std::runtime_error(fmt::format("curl_sync_get: Couldn't retrieve '{}'. Error: {}", url,
                                          curl_easy_strerror(res)));
   }
 
@@ -271,7 +271,7 @@ void run_event_loop(std::size_t start_index) {
 
 void shutdown_curl_and_events() {
   if (auto res = curl_multi_cleanup(curl_multi_handle); res != CURLM_OK) {
-    std::cerr << std::format("error: curl_multi_cleanup: '{}'\n", curl_multi_strerror(res));
+    std::cerr << fmt::format("error: curl_multi_cleanup: '{}'\n", curl_multi_strerror(res));
   }
 
   event_free(timeout);
@@ -288,7 +288,7 @@ void curl_and_event_cleanup() {
     auto& dl = dl_item.second;
     if (dl->easy != nullptr) {
       if (auto res = curl_multi_remove_handle(curl_multi_handle, dl->easy); res != CURLM_OK) {
-        std::cerr << std::format("error in curl_multi_remove_handle(): '{}'\n",
+        std::cerr << fmt::format("error in curl_multi_remove_handle(): '{}'\n",
                                  curl_multi_strerror(res));
       }
       curl_easy_cleanup(dl->easy);

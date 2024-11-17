@@ -47,7 +47,7 @@ void define_options(CLI::App& app, cli_config_t& cli_config) {
 std::ifstream get_input_stream(const std::string& input_filename) {
   auto input_stream = std::ifstream(input_filename);
   if (!input_stream) {
-    throw std::runtime_error(std::format("Error opening '{}' for reading. Because: \"{}\".\n",
+    throw std::runtime_error(fmt::format("Error opening '{}' for reading. Because: \"{}\".\n",
                                          input_filename,
                                          std::strerror(errno))); // NOLINT errno
   }
@@ -57,12 +57,12 @@ std::ifstream get_input_stream(const std::string& input_filename) {
 std::ofstream get_output_stream(const std::string& output_filename, bool force) {
   if (!force && std::filesystem::exists(output_filename)) {
     throw std::runtime_error(
-        std::format("File '{}' exists. Use `--force` to overwrite.", output_filename));
+        fmt::format("File '{}' exists. Use `--force` to overwrite.", output_filename));
   }
 
   auto output_stream = std::ofstream(output_filename, std::ios_base::binary);
   if (!output_stream) {
-    throw std::runtime_error(std::format("Error opening '{}' for writing. Because: \"{}\".\n",
+    throw std::runtime_error(fmt::format("Error opening '{}' for writing. Because: \"{}\".\n",
                                          output_filename,
                                          std::strerror(errno))); // NOLINT errno
   }
@@ -141,21 +141,21 @@ int main(int argc, char* argv[]) {
     }
 
     if (cli.txt_to_bin) {
-      std::cerr << std::format("Reading `have i been pawned` text database from {}, "
+      std::cerr << fmt::format("Reading `have i been pawned` text database from {}, "
                                "converting to binary format and writing to {}.\n",
                                input_stream_name, output_stream_name);
 
       txt_to_bin(*input_stream, *output_stream, cli.limit);
     } else if (cli.bin_to_txt) {
 
-      std::cerr << std::format("Reading `have i been pawned` binary database from {}, "
+      std::cerr << fmt::format("Reading `have i been pawned` binary database from {}, "
                                "converting to text format and writing to {}.\n",
                                input_stream_name, output_stream_name);
 
       bin_to_txt(cli.input_filename, *output_stream, cli.limit);
     }
   } catch (const std::exception& e) {
-    std::cerr << std::format("Error: {}\n", e.what());
+    std::cerr << fmt::format("Error: {}\n", e.what());
     return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;

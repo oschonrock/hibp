@@ -9,7 +9,7 @@
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
-#include <format>
+#include "fmt/core.h"
 #include <iostream>
 #include <memory>
 #include <mutex>
@@ -83,9 +83,10 @@ void print_progress() {
 
     std::lock_guard lk(cerr_mutex);
     auto            files_todo = cli.index_limit - start_index;
-    std::cerr << std::format("Elapsed: {:%H:%M:%S}  Progress: {} / {} files  {:.1f}MB/s  {:5.1f}%  "
+    // std::cerr << fmt::format("Elapsed: {:%H:%M:%S}  Progress: {} / {} files  {:.1f}MB/s  {:5.1f}%  "
+    std::cerr << fmt::format("Progress: {} / {} files  {:.1f}MB/s  {:5.1f}%  "
                              "  Write queue size: {:4d}\r",
-                             elapsed_trunc, files_processed, files_todo,
+                             files_processed, files_todo,
                              static_cast<double>(bytes_processed) / (1U << 20U) / elapsed_sec,
                              100.0 * static_cast<double>(files_processed) /
                                  static_cast<double>(files_todo),
@@ -111,7 +112,7 @@ static std::size_t write_lines(write_fn_t& write_fn, download& dl) {
       recordcount++;
     }
   }
-  logger.log(std::format("wrote {} binary records with prefix {}", recordcount, dl.prefix));
+  logger.log(fmt::format("wrote {} binary records with prefix {}", recordcount, dl.prefix));
   bytes_processed += dl.buffer.size();
   return recordcount;
 }
@@ -121,7 +122,7 @@ static std::size_t write_lines(write_fn_t& write_fn, download& dl) {
 void enqueue_downloads_for_writing(enq_msg_t&& msg) {
   {
     std::lock_guard lk(msgmutex);
-    logger.log(std::format("message received: msg.size() = {}", msg.size()));
+    logger.log(fmt::format("message received: msg.size() = {}", msg.size()));
     msg_queue.emplace(std::move(msg));
   }
   msg_cv.notify_one();
@@ -143,7 +144,7 @@ void service_queue(write_fn_t& write_fn, std::size_t next_index) {
     // bring messages over into process_queue
     while (!msg_queue.empty()) {
       auto& msg = msg_queue.front();
-      logger.log(std::format("processing message: msg.size() = {}", msg.size()));
+      logger.log(fmt::format("processing message: msg.size() = {}", msg.size()));
       for (auto& dl: msg) {
         process_queue.emplace(std::move(dl));
       }
@@ -153,13 +154,13 @@ void service_queue(write_fn_t& write_fn, std::size_t next_index) {
 
     // now do the work in the process queue
     // there is no contention on this queue, and this is slow processing
-    logger.log(std::format("process_queue.size() = {}", process_queue.size()));
+    logger.log(fmt::format("process_queue.size() = {}", process_queue.size()));
     while (!process_queue.empty()) {
       const auto& top = process_queue.top();
       if (top->index != next_index) {
         break; // must wait for an earlier batch to preserve the correct order
       }
-      logger.log(std::format("service_queue: writing prefix = {}", top->prefix));
+      logger.log(fmt::format("service_queue: writing prefix = {}", top->prefix));
       write_lines(write_fn, *top);
       process_queue.pop();
       next_index++;
@@ -178,7 +179,7 @@ bool handle_exception(const std::exception_ptr& exception_ptr, std::thread::id t
     try {
       std::rethrow_exception(exception_ptr);
     } catch (const std::exception& e) {
-      std::cerr << std::format("Caught exception in {} thread: {}\n", thrnames[thr_id], e.what());
+      std::cerr << fmt::format("Caught exception in {} thread: {}\n", thrnames[thr_id], e.what());
     }
     return true;
   }
@@ -231,7 +232,7 @@ void run_downloads(write_fn_t write_fn, std::size_t start_index_) {
 std::size_t get_last_prefix(const std::string& filename) {
   auto filesize = std::filesystem::file_size(filename);
   if (auto tailsize = filesize % sizeof(hibp::pawned_pw); tailsize != 0) {
-    std::cerr << std::format("db_file '{}' size was not a multiple of {}, trimmed off {} bytes.\n",
+    std::cerr << fmt::format("db_file '{}' size was not a multiple of {}, trimmed off {} bytes.\n",
                              filename, sizeof(hibp::pawned_pw), tailsize);
     std::filesystem::resize_file(filename, filesize - tailsize);
   }
@@ -250,7 +251,7 @@ std::size_t get_last_prefix(const std::string& filename) {
 
   auto pos_colon = filebody.find_last_of(':');
   if (pos_colon == std::string::npos || pos_colon < 35) {
-    throw std::runtime_error(std::format("Corrupt last file download with prefix '{}'.", prefix));
+    throw std::runtime_error(fmt::format("Corrupt last file download with prefix '{}'.", prefix));
   }
 
   auto last_file_hash = filebody.substr(pos_colon - 35, 35);
@@ -264,7 +265,7 @@ std::size_t get_last_prefix(const std::string& filename) {
 
   // more complex resume technique
 
-  std::cerr << std::format(
+  std::cerr << fmt::format(
       "Last converted hash not found at end of last retrieved file.\n"
       "Searching backward to hash just before beginning of last retrieved file.\n");
 
@@ -280,7 +281,7 @@ std::size_t get_last_prefix(const std::string& filename) {
 
   auto trimmed_file_size =
       static_cast<std::size_t>(rend - found_iter - 1) * sizeof(hibp::pawned_pw);
-  std::cerr << std::format("found: trimming file to {}.\n", trimmed_file_size);
+  std::cerr << fmt::format("found: trimming file to {}.\n", trimmed_file_size);
 
   std::filesystem::resize_file(filename, trimmed_file_size);
   db = flat_file::database<hibp::pawned_pw>{filename}; // reload, does this work safely?

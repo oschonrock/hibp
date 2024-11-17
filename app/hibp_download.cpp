@@ -12,7 +12,7 @@
 #include <event2/event.h>
 #include <exception>
 #include <filesystem>
-#include <format>
+#include "fmt/core.h"
 #include <fstream>
 #include <ios>
 #include <iostream>
@@ -64,7 +64,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (!cli.resume && !cli.force && std::filesystem::exists(cli.output_db_filename)) {
-      throw std::runtime_error(std::format("File '{}' exists. Use `--force` to overwrite, or "
+      throw std::runtime_error(fmt::format("File '{}' exists. Use `--force` to overwrite, or "
                                            "`--resume` to resume a previous download.",
                                            cli.output_db_filename));
     }
@@ -76,18 +76,18 @@ int main(int argc, char* argv[]) {
       start_index = get_last_prefix(cli.output_db_filename) + 1;
 
       if (cli.index_limit <= start_index) {
-        throw std::runtime_error(std::format("File '{}' contains {} records already, but you have "
+        throw std::runtime_error(fmt::format("File '{}' contains {} records already, but you have "
                                              "specified --limit={}. Nothing to do. Aborting.",
                                              cli.output_db_filename, start_index,
                                              cli.index_limit));
       }
       mode |= std::ios_base::app;
-      std::cerr << std::format("Resuming from file {}\n", start_index);
+      std::cerr << fmt::format("Resuming from file {}\n", start_index);
     }
 
     auto output_db_stream = std::ofstream(cli.output_db_filename, mode);
     if (!output_db_stream) {
-      throw std::runtime_error(std::format("Error opening '{}' for writing. Because: \"{}\".\n",
+      throw std::runtime_error(fmt::format("Error opening '{}' for writing. Because: \"{}\".\n",
                                            cli.output_db_filename,
                                            std::strerror(errno))); // NOLINT errno
     }
@@ -101,7 +101,7 @@ int main(int argc, char* argv[]) {
     }
 
   } catch (const std::exception& e) {
-    std::cerr << std::format("Error: {}\n", e.what());
+    std::cerr << fmt::format("Error: {}\n", e.what());
     return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;

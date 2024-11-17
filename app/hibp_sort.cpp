@@ -23,7 +23,7 @@ void define_options(CLI::App& app, cli_config_t& cli) {
 
   app.add_option(
       "--max-memory", cli.max_memory,
-      std::format("The maximum size of each chunk to sort in memory (in MB). The peak memory "
+      fmt::format("The maximum size of each chunk to sort in memory (in MB). The peak memory "
                   "consumption of the process will be about two times this value. Smaller values "
                   "will, result in more chunks being written to disk, which is slower."
                   "(default = {}MB)",

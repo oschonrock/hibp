@@ -32,7 +32,7 @@ void define_options(CLI::App& app) {
   app.add_flag("--toc", cli_config.toc, "Use a table of contents for extra performance.");
 
   app.add_option("--toc-entries", cli_config.toc_entries,
-                 std::format("Specify how may table of contents entries to use. default {}", cli_config.toc_entries));
+                 fmt::format("Specify how may table of contents entries to use. default {}", cli_config.toc_entries));
 }
 
 int main(int argc, char* argv[]) {
@@ -62,7 +62,7 @@ int main(int argc, char* argv[]) {
                iter != db.end() && *iter == needle) {
       maybe_ppw = *iter;
     }
-    std::cout << std::format(
+    std::cout << fmt::format(
         "search took {:.1f}ms\n",
         std::chrono::duration_cast<double_milli>(clk::now() - start_time).count());
 

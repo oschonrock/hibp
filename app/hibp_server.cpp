@@ -32,13 +32,13 @@ void define_options(CLI::App& app) {
 
   app.add_option(
       "--bind-address", cli.bind_address,
-      std::format("The IP4 address the server will bind to. (default: {})", cli.bind_address));
+      fmt::format("The IP4 address the server will bind to. (default: {})", cli.bind_address));
 
   app.add_option("--port", cli.port,
-                 std::format("The port the server will bind to (default: {})", cli.port));
+                 fmt::format("The port the server will bind to (default: {})", cli.port));
 
   app.add_option("--threads", cli.threads,
-                 std::format("The number of threads to use (default: {})", cli.threads))
+                 fmt::format("The number of threads to use (default: {})", cli.threads))
       ->check(CLI::Range(1U, cli.threads));
 
   app.add_flag("--json", cli.json, "Output a json response.");
@@ -52,7 +52,7 @@ void define_options(CLI::App& app) {
 
   app.add_option(
       "--toc-entries", cli.toc_entries,
-      std::format("Specify how may table of contents entries to use. default {}", cli.toc_entries));
+      fmt::format("Specify how may table of contents entries to use. default {}", cli.toc_entries));
 }
 
 auto search_and_respond(flat_file::database<hibp::pawned_pw>& db, const hibp::pawned_pw& needle,
@@ -71,12 +71,12 @@ auto search_and_respond(flat_file::database<hibp::pawned_pw>& db, const hibp::pa
   std::string content_type = cli.json ? "application/json" : "text/plain";
 
   auto response = req->create_response().append_header(
-      restinio::http_field::content_type, std::format("{}; charset=utf-8", content_type));
+      restinio::http_field::content_type, fmt::format("{}; charset=utf-8", content_type));
 
   if (cli.json) {
-    response.set_body(std::format("{{count:{}}}\n", count));
+    response.set_body(fmt::format("{{count:{}}}\n", count));
   } else {
-    response.set_body(std::format("{}\n", count));
+    response.set_body(fmt::format("{}\n", count));
   }
   return response.done();
 }
@@ -125,7 +125,7 @@ void run_server() {
     using request_handler_t = restinio::router::express_router_t<>;
   };
 
-  std::cerr << std::format(
+  std::cerr << fmt::format(
       "Serving from {}:{}\nMake a request to either of\nhttp://{}:{}/check/plain/password123\n"
       "http://{}:{}/check/sha1/CBFDAC6008F9CAB4083784CBD1874F76618D2A97\n",
       cli.bind_address, cli.port, cli.bind_address, cli.port, cli.bind_address, cli.port);
@@ -151,7 +151,7 @@ int main(int argc, char* argv[]) {
     } else {
       auto input_stream = std::ifstream(cli.db_filename);
       if (!input_stream) {
-        throw std::runtime_error(std::format("Error opening '{}' for reading. Because: \"{}\".\n",
+        throw std::runtime_error(fmt::format("Error opening '{}' for reading. Because: \"{}\".\n",
                                              cli.db_filename,
                                              std::strerror(errno))); // NOLINT errno
       }

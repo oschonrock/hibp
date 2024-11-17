@@ -31,7 +31,7 @@ void define_options(CLI::App& app, cli_config_t& cli) {
                "Instead of an output file write output to standard output.");
 
   app.add_option("-N,--topn", cli.topn,
-                 std::format("Return the N most common password records (default: {})", cli.topn));
+                 fmt::format("Return the N most common password records (default: {})", cli.topn));
 
   app.add_flag("-f,--force", cli.force, "Overwrite any existing output file!");
 }
@@ -39,7 +39,7 @@ void define_options(CLI::App& app, cli_config_t& cli) {
 std::ifstream get_input_stream(const std::string& input_filename) {
   auto input_stream = std::ifstream(input_filename);
   if (!input_stream) {
-    throw std::runtime_error(std::format("Error opening '{}' for reading. Because: \"{}\".\n",
+    throw std::runtime_error(fmt::format("Error opening '{}' for reading. Because: \"{}\".\n",
                                          input_filename,
                                          std::strerror(errno))); // NOLINT errno
   }
@@ -49,12 +49,12 @@ std::ifstream get_input_stream(const std::string& input_filename) {
 std::ofstream get_output_stream(const std::string& output_filename, bool force) {
   if (!force && std::filesystem::exists(output_filename)) {
     throw std::runtime_error(
-        std::format("File '{}' exists. Use `--force` to overwrite.", output_filename));
+        fmt::format("File '{}' exists. Use `--force` to overwrite.", output_filename));
   }
 
   auto output_stream = std::ofstream(output_filename, std::ios_base::binary);
   if (!output_stream) {
-    throw std::runtime_error(std::format("Error opening '{}' for writing. Because: \"{}\".\n",
+    throw std::runtime_error(fmt::format("Error opening '{}' for writing. Because: \"{}\".\n",
                                          output_filename,
                                          std::strerror(errno))); // NOLINT errno
   }
@@ -90,7 +90,7 @@ int main(int argc, char* argv[]) {
 
     std::vector<hibp::pawned_pw> output_db(cli.topn);
 
-    std::cerr << std::format("{:50}", "Read db from disk and topN sort by count desc...");
+    std::cerr << fmt::format("{:50}", "Read db from disk and topN sort by count desc...");
     using clk  = std::chrono::high_resolution_clock;
     auto start = clk::now();
 
@@ -100,9 +100,11 @@ int main(int argc, char* argv[]) {
                            [](auto& a, auto& b) { return a.count > b.count; });
 
     auto stop = clk::now();
-    std::cerr << std::format("{:%M:%Ss}\n", floor<std::chrono::milliseconds>(stop - start));
+    std::cerr << fmt::format(
+        "{:12.3}s\n",
+        std::chrono::duration_cast<std::chrono::duration<double>>(stop - start).count());
 
-    std::cerr << std::format("{:50}", "Sort by hash ascending...");
+    std::cerr << fmt::format("{:50}", "Sort by hash ascending...");
     start = clk::now();
     // default sort by hash ascending
     std::sort(
@@ -113,23 +115,23 @@ int main(int argc, char* argv[]) {
 #endif
         output_db.begin(), output_db.end());
     stop = clk::now();
-    std::cerr << std::format(
+    std::cerr << fmt::format(
         "{:9.3}s\n",
         std::chrono::duration_cast<std::chrono::duration<double>>(stop - start).count());
 
     start = clk::now();
-    std::cerr << std::format("{:50}", "Write TopN db to disk...");
+    std::cerr << fmt::format("{:50}", "Write TopN db to disk...");
     auto writer = flat_file::stream_writer<hibp::pawned_pw>(*output_stream);
     for (const auto& pw: output_db) {
       writer.write(pw);
     }
     stop = clk::now();
-    std::cerr << std::format(
+    std::cerr << fmt::format(
         "{:9.3}s\n",
         std::chrono::duration_cast<std::chrono::duration<double>>(stop - start).count());
 
   } catch (const std::exception& e) {
-    std::cerr << std::format("Error: {}\n", e.what());
+    std::cerr << fmt::format("Error: {}\n", e.what());
     return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;

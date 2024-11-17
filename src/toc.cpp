@@ -12,7 +12,7 @@ std::vector<toc_entry> toc; // NOLINT non-const global
 
 void build_toc(flat_file::database<hibp::pawned_pw>& db, const std::string& db_filename, std::size_t toc_entries) {
 
-  std::string toc_filename = std::format("{}.{}.toc", db_filename, toc_entries);
+  std::string toc_filename = fmt::format("{}.{}.toc", db_filename, toc_entries);
   
   if (!std::filesystem::exists(toc_filename) || (std::filesystem::last_write_time(toc_filename) <=
                                                  std::filesystem::last_write_time(db_filename))) {
@@ -20,10 +20,10 @@ void build_toc(flat_file::database<hibp::pawned_pw>& db, const std::string& db_f
     // build
     std::size_t db_size        = db.number_records();
     std::size_t toc_entry_size = db_size / toc_entries;
-    std::cerr << std::format("{:25s} {:15d} records\n", "db_size", db_size);
-    std::cerr << std::format("{:25s} {:15d}\n", "number of toc entries", toc_entries);
-    std::cerr << std::format("{:25s} {:15d} records in db\n", "each toc_entry covers", toc_entry_size);
-    std::cerr << std::format("building table of contents..\n");
+    std::cerr << fmt::format("{:25s} {:15d} records\n", "db_size", db_size);
+    std::cerr << fmt::format("{:25s} {:15d}\n", "number of toc entries", toc_entries);
+    std::cerr << fmt::format("{:25s} {:15d} records in db\n", "each toc_entry covers", toc_entry_size);
+    std::cerr << fmt::format("building table of contents..\n");
     toc.reserve(toc_entries);
 
     for (unsigned i = 0; i != toc_entries; i++) {
@@ -39,7 +39,7 @@ void build_toc(flat_file::database<hibp::pawned_pw>& db, const std::string& db_f
                      static_cast<std::streamsize>(sizeof(toc_entry) * toc.size()));
   } else {
     // load
-    std::cerr << std::format("loading table of contents..\n");
+    std::cerr << fmt::format("loading table of contents..\n");
     auto toc_file_size = std::filesystem::file_size(toc_filename);
     auto toc_stream    = std::ifstream(toc_filename, std::ios_base::binary);
     toc                = std::vector<toc_entry>{toc_file_size / sizeof(toc_entry)};

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.28)
+cmake_minimum_required(VERSION 3.25)
 project(hibp)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -82,6 +82,7 @@ find_package(TBB REQUIRED)
 add_library(flat_file INTERFACE)
 target_include_directories(flat_file INTERFACE include)
 target_compile_features(flat_file INTERFACE cxx_std_20)
+target_link_libraries(flat_file INTERFACE fmt::fmt)
 
 if (MSVC)
   target_link_libraries(flat_file INTERFACE tBB::tbb)
