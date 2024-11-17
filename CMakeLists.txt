@@ -26,22 +26,11 @@ else() # unix'ish
       endif()
     endif()
   endif()
-  
-
-  # mold
-  if (NOT (MINGW OR CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")) # mold not "compatible with mingw|FreeBSD toolchain"
-    if(CMAKE_VERSION VERSION_LESS "3.29") 
-      message(WARNING "Please consider upgrading to CMake 3.30 to enable use of faster `mold` linker!")
-    else()
-      set(CMAKE_LINKER_TYPE MOLD) 
-    endif()
-  endif()
 endif()
 
-#  LTO -- quite slow, enable if you think you benefit
+# LTO -- quite slow, enable if you think you benefit
 # set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
 # set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-
 
 if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
   # add the `local` paths common on FreeBSD
