@@ -7,3 +7,6 @@
 [submodule "ext/hash-library"]
 	path = ext/hash-library
 	url = https://github.com/oschonrock/hash-library.git
+[submodule "ext/fmt"]
+	path = ext/fmt
+	url = https://github.com/fmtlib/fmt.git
