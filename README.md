@@ -69,9 +69,13 @@ hibp.server hibp_all.bin
 ```
 
 NOTE: the snap versions are slightly different to the manually installed ones: 
-1. the use a "period" separator in their names, like `hibp.download`
+1. they use a "period" separator in their names, like `hibp.download`
 2. they are restricted to where they can read and write files ($HOME
 and subdirs only)
+3. running a server from the snap is a bit awkward due to its
+   restrictions, using a .deb package or compiling from source is
+   recommended.
+4. the snap is good for quickly trying it out
 
 ## Building from source
 
