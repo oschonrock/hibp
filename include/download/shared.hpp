@@ -1,5 +1,6 @@
 #pragma once
 
+#include "fmt/chrono.h" // IWYU pragma: keep
 #include <chrono>
 #include <compare>
 #include <cstddef>
@@ -62,9 +63,8 @@ struct thread_logger {
     if (debug) {
       std::lock_guard lk(cerr_mutex);
       // can't portably use high resolution clock here
-      // auto timestamp = std::chrono::system_clock::now();
-      // std::cerr << fmt::format("{:%Y-%m-%d %H:%M:%S} thread: {:>9}: {}\n", timestamp,
-      std::cerr << fmt::format("thread: {:>9}: {}\n", 
+      auto timestamp = std::chrono::system_clock::now();
+      std::cerr << fmt::format("{:%Y-%m-%d %H:%M:%S} thread: {:>9}: {}\n", timestamp,
                                thrnames[std::this_thread::get_id()], msg);
     }
   }

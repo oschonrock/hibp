@@ -1,5 +1,6 @@
 #include "CLI/CLI.hpp"
 #include "flat_file.hpp"
+#include "fmt/chrono.h" // IWYU pragma: keep
 #include "hibp.hpp"
 #include <algorithm>
 #include <chrono>
@@ -100,9 +101,7 @@ int main(int argc, char* argv[]) {
                            [](auto& a, auto& b) { return a.count > b.count; });
 
     auto stop = clk::now();
-    std::cerr << fmt::format(
-        "{:12.3}s\n",
-        std::chrono::duration_cast<std::chrono::duration<double>>(stop - start).count());
+    std::cerr << std::format("{:%M:%Ss}\n", floor<std::chrono::milliseconds>(stop - start));
 
     std::cerr << fmt::format("{:50}", "Sort by hash ascending...");
     start = clk::now();

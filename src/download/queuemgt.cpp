@@ -2,6 +2,7 @@
 #include "download/requests.hpp"
 #include "download/shared.hpp"
 #include "flat_file.hpp"
+#include "fmt/chrono.h" // IWYU pragma: keep
 #include "hibp.hpp"
 #include <chrono>
 #include <condition_variable>
@@ -9,7 +10,6 @@
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
-#include "fmt/core.h"
 #include <iostream>
 #include <memory>
 #include <mutex>
@@ -83,10 +83,9 @@ void print_progress() {
 
     std::lock_guard lk(cerr_mutex);
     auto            files_todo = cli.index_limit - start_index;
-    // std::cerr << fmt::format("Elapsed: {:%H:%M:%S}  Progress: {} / {} files  {:.1f}MB/s  {:5.1f}%  "
-    std::cerr << fmt::format("Progress: {} / {} files  {:.1f}MB/s  {:5.1f}%  "
+    std::cerr << fmt::format("Elapsed: {:%H:%M:%S}  Progress: {} / {} files  {:.1f}MB/s  {:5.1f}%  "
                              "  Write queue size: {:4d}\r",
-                             files_processed, files_todo,
+                             elapsed_trunc, files_processed, files_todo,
                              static_cast<double>(bytes_processed) / (1U << 20U) / elapsed_sec,
                              100.0 * static_cast<double>(files_processed) /
                                  static_cast<double>(files_todo),
