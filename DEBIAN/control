@@ -1,0 +1,9 @@
+Package: hibp
+Version: 0.1
+Architecture: amd64
+Maintainer: Oliver Schönrock <oliver@schonrocks.com>
+Description: High performance downloader, query tool, server and utilities for the
+  Have I been Pawned database of compromiseed passwords. This very useful
+  database is somewhat challenging to use locally because of its sheer size.
+  These utiliities make it easy and fast to deal with the large data volume
+  while being very effiicent on disk and memory resouces.
