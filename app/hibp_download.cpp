@@ -2,6 +2,7 @@
 #include "download/queuemgt.hpp"
 #include "download/shared.hpp"
 #include "flat_file.hpp"
+#include "fmt/core.h"
 #include "hibp.hpp"
 #include <cstddef>
 #include <cstdlib>
@@ -12,7 +13,6 @@
 #include <event2/event.h>
 #include <exception>
 #include <filesystem>
-#include "fmt/core.h"
 #include <fstream>
 #include <ios>
 #include <iostream>
@@ -70,7 +70,7 @@ int main(int argc, char* argv[]) {
     }
 
     std::size_t start_index = 0;
-    auto mode = cli.text_out ? std::ios_base::out : std::ios_base::binary;
+    auto        mode        = cli.text_out ? std::ios_base::out : std::ios_base::binary;
 
     if (cli.resume) {
       start_index = get_last_prefix(cli.output_db_filename) + 1;
@@ -78,8 +78,7 @@ int main(int argc, char* argv[]) {
       if (cli.index_limit <= start_index) {
         throw std::runtime_error(fmt::format("File '{}' contains {} records already, but you have "
                                              "specified --limit={}. Nothing to do. Aborting.",
-                                             cli.output_db_filename, start_index,
-                                             cli.index_limit));
+                                             cli.output_db_filename, start_index, cli.index_limit));
       }
       mode |= std::ios_base::app;
       std::cerr << fmt::format("Resuming from file {}\n", start_index);
