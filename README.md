@@ -52,10 +52,10 @@ most common records.
 
 #### Install
 
-[Download .deb and install](https://github.com/oschonrock/hibp/releases/latest)
+[Download latest .deb and install](https://github.com/oschonrock/hibp/releases/latest)
 ```bash
-wget -q https://github.com/oschonrock/hibp/releases/download/v0.1.0/hibp_0.1.0-1_amd64.deb
-sudo dpkg -i hibp_0.1.0-1_amd64.deb
+wget -q https://github.com/oschonrock/hibp/releases/download/v0.1.0/hibp_0.1.1-1_amd64.deb
+sudo dpkg -i hibp_0.1.1-1_amd64.deb
 
 # and to remove again
 sudo dpkg -r hibp
