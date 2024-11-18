@@ -54,11 +54,8 @@ most common records.
 
 [Download latest .deb and install](https://github.com/oschonrock/hibp/releases/latest)
 ```bash
-wget -q https://github.com/oschonrock/hibp/releases/download/v0.1.0/hibp_0.1.1-1_amd64.deb
+wget -q https://github.com/oschonrock/hibp/releases/download/v0.1.1/hibp_0.1.1-1_amd64.deb
 sudo dpkg -i hibp_0.1.1-1_amd64.deb
-
-# and to remove again
-sudo dpkg -r hibp
 ```
 
 #### Usage
@@ -166,7 +163,7 @@ curl http://localhost:8082/check/plain/password
 {count:10434004}
 
 # if you feel more secure sha1 hashing the password in your client, you
-# can also.
+# can also do this
 
 curl http://localhost:8082/check/sha1/5BAA61E4C9B93F3F0682250B6CF8331B7EE68FD8
 10434004
@@ -177,17 +174,20 @@ For all options run `hibp-server --help`.
 
 #### Basic performance evaluation using apache bench
 
+Run server like this (--perf-test will uniquefy change the password for each request)
 ```
-# run server like this (--perf-test will uniquelt change the password for each request)
-
 ./build/gcc/release/hibp-server data/hibp_all.bin --perf-test
+```
 
-# and run apache bench like this (generate a somewhat random password to start):
+And run apache bench like this (generating a somewhat random password to start with):
 
+```
 hash=$(date | sha1sum); ab -c100 -n10000 "http://localhost:8082/check/plain/${hash:0:10}"
+```
 
-# These are the key figures from a short run on an old i5-3470 CPU @ 3.20GHz with 4 threads
+These are the key figures from a short run on an old i5-3470 CPU @ 3.20GHz with 4 threads
 
+```
 Requests per second:    3166.96 [#/sec] (mean)
 Time per request:       31.576 [ms] (mean)
 Time per request:       0.316 [ms] (mean, across all concurrent requests)
@@ -198,7 +198,9 @@ want to reduce the server to just one thread like so:
 
 ```
 ./build/gcc/release/hibp-server data/hibp_all.bin --perf-test --threads=1
+```
 
+```
 hash=$(date | sha1sum); ab -c25 -n10000 "http://localhost:8082/check/plain/${hash:0:10}"
 
 Requests per second:    1017.17 [#/sec] (mean)
@@ -207,9 +209,8 @@ Time per request:       0.983 [ms] (mean, across all concurrent requests)
 ```
 
 You can try the `--toc` feature on hibp-server which may improve
-performance signficantly especially if you have limited free RAM for
+performance signficantly further especially if you have limited free RAM for
 the OS to cache the disk.
-
 
 ## Other utilities
 
@@ -226,17 +227,23 @@ In each case for all options run `program_name --help`.
 ## Under the hood
 
 These utilities are written in C++ and centre around a `flat_file` class to model the db. 
-- multi threaded concurrency and parallelism is used in the downloader,
-  the server and the sorter.
-- `libcurl`, `libevent` are used for the download
+- multi threaded concurrency and parallelism is used in
+	`hibp-download`, `hibp-server`, `hibp-sort` and `hibp-topn`.
+- `libcurl`, `libevent` are used for the highly concurrent download
 - `restinio` is used for the local server, based on `ASIO` for efficient concurrency
-- libtbb is used for local sorting in `hibp-sort` and `hibp-topn`
+- libtbb is used for local sorting in `hibp-sort` and
+	`hibp-topn`. Note that for the parallelism (ie PSTL using libtbb)
+	you currently have to compile from source, but this only has a small
+	effect on `hibp-sort` and `hibp-topn`.
 
 ## Future plans
 
-- trying to get it packaged: snap, .deb, .rpm and FreeBSD port are priority, then
-  windows installer. 
+- More packaging: 
+  - Get the .deb accepted into Debian 
+  - publish a .rpm 
+  - get it into a FreeBSD port
+  - produce a windows installer 
 
-- Considering adding a php/pyhton/javascript extension so that queries
+- Consider adding a php/pyhton/javascript extension so that queries
   can be trivially made from within those scripting environments
   without going through an http server
