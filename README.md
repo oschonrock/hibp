@@ -215,9 +215,6 @@ the OS to cache the disk.
 
 ## Other utilities
 
-`./fetch.sh` : curl command line to directly download the ~1M text files (approx 30-40kB each)
-               also has find command line to join the above together (in arbitrary order!) and prefix the lines witin appropriately
-
 `./build/gcc/release/hibp-topn`    : reduce a db to the N most common passwords (saves diskspace)
 
 `./build/gcc/release/hibp-convert` : convert a text file into a binary file or vice-a-versa
@@ -235,9 +232,7 @@ These utilities are written in C++ and centre around a `flat_file` class to mode
   the server and the sorter.
 - `libcurl`, `libevent` are used for the download
 - `restinio` is used for the local server, based on `ASIO` for efficient concurrency
-- libtbb is used for local sorting in `hibp-sort`
-
-
+- libtbb is used for local sorting in `hibp-sort` and `hibp-topn`
 
 ## Future plans
 
