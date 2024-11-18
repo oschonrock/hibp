@@ -57,7 +57,7 @@ if (NOT MSVC)
   target_compile_options(sha1 INTERFACE -Wno-sign-conversion)
 endif()
 
-add_subdirectory(ext/fmt)
+add_subdirectory(ext/fmt EXCLUDE_FROM_ALL)
 
 add_library(arrcmp INTERFACE)
 target_include_directories(arrcmp INTERFACE include)
@@ -86,10 +86,10 @@ endif()
 set(RESTINIO_EXPLICIT_CPPSTD 20)
 set(RESTINIO_ASIO_SOURCE standalone)
 set(asio_INCLUDE_DIRS ../asio/include) # relative to ext/restinio/dev/restinio
-add_subdirectory(ext/restinio/dev/nodejs/llhttp)
+add_subdirectory(ext/restinio/dev/nodejs/llhttp EXCLUDE_FROM_ALL)
 # using our own direct submodule, restions will use that also
 # add_subdirectory(ext/restinio/dev/fmt)
-add_subdirectory(ext/restinio/dev/expected-lite)
+add_subdirectory(ext/restinio/dev/expected-lite EXCLUDE_FROM_ALL)
 add_subdirectory(ext/restinio/dev/restinio)
 # be more forgiving with errors
 if (NOT MSVC)
@@ -174,4 +174,4 @@ else(HIBP_TEST)
   message(STATUS "HIBP Tests are disabled. Set HIBP_TEST to ON to run tests.")
 endif(HIBP_TEST)
 
-install(TARGETS hibp_download hibp_sort hibp_search hibp_join hibp_convert hibp_server hibp_topn DESTINATION bin)
+install(TARGETS hibp_download hibp_sort hibp_search hibp_join hibp_convert hibp_server hibp_topn RUNTIME)
