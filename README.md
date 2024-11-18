@@ -48,66 +48,64 @@ like `hibp-topn` which will conveniently reduce a file to the `N` most
 common pawned passwords. By default this is a ~1GB file for the 50,000,000
 most common records.
 
-## Quick start
+### Quick start - Linux .deb systems
 
-If you have access to the `snap` store:
+#### Install
 
+[Download .deb and install](https://github.com/oschonrock/hibp/releases/latest)
+```bash
+wget -q https://github.com/oschonrock/hibp/releases/download/v0.1.0/hibp_0.1.0-1_amd64.deb
+sudo dpkg -i hibp_0.1.0-1_amd64.deb
+
+# and to remove again
+sudo dpkg -r hibp
 ```
-sudo snap install hibp
 
-# and straight to usage:
+#### Usage
 
-# obtain data
+Download "Have I been pawned" database.
+38GB download, uses 21GB of disk space and takes ~5/12 minutes on 1Gbit/400Mbit connection. Detailed progress is shown.
+
+```bash
 hibp.download hibp_all.bin
-
-# optionally limit data
-hibp.topn hibp_all.bin
-
-
-hibp.server hibp_all.bin
-
 ```
 
-NOTE: the snap versions are slightly different to the manually installed ones: 
-1. they use a "period" separator in their names, like `hibp.download`
-2. they are restricted to where they can read and write files ($HOME
-and subdirs only)
-3. running a server from the snap is a bit awkward due to its
-   restrictions, using a .deb package or compiling from source is
-   recommended.
-4. the snap is good for quickly trying it out
+Serve the data on local http server.
+```bash
+hibp.server hibp_all.bin
+```
+
+Test the server (in a different terminal)
+
+```bash
+curl http://localhost:8082/check/plain/password123
+```
+
+The output will be the number of times that pasword has appeared in
+leaks. Integrate this into your signup and login processes to show
+warnings to the user that they using a compromised password.
+
+For production, make this server a proper autostart "service" on your distribution. 
+
+### Uninstall
+
+To remove the package:
+```bash
+sudo dpkg -r hibp
+```
 
 ## Building from source
 
 ### Installing build dependencies
 
-refer to 
+refer to OS specific instructions
 
-- [BUILD-linux.md](BUILD-linux.md)
-- [BUILD-FreeBSD.md](BUILD-FreeBSD.md)
-- [BUILD-Windows.md](BUILD-Windows.md)
-
-### Compile in debug mode
-```bash
-# for compiling with gcc
-./build.sh -c gcc -b debug
-
-# Optional: for compiling with clang
-./build.sh -c clang -b debug
-
-```
-
-### Run download in debug mode 
-Just to prove your build environment is good. 
-
-```bash
-./build/gcc/debug/hibp-download --debug --limit=10 --parallel-max=3 hibp_sample.bin
-```
-You should see a bunch thread debug output, but no error and  `ls -lh hibp_sample.bin` should show ~228kB.
+- [Linux](BUILD-linux.md)
+- [FreeBSD](BUILD-FreeBSD.md)
+- [Windows](BUILD-Windows.md)
 
 ### Compile for release
 ```bash
-
 ./build.sh -c gcc -b release
 ```
 
