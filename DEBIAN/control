@@ -1,5 +1,5 @@
 Package: hibp
-Version: 0.1
+Version: 0.1.0
 Architecture: amd64
 Maintainer: Oliver Schönrock <oliver@schonrocks.com>
 Description: High performance downloader, query tool, server and utilities for the
