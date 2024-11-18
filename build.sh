@@ -15,6 +15,8 @@ NOPCH="-DNOPCH=OFF" # override cmake cache
 GENERATEONLY=
 VERBOSE=
 TARGETS=
+INSTALL=
+INSTALL_PREFIX=
 
 USAGE=$(cat <<-END
 
@@ -28,6 +30,8 @@ USAGE=$(cat <<-END
 	 -g | --generate-only     only generate, don't build
 	 --clean-first            cleans the selected targets before building (recompiles everything for those targets)
 	 -p | --purge 		  completely wipe the selected build directory (deletes cmake config, implies --clean-first)
+	 --install                install after building
+	 --install-prefix         the prefix for install, defaults to /usr/local
 	 -v | --verbose 	  get verbose compiler command lines
 	 -h | --help              show this info
 
@@ -40,7 +44,7 @@ then
     GETOPT='/usr/local/bin/getopt'
 fi
 
-options=$($GETOPT --options hvc:b:t:pg --long help,verbose,compiler:,buildtype:,targets:,purge,generate-only,clean-first,nopch -- "$@")
+options=$($GETOPT --options hvc:b:t:pg --long help,verbose,compiler:,buildtype:,targets:,purge,generate-only,install,install-prefix:,clean-first,nopch -- "$@")
 
 eval set -- "$options"
 while true; do
@@ -80,6 +84,13 @@ while true; do
 	--clean-first)
 	    CLEAN_FIRST="--clean-first"
 	    ;;
+	--install)
+	    INSTALL=1
+	    ;;
+	--install-prefix)
+	    shift
+	    INSTALL_PREFIX="-DCMAKE_INSTALL_PREFIX=$1"
+	    ;;
 	--nopch)
 	    NOPCH="-DNOPCH=ON"
 	    ;;
@@ -112,7 +123,7 @@ else
     CACHE=""
 fi
 
-BUILD_OPTIONS="-DCMAKE_C_COMPILER=$C_COMPILER -DCMAKE_CXX_COMPILER=$CXX_COMPILER -DCMAKE_BUILD_TYPE=$BUILDTYPE"
+BUILD_OPTIONS="-DCMAKE_C_COMPILER=$C_COMPILER -DCMAKE_CXX_COMPILER=$CXX_COMPILER -DCMAKE_BUILD_TYPE=$BUILDTYPE $INSTALL_PREFIX"
 
 if command -v mold > /dev/null 2>&1
 then
@@ -135,3 +146,6 @@ GEN_RET=$?
 BUILD_CMD="$CMAKE --build $BUILD_DIR $CLEAN_FIRST $TARGETS -- $VERBOSE"
 [[ -n $VERBOSE ]] && echo "$BUILD_CMD"
 $BUILD_CMD
+
+[[ -n $INSTALL ]] && cmake --install $BUILD_DIR
+
