@@ -107,7 +107,7 @@ int main(int argc, char* argv[]) {
     start = clk::now();
     // default sort by hash ascending
     std::sort(
-#if __cpp_lib_parallel_algorithm
+#if HIBP_USE_PSTL && __cpp_lib_parallel_algorithm
         // it is also possible to use std::sort(par_unseq from PTSL in libc++ with
         // -fexperimental-library
         std::execution::par_unseq,

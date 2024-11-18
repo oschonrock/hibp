@@ -226,7 +226,7 @@ std::vector<std::string> sort_into_chunks(typename database<ValueType>::const_it
     std::vector<ValueType> objs;
     std::copy(first + start, first + end, std::back_inserter(objs));
     std::sort(
-#if __cpp_lib_parallel_algorithm
+#if HIBP_USE_PSTL && __cpp_lib_parallel_algorithm
         // it is also possible to use std::sort(par_unseq from PTSL in libc++ with
         // -fexperimental-library
         std::execution::par_unseq,
