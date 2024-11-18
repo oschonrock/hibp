@@ -64,12 +64,12 @@ Download "Have I been pawned" database.
 38GB download, uses 21GB of disk space and takes ~5/12 minutes on 1Gbit/400Mbit connection. Detailed progress is shown.
 
 ```bash
-hibp.download hibp_all.bin
+hibp-download hibp_all.bin
 ```
 
 Serve the data on local http server.
 ```bash
-hibp.server hibp_all.bin
+hibp-server hibp_all.bin
 ```
 
 Test the server (in a different terminal)
@@ -113,19 +113,20 @@ Program will download the currently ~38GB of 1million 30-40kB text files from ap
 It does this using libcurl with curl_multi and 300 parallel requests on a single thread.
 With a second thread doing the conversion to binary format and writing to disk.
 
-*Warning* this will (currently) take just under 12mins on a 400Mbit/s connection and consume ~21GB of disk space
-during this time:
+*Warning* this will (currently) take just under 12mins on a 400Mbit/s
+connection and consume ~21GB of disk space during this time:
 - your network connection should be saturated with HTTP2 multiplexed requests
 - `top` in threads mode (key `H`) should show 2 `hibp-download` threads.
 - One "curl thread" with ~50-80% CPU and
 - The "main thread" with ~15-30% CPU, primarily converting data to binary and writing to disk
 
 ```bash
-time ./build/gcc/release/hibp-download hibp_all.bin
-
-# you may see some warnings about failures and retries. If any transfers fails after 10 retries, programme will abort.
-# after a permanent failure / abort, you can try rerunnung with `--resume` 
+./build/gcc/release/hibp-download hibp_all.bin
 ```
+
+You may see some warnings about failures and retries. If any transfer
+fails, even after 5 retries, the programme will abort.  after a
+permanent failure / abort, you can try rerunnung with `--resume`
 
 For all options run `hibp-download --help`.
 
@@ -142,6 +143,7 @@ search took                0.2699 ms
 needle = 5BAA61E4C9B93F3F0682250B6CF8331B7EE68FD8:-1
 found  = 5BAA61E4C9B93F3F0682250B6CF8331B7EE68FD8:10434004
 ```
+
 Performance will be mainly down to your disk and be around 15-20ms per uncached query, and <0.2ms cached.
 
 ### Running a local server: `hibp-server`
