@@ -3,10 +3,23 @@
 OLD_VERSION="$1"
 NEW_VERSION="$2"
 
+USAGE=$(cat <<-END
+    	Usage: $0 OLD_VERSION NEW_VERSION
+END
+     )
+
+if [[ -z $OLD_VERSION || -z $NEW_VERSION ]]
+then
+    echo $USAGE
+    exit 1
+fi
+echo "$OLD_VERSION $NEW_VERSION"
+exit 0
+
+
 NEW_PACKAGE_DIR="$HOME/hibp_$NEW_VERSION-1_amd64"
 
-SED_PRG="s/${OLD_VERSION//./\\.}/${NEW_VERSION//./\\.}/g"
-sed -i "$SED_PRG" DEBIAN/control README.md
+sed -i "s/${OLD_VERSION//./\\.}/${NEW_VERSION//./\\.}/g" DEBIAN/control README.md
 
 rm -rf $NEW_PACKAGE_DIR
 mkdir -p $NEW_PACKAGE_DIR/DEBIAN/
