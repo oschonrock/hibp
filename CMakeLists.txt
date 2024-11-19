@@ -70,7 +70,7 @@ target_link_libraries(hibp INTERFACE arrcmp)
 
 option(HIBP_WITH_PSTL "Use parallel STL for sorting. Requires libtbb." OFF)
 if (HIBP_WITH_PSTL)
-  add_definitions(-DHIBP_USE_PSTL)
+  add_compile_definitions(HIBP_USE_PSTL)
   find_package(TBB REQUIRED)
 endif()
 
