@@ -3,7 +3,9 @@
 #include "fmt/chrono.h" // IWYU pragma: keep
 #include "hibp.hpp"
 #include <algorithm>
+#if __has_include(<bits/chrono.h>)
 #include <bits/chrono.h>
+#endif
 #include <chrono>
 #include <cstddef>
 #include <cstdlib>
