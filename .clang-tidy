@@ -26,7 +26,8 @@ Checks: '*,-fuchsia*,
 -cppcoreguidelines-avoid-c-arrays,
 -modernize-avoid-c-arrays,
 -hicpp-avoid-c-arrays,
--readability-identifier-length'
+-readability-identifier-length,
+-cppcoreguidelines-avoid-non-const-global-variables'
 
 CheckOptions:
   - key:             cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor

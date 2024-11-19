@@ -65,7 +65,7 @@ std::ofstream get_output_stream(const std::string& output_filename, bool force) 
 }
 
 int main(int argc, char* argv[]) {
-  cli_config_t cli; // NOLINT non-const global
+  cli_config_t cli;
 
   CLI::App app("Reducing 'Have I been pawned' binary databases to the top N most common entries.");
   define_options(app, cli);

@@ -21,7 +21,7 @@ struct cli_config_t {
   unsigned      toc2_bits    = 20; // 1Mega chapters
 };
 
-static cli_config_t cli; // NOLINT non-const global
+static cli_config_t cli;
 
 static std::atomic<int> uniq{}; // NOLINT for performance testing, uniq across threads
 

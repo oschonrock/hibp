@@ -9,22 +9,21 @@
 #include <iostream>
 #include <iterator>
 #include <memory>
-#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-static std::unordered_map<std::size_t,
-                          std::unique_ptr<download>> // double indirection, strictly unecessary
-    download_queue;                                  // NOLINT non-const-global
+// double indirection via unique_ptr. Strictly unecessary for address stability, but consistent with
+// other queues and non critical
+static std::unordered_map<std::size_t, std::unique_ptr<download>> download_slots;
 
-static CURLM*        curl_multi_handle; // NOLINT non-const-global
-static struct event* timeout;           // NOLINT non-const-global
+static CURLM* curl_multi_handle;
+static event* timeout;
 
-static event_base* base; // NOLINT non-const-global
+static event_base* ebase;
 
-static std::size_t next_index = 0x0UL; // NOLINT non-cost-gobal
+static std::size_t next_index = 0x0UL;
 
 // connects an event with a socketfd
 struct curl_context_t {
@@ -39,7 +38,7 @@ static curl_context_t* create_curl_context(curl_socket_t sockfd) {
 
   context->sockfd = sockfd;
   context->event =
-      event_new(base, static_cast<evutil_socket_t>(sockfd), 0, curl_perform_event_cb, context);
+      event_new(ebase, static_cast<evutil_socket_t>(sockfd), 0, curl_perform_event_cb, context);
 
   return context;
 }
@@ -55,7 +54,7 @@ static std::size_t write_data_curl_cb(char* ptr, std::size_t size, std::size_t n
 
 static void add_download(std::size_t index) {
   auto [dl_iter, inserted] =
-      download_queue.insert(std::make_pair(index, std::make_unique<download>(index)));
+      download_slots.insert(std::make_pair(index, std::make_unique<download>(index)));
 
   if (!inserted) {
     throw std::runtime_error(fmt::format("unexpected condition: index {} already existed", index));
@@ -77,7 +76,7 @@ static void add_download(std::size_t index) {
 }
 
 static void fill_download_queue() {
-  while (download_queue.size() != cli.parallel_max && next_index != cli.index_limit) {
+  while (download_slots.size() != cli.parallel_max && next_index != cli.index_limit) {
     add_download(next_index++);
   }
 }
@@ -94,7 +93,7 @@ static void process_curl_done_msg(CURLMsg* message, enq_msg_t& msg) {
   if (result == CURLE_OK) {
     curl_easy_cleanup(easy_handle);
     dl->easy = nullptr; // prevent further attempts at cleanup
-    auto nh  = download_queue.extract(dl->index);
+    auto nh  = download_slots.extract(dl->index);
     logger.log(fmt::format("download {} complete. batching up into message", dl->prefix));
     msg.emplace_back(std::move(nh.mapped())); // batch up to avoid mutex too many times
     return;
@@ -204,7 +203,7 @@ static int handle_socket_curl_cb(CURL* /*easy*/, curl_socket_t s, int action, vo
     events |= EV_PERSIST; // NOLINT signed bitwise
 
     event_del(curl_context->event);
-    event_assign(curl_context->event, base, static_cast<evutil_socket_t>(curl_context->sockfd),
+    event_assign(curl_context->event, ebase, static_cast<evutil_socket_t>(curl_context->sockfd),
                  events, curl_perform_event_cb, curl_context);
     event_add(curl_context->event, nullptr);
 
@@ -251,8 +250,8 @@ void init_curl_and_events() {
     throw std::runtime_error("Error: Could not init curl\n");
   }
 
-  base    = event_base_new();
-  timeout = evtimer_new(base, timeout_event_cb, nullptr);
+  ebase   = event_base_new();
+  timeout = evtimer_new(ebase, timeout_event_cb, nullptr);
 
   curl_multi_handle = curl_multi_init();
   curl_multi_setopt(curl_multi_handle, CURLMOPT_PIPELINING, CURLPIPE_MULTIPLEX);
@@ -263,7 +262,7 @@ void init_curl_and_events() {
 void run_event_loop(std::size_t start_index) {
   next_index = start_index;
   fill_download_queue();
-  event_base_dispatch(base);
+  event_base_dispatch(ebase);
   finished_downloads();
 }
 
@@ -273,16 +272,16 @@ void shutdown_curl_and_events() {
   }
 
   event_free(timeout);
-  event_base_free(base);
+  event_base_free(ebase);
 
   libevent_global_shutdown();
   curl_global_cleanup();
 }
 
 void curl_and_event_cleanup() {
-  event_base_loopbreak(base); // not sure if required, but to be safe
+  event_base_loopbreak(ebase); // not sure if required, but to be safe
 
-  for (auto& dl_item: download_queue) {
+  for (auto& dl_item: download_slots) {
     auto& dl = dl_item.second;
     if (dl->easy != nullptr) {
       if (auto res = curl_multi_remove_handle(curl_multi_handle, dl->easy); res != CURLM_OK) {
@@ -292,6 +291,6 @@ void curl_and_event_cleanup() {
       curl_easy_cleanup(dl->easy);
     }
   }
-  download_queue.clear(); // more efficient to clear all at once
+  download_slots.clear(); // more efficient to clear all at once
   shutdown_curl_and_events();
 }

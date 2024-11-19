@@ -93,7 +93,7 @@ void bin_to_txt(const std::string& input_filename, std::ostream& output_stream, 
 }
 
 int main(int argc, char* argv[]) {
-  cli_config_t cli; // NOLINT non-const global
+  cli_config_t cli;
 
   CLI::App app("Converting 'Have I been pawned' databases between text and binary formats");
   define_options(app, cli);

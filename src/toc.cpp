@@ -30,7 +30,7 @@ struct toc_entry {
   }
 };
 
-static std::vector<toc_entry> toc; // NOLINT non-const global
+static std::vector<toc_entry> toc;
 
 void build_toc(const std::string& db_filename, std::size_t toc_entries) {
 
@@ -41,7 +41,7 @@ void build_toc(const std::string& db_filename, std::size_t toc_entries) {
 
     // build
     flat_file::database<hibp::pawned_pw> db(db_filename, 4096 / sizeof(hibp::pawned_pw));
-    
+
     std::size_t db_size        = db.number_records();
     std::size_t toc_entry_size = db_size / toc_entries;
     std::cerr << fmt::format("{:25s} {:15d} records\n", "db_size", db_size);
@@ -117,7 +117,7 @@ std::optional<hibp::pawned_pw> toc_search(flat_file::database<hibp::pawned_pw>& 
 // effectively the same as selecting one of the published files to download
 
 using toc2_entry = unsigned;
-static std::vector<toc2_entry> toc2; // NOLINT non-const global
+static std::vector<toc2_entry> toc2;
 
 static unsigned pw_to_prefix(const hibp::pawned_pw& pw, unsigned bits) {
   return arrcmp::impl::bytearray_cast<unsigned>(pw.hash.data()) >> (sizeof(toc2_entry) * 8 - bits);

@@ -57,23 +57,23 @@
 // through the 3 queues. This ensures the curl C-APi has stable pointers.
 
 using clk = std::chrono::high_resolution_clock;
-static clk::time_point start_time;          // NOLINT non-const-global, used in main()
-static std::size_t     start_index = 0x0UL; // NOLINT non-cost-gobal
+static clk::time_point start_time;
+static std::size_t     start_index = 0x0UL;
 
-static auto process_queue_compare = [](const auto& a, auto& b) { // NOLINT non-const-global
+static auto process_queue_compare = [](const auto& a, auto& b) {
   return *a > *b; // smallest first (logic inverted in std::priority_queue)
 };
 static std::priority_queue<std::unique_ptr<download>, std::vector<std::unique_ptr<download>>,
                            decltype(process_queue_compare)>
-    process_queue(process_queue_compare); // NOLINT non-const-global
+    process_queue(process_queue_compare);
 
-static std::mutex              msgmutex;             // NOLINT non-const-global
-static std::queue<enq_msg_t>   msg_queue;            // NOLINT non-const-global
-static std::condition_variable msg_cv;               // NOLINT non-const-global
-static bool                    finished_dls = false; // NOLINT non-const-global
+static std::mutex              msgmutex;
+static std::queue<enq_msg_t>   msg_queue;
+static std::condition_variable msg_cv;
+static bool                    finished_dls = false;
 
-static std::size_t files_processed = 0UL; // NOLINT non-const-global
-static std::size_t bytes_processed = 0UL; // NOLINT non-const-global
+static std::size_t files_processed = 0UL;
+static std::size_t bytes_processed = 0UL;
 
 void print_progress() {
   if (cli.progress) {
