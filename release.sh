@@ -24,6 +24,12 @@ cp DEBIAN/control $NEW_PACKAGE_DIR/DEBIAN/
 
 git pull &&
     ./build.sh -c gcc -b release --purge --nopch --install --install-prefix=$NEW_PACKAGE_DIR/usr/local &&
+    cd $NEW_PACKAGE_DIR &&
+    mkdir debian &&
+    touch debian/control &&
+    DEPS="$(dpkg-shlibdeps -O usr/local/bin/hibp-* 2>/dev/null)" &&
+    echo "Depends: ${DEPS/shlibs:Depends=/}" >> DEBIAN/control &&
+    rm -rf debian/control &&
     cd $HOME &&
     dpkg-deb --build --root-owner-group $NEW_PACKAGE_DIR &&
     cd hibp
