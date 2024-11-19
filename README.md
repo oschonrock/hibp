@@ -55,7 +55,7 @@ most common records.
 [Download latest .deb and install](https://github.com/oschonrock/hibp/releases/latest)
 ```bash
 wget -q https://github.com/oschonrock/hibp/releases/download/v0.2.1/hibp_0.2.1-1_amd64.deb
-sudo dpkg -i hibp_0.2.1-1_amd64.deb
+sudo apt install ./hibp_0.2.1-1_amd64.deb
 ```
 
 #### Usage
@@ -88,7 +88,7 @@ For production, make this server a proper autostart "service" on your distributi
 
 To remove the package:
 ```bash
-sudo dpkg -r hibp
+sudo apt remove hibp
 ```
 
 ## Building from source
