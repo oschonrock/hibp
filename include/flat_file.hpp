@@ -4,9 +4,11 @@
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
+#if HIBP_USE_PSTL && __cpp_lib_parallel_algorithm
 #include <execution>
-#include <filesystem>
+#endif
 #include "fmt/core.h"
+#include <filesystem>
 #include <fstream>
 #include <ios>
 #include <iostream>
