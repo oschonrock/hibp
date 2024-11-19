@@ -147,7 +147,6 @@ BUILD_CMD="$CMAKE --build $BUILD_DIR $CLEAN_FIRST $TARGETS -- $VERBOSE"
 [[ -n $VERBOSE ]] && echo "$BUILD_CMD"
 $BUILD_CMD
 BUILD_RET=$?
-echo "BUILD_RET=$BUILD_RET"
 
 if [[ BUILD_RET -eq 0 && -n $INSTALL ]]
 then
