@@ -133,7 +133,7 @@ constexpr std::strong_ordering cmp(T a, T b) noexcept {
 #endif
 }
 
-constexpr inline std::strong_ordering cmp(std::byte a, std::byte b) noexcept {
+constexpr std::strong_ordering cmp(std::byte a, std::byte b) noexcept {
   return cmp(static_cast<std::uint8_t>(a), static_cast<std::uint8_t>(b));
 }
 
@@ -149,7 +149,7 @@ constexpr int cmp_by_substracting(T a, T b) noexcept {
   }
 }
 
-constexpr inline int cmp_by_substracting(std::byte a, std::byte b) noexcept {
+constexpr int cmp_by_substracting(std::byte a, std::byte b) noexcept {
   return cmp_by_substracting(static_cast<std::uint8_t>(a), static_cast<std::uint8_t>(b));
 }
 

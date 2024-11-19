@@ -3,9 +3,13 @@
 #include "hibp.hpp"
 #include "sha1.h"
 #include "toc.hpp"
+#include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <cstdlib>
+#include <exception>
+#include <fmt/format.h>
+#include <iostream>
 #include <optional>
 #include <ratio>
 #include <stdexcept>
@@ -65,7 +69,7 @@ int main(int argc, char* argv[]) {
     }
 
     SHA1            hash;
-    hibp::pawned_pw needle = hibp::convert_to_binary(hash(cli.plain_text_password));
+    const hibp::pawned_pw needle = hibp::convert_to_binary(hash(cli.plain_text_password));
 
     std::optional<hibp::pawned_pw> maybe_ppw;
 

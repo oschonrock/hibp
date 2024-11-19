@@ -3,9 +3,16 @@
 #include "hibp.hpp"
 #include <cstddef>
 #include <cstdlib>
+#include <exception>
+#include <filesystem>
+#include <fmt/format.h>
 #include <fstream>
 #include <ios>
+#include <iostream>
+#include <istream>
+#include <ostream>
 #include <stdexcept>
+#include <string>
 
 struct cli_config_t {
   std::string output_filename;
@@ -85,7 +92,6 @@ void bin_to_txt(const std::string& input_filename, std::ostream& output_stream, 
 
   std::size_t count = 0;
   for (const auto& record: db) {
-    auto buf = record.to_string();
     output_stream << record << '\n';
     count++;
     if (count == limit) break;
@@ -93,7 +99,7 @@ void bin_to_txt(const std::string& input_filename, std::ostream& output_stream, 
 }
 
 int main(int argc, char* argv[]) {
-  cli_config_t cli; // NOLINT non-const global
+  cli_config_t cli;
 
   CLI::App app("Converting 'Have I been pawned' databases between text and binary formats");
   define_options(app, cli);

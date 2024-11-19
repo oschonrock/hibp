@@ -7,9 +7,10 @@
 #if HIBP_USE_PSTL && __cpp_lib_parallel_algorithm
 #include <execution>
 #endif
-#include "fmt/core.h"
+#include "fmt/format.h"
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <ios>
 #include <iostream>
 #include <queue>
@@ -109,7 +110,7 @@ public:
     if (!(pos >= buf_start_ && pos < buf_end_)) { // NOLINT can be simplified
       db_.seekg(static_cast<long>(pos * sizeof(ValueType)));
 
-      std::size_t nrecs = std::min(buf_.size(), dbsize_ - pos);
+      const std::size_t nrecs = std::min(buf_.size(), dbsize_ - pos);
 
       db_.read(reinterpret_cast<char*>(buf_.data()), // NOLINT reinterpret_cast
                static_cast<std::streamsize>(sizeof(ValueType) * nrecs));
@@ -284,7 +285,7 @@ void merge_sorted_chunks(const std::vector<std::string>& chunk_filenames,
   while (!heads.empty()) {
     const head& t = heads.top();
     sorted.write(t.value);
-    std::size_t chunk_idx = t.idx;
+    const std::size_t chunk_idx = t.idx;
     heads.pop();
     if (auto& chunk = chunks[chunk_idx]; chunk.current != chunk.end) {
       heads.push({*(chunk.current), chunk_idx});

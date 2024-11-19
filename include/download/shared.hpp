@@ -51,17 +51,17 @@ struct cli_config_t {
   std::size_t parallel_max = 300;
 };
 
-extern cli_config_t cli; // NOLINT non-const-global
+extern cli_config_t cli;
 
 // simple logging
 
-extern std::mutex                                       cerr_mutex; // NOLINT non-const-global
-extern std::unordered_map<std::thread::id, std::string> thrnames;   // NOLINT non-const-global
+extern std::mutex                                       cerr_mutex;
+extern std::unordered_map<std::thread::id, std::string> thrnames;
 
 struct thread_logger {
   void log(const std::string& msg) const {
     if (debug) {
-      std::lock_guard lk(cerr_mutex);
+      const std::lock_guard lk(cerr_mutex);
       // can't portably use high resolution clock here
       auto timestamp = std::chrono::system_clock::now();
       std::cerr << fmt::format("{:%Y-%m-%d %H:%M:%S} thread: {:>9}: {}\n", timestamp,
@@ -71,4 +71,4 @@ struct thread_logger {
   bool debug = false;
 };
 
-extern thread_logger logger; // NOLINT non-const-global
+extern thread_logger logger;

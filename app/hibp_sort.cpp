@@ -3,6 +3,7 @@
 #include "hibp.hpp"
 #include <cstdlib>
 #include <exception>
+#include <fmt/format.h>
 #include <iostream>
 #include <string>
 

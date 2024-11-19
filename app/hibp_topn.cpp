@@ -3,15 +3,23 @@
 #include "fmt/chrono.h" // IWYU pragma: keep
 #include "hibp.hpp"
 #include <algorithm>
+#include <bits/chrono.h>
 #include <chrono>
 #include <cstddef>
 #include <cstdlib>
+#include <fmt/format.h>
 #if HIBP_USE_PSTL && __cpp_lib_parallel_algorithm
 #include <execution>
 #endif
+#include <exception>
+#include <filesystem>
 #include <fstream>
 #include <ios>
+#include <iostream>
+#include <ostream>
 #include <stdexcept>
+#include <string>
+#include <vector>
 
 struct cli_config_t {
   std::string output_filename;
@@ -65,7 +73,7 @@ std::ofstream get_output_stream(const std::string& output_filename, bool force) 
 }
 
 int main(int argc, char* argv[]) {
-  cli_config_t cli; // NOLINT non-const global
+  cli_config_t cli;
 
   CLI::App app("Reducing 'Have I been pawned' binary databases to the top N most common entries.");
   define_options(app, cli);

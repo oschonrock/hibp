@@ -16,7 +16,7 @@ struct pawned_pw;
 inline pawned_pw convert_to_binary(const std::string& text);
 
 
-constexpr inline char nibble_to_char(std::byte nibble) {
+constexpr char nibble_to_char(std::byte nibble) {
   auto n = std::to_integer<uint8_t>(nibble);
   assert(n <= 15);
   return static_cast<char>(n + (n < 10 ? '0' : 'A' - 10));
@@ -57,18 +57,18 @@ struct pawned_pw {
   std::int32_t              count; // important to be definitive about size
 };
 
-constexpr inline std::byte make_nibble(char nibblechr) {
+constexpr std::byte make_nibble(char nibblechr) {
   auto nibble = nibblechr - '0';
   if (nibble > 9) nibble = (nibble & ~('a' - 'A')) - ('A' - '0') + 10; // NOLINT signed
   assert(nibble >= 0 && nibble <= 15);
   return static_cast<std::byte>(nibble);
 }
 
-constexpr inline std::byte make_byte(char mschr, char lschr) {
+constexpr std::byte make_byte(char mschr, char lschr) {
   return make_nibble(mschr) << 4U | make_nibble(lschr);
 }
 
-constexpr inline std::byte make_byte(const char* two_chrs) {
+constexpr std::byte make_byte(const char* two_chrs) {
   return make_byte(*two_chrs, *(two_chrs + 1));
 }
 

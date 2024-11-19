@@ -2,14 +2,22 @@
 #include "arrcmp.hpp"
 #include "flat_file.hpp"
 #include "hibp.hpp"
+#include <algorithm>
+#include <array>
+#include <compare>
 #include <cstddef>
 #include <cstdlib>
 #include <filesystem>
+#include <fmt/format.h>
 #include <fstream>
+#include <iostream>
+#include <iterator>
 #include <limits>
 #include <optional>
+#include <ostream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 struct toc_entry {
   std::size_t               start;
@@ -30,18 +38,20 @@ struct toc_entry {
   }
 };
 
-static std::vector<toc_entry> toc; // NOLINT non-const global
+namespace {
+std::vector<toc_entry> toc;
+} // namespace
 
 void build_toc(const std::string& db_filename, std::size_t toc_entries) {
 
-  std::string toc_filename = fmt::format("{}.{}.toc", db_filename, toc_entries);
+  const std::string toc_filename = fmt::format("{}.{}.toc", db_filename, toc_entries);
 
   if (!std::filesystem::exists(toc_filename) || (std::filesystem::last_write_time(toc_filename) <=
                                                  std::filesystem::last_write_time(db_filename))) {
 
     // build
     flat_file::database<hibp::pawned_pw> db(db_filename, 4096 / sizeof(hibp::pawned_pw));
-    
+
     std::size_t db_size        = db.number_records();
     std::size_t toc_entry_size = db_size / toc_entries;
     std::cerr << fmt::format("{:25s} {:15d} records\n", "db_size", db_size);
@@ -52,7 +62,7 @@ void build_toc(const std::string& db_filename, std::size_t toc_entries) {
     toc.reserve(toc_entries);
 
     for (unsigned i = 0; i != toc_entries; i++) {
-      std::size_t start = i * toc_entry_size;
+      const std::size_t start = i * toc_entry_size;
 
       const auto& pw = *(db.begin() + start);
       toc.emplace_back(start, pw.hash);
@@ -79,8 +89,8 @@ std::optional<hibp::pawned_pw> toc_search(flat_file::database<hibp::pawned_pw>& 
   // special case: empty db
   if (db.number_records() == 0) return {};
 
-  toc_entry needle_te{0, needle.hash};
-  auto      toc_end = std::lower_bound(toc.begin(), toc.end(), needle_te);
+  const toc_entry needle_te{0, needle.hash};
+  auto            toc_end = std::lower_bound(toc.begin(), toc.end(), needle_te);
 
   std::size_t db_start_search_index{};
   if (toc_end == toc.begin()) {
@@ -116,12 +126,16 @@ std::optional<hibp::pawned_pw> toc_search(flat_file::database<hibp::pawned_pw>& 
 // bit masks the needles pw_hash to index into a table of db positions
 // effectively the same as selecting one of the published files to download
 
-using toc2_entry = unsigned;
-static std::vector<toc2_entry> toc2; // NOLINT non-const global
+namespace {
 
-static unsigned pw_to_prefix(const hibp::pawned_pw& pw, unsigned bits) {
+using toc2_entry = unsigned;
+std::vector<toc2_entry> toc2;
+
+unsigned pw_to_prefix(const hibp::pawned_pw& pw, unsigned bits) {
   return arrcmp::impl::bytearray_cast<unsigned>(pw.hash.data()) >> (sizeof(toc2_entry) * 8 - bits);
 }
+
+} // namespace
 
 void build_toc2(const std::string& db_filename, unsigned bits) {
 
@@ -187,14 +201,14 @@ void build_toc2(const std::string& db_filename, unsigned bits) {
 std::optional<hibp::pawned_pw> toc2_search(flat_file::database<hibp::pawned_pw>& db,
                                            const hibp::pawned_pw& needle, unsigned bits) {
 
-  unsigned pw_prefix = pw_to_prefix(needle, bits);
+  const unsigned pw_prefix = pw_to_prefix(needle, bits);
 
   if (pw_prefix >= toc2.size()) {
     // must be partial db, and no result
     return {};
   }
 
-  std::size_t db_start_search_index = toc2[pw_prefix];
+  const std::size_t db_start_search_index = toc2[pw_prefix];
   std::size_t db_end_search_index{};
   if (pw_prefix + 1 < toc2.size()) {
     db_end_search_index = toc2[pw_prefix + 1];

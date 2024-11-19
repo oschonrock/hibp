@@ -1,12 +1,27 @@
-#include "CLI/CLI.hpp"
 #include "flat_file.hpp"
 #include "hibp.hpp"
-#include "restinio/http_headers.hpp"
-#include "sha1.h"
 #include "toc.hpp"
+#include <CLI/CLI.hpp>
+#include <algorithm>
+#include <atomic>
 #include <cstdint>
 #include <cstdlib>
-#include <restinio/core.hpp>
+#include <exception>
+#include <fmt/format.h>
+#include <fstream>
+#include <iostream>
+#include <memory>
+#include <optional>
+#include <restinio/http_headers.hpp>
+#include <restinio/http_server_run.hpp>
+#include <restinio/router/express.hpp>
+#include <restinio/traits.hpp>
+#include <sha1.h>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <thread>
+#include <utility>
 
 struct cli_config_t {
   std::string   db_filename;
@@ -21,12 +36,8 @@ struct cli_config_t {
   unsigned      toc2_bits    = 20; // 1Mega chapters
 };
 
-static cli_config_t cli; // NOLINT non-const global
 
-static std::atomic<int> uniq{}; // NOLINT for performance testing, uniq across threads
-
-//
-void define_options(CLI::App& app) {
+void define_options(CLI::App& app, cli_config_t& cli) {
 
   app.add_option("db_filename", cli.db_filename,
                  "The file that contains the binary database you downloaded")
@@ -58,6 +69,10 @@ void define_options(CLI::App& app) {
       "--toc-entries", cli.toc_entries,
       fmt::format("Specify how may table of contents entries to use. default {}", cli.toc_entries));
 }
+
+namespace {
+cli_config_t cli;
+} // namespace
 
 auto search_and_respond(flat_file::database<hibp::pawned_pw>& db, const hibp::pawned_pw& needle,
                         auto req) {
@@ -94,6 +109,8 @@ auto get_router(const std::string& db_filename) {
     thread_local flat_file::database<hibp::pawned_pw> db(db_filename,
                                                          4096 / sizeof(hibp::pawned_pw));
 
+    static std::atomic<int> uniq{}; // for performance testing, make uniq_pw for each request
+
     if (params["format"] != "plain" && params["format"] != "sha1") {
       return req->create_response(restinio::status_not_found()).connection_close().done();
     }
@@ -113,7 +130,7 @@ auto get_router(const std::string& db_filename) {
       }
       sha1_txt_pw = std::string{params["password"]};
     }
-    hibp::pawned_pw needle = hibp::convert_to_binary(sha1_txt_pw);
+    const hibp::pawned_pw needle = hibp::convert_to_binary(sha1_txt_pw);
 
     return search_and_respond(db, needle, req);
   });
@@ -147,7 +164,7 @@ void run_server() {
 
 int main(int argc, char* argv[]) {
   CLI::App app("Have I been pawned Server");
-  define_options(app);
+  define_options(app, cli);
   CLI11_PARSE(app, argc, argv);
 
   try {
