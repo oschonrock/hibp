@@ -146,6 +146,12 @@ GEN_RET=$?
 BUILD_CMD="$CMAKE --build $BUILD_DIR $CLEAN_FIRST $TARGETS -- $VERBOSE"
 [[ -n $VERBOSE ]] && echo "$BUILD_CMD"
 $BUILD_CMD
+BUILD_RET=$?
+echo "BUILD_RET=$BUILD_RET"
 
-[[ -n $INSTALL ]] && cmake --install $BUILD_DIR
-
+if [[ BUILD_RET -eq 0 && -n $INSTALL ]]
+then
+    cmake --install $BUILD_DIR
+else
+    exit $BUILD_RET
+fi
