@@ -109,11 +109,8 @@ static void process_curl_done_msg(CURLMsg* message, enq_msg_t& msg) {
 
   dl->retries_left--;
   dl->buffer.clear(); // throw away anything that was returned
-  {
-    std::lock_guard lk(cerr_mutex);
-    std::cerr << fmt::format("prefix '{}': returned result '{}'. {} retries left\n", dl->prefix,
-                             curl_easy_strerror(message->data.result), dl->retries_left);
-  }
+  logger.log(fmt::format("prefix '{}': returned result '{}'. {} retries left\n", dl->prefix,
+                         curl_easy_strerror(message->data.result), dl->retries_left));
   curl_multi_add_handle(curl_multi_handle, easy_handle); // try again with same handle
 }
 
@@ -177,9 +174,10 @@ static int start_timeout_curl_cb(CURLM* /*multi*/, long timeout_ms, void* /*user
     evtimer_del(timeout);
   } else {
     if (timeout_ms == 0) timeout_ms = 1; /* 0 means call socket_action asap */
-    struct timeval tv {};
+    timeval tv{};
     tv.tv_sec  = timeout_ms / 1000;
     tv.tv_usec = (timeout_ms % 1000) * 1000;
+
     evtimer_del(timeout);
     evtimer_add(timeout, &tv);
   }
