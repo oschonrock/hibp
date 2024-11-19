@@ -2,7 +2,7 @@
 #include "download/queuemgt.hpp"
 #include "download/shared.hpp"
 #include "flat_file.hpp"
-#include "fmt/core.h"
+#include "fmt/format.h"
 #include "hibp.hpp"
 #include <cstddef>
 #include <cstdlib>

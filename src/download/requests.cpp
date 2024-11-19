@@ -1,6 +1,6 @@
 #include "download/requests.hpp"
 #include "download/shared.hpp"
-#include "fmt/core.h"
+#include "fmt/format.h"
 #include <cstddef>
 #include <cstdlib>
 #include <curl/curl.h>

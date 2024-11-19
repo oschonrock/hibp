@@ -1,5 +1,4 @@
 #include "flat_file.hpp"
-#include "fmt/core.h"
 #include "hibp.hpp"
 #include <cstddef>
 #include <cstdlib>
