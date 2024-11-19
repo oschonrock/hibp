@@ -1,5 +1,7 @@
 #include "download/shared.hpp"
-#include <curl/curl.h>
+#include <mutex>
+#include <string>
+#include <thread>
 #include <unordered_map>
 
 std::mutex cerr_mutex; // threaded app needs mutex for stdio

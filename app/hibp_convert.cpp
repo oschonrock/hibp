@@ -3,9 +3,16 @@
 #include "hibp.hpp"
 #include <cstddef>
 #include <cstdlib>
+#include <exception>
+#include <filesystem>
+#include <fmt/format.h>
 #include <fstream>
 #include <ios>
+#include <iostream>
+#include <istream>
+#include <ostream>
 #include <stdexcept>
+#include <string>
 
 struct cli_config_t {
   std::string output_filename;
@@ -85,7 +92,6 @@ void bin_to_txt(const std::string& input_filename, std::ostream& output_stream, 
 
   std::size_t count = 0;
   for (const auto& record: db) {
-    auto buf = record.to_string();
     output_stream << record << '\n';
     count++;
     if (count == limit) break;

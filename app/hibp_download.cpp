@@ -7,16 +7,13 @@
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
-#include <curl/curl.h>
-#include <curl/easy.h>
-#include <curl/multi.h>
-#include <event2/event.h>
 #include <exception>
 #include <filesystem>
 #include <fstream>
 #include <ios>
 #include <iostream>
 #include <stdexcept>
+#include <string>
 
 void define_options(CLI::App& app, cli_config_t& cli_) {
 

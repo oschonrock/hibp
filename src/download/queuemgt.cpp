@@ -2,15 +2,19 @@
 #include "download/requests.hpp"
 #include "download/shared.hpp"
 #include "flat_file.hpp"
-#include "fmt/chrono.h" // IWYU pragma: keep
 #include "hibp.hpp"
+#include <algorithm>
+#include <bits/chrono.h>
+#include <charconv>
 #include <chrono>
 #include <condition_variable>
 #include <cstddef>
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
+#include <fmt/format.h>
 #include <iostream>
+#include <iterator>
 #include <memory>
 #include <mutex>
 #include <queue>
@@ -18,6 +22,7 @@
 #include <stdexcept>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 // queue management
@@ -56,24 +61,27 @@
 // throughout to keep the address of the downloads stable as they move
 // through the 3 queues. This ensures the curl C-APi has stable pointers.
 
-using clk = std::chrono::high_resolution_clock;
-static clk::time_point start_time;
-static std::size_t     start_index = 0x0UL;
+namespace {
 
-static auto process_queue_compare = [](const auto& a, auto& b) {
+using clk = std::chrono::high_resolution_clock;
+
+clk::time_point start_time;
+std::size_t     start_index = 0x0UL;
+
+auto process_queue_compare = [](const auto& a, auto& b) {
   return *a > *b; // smallest first (logic inverted in std::priority_queue)
 };
-static std::priority_queue<std::unique_ptr<download>, std::vector<std::unique_ptr<download>>,
-                           decltype(process_queue_compare)>
+std::priority_queue<std::unique_ptr<download>, std::vector<std::unique_ptr<download>>,
+                    decltype(process_queue_compare)>
     process_queue(process_queue_compare);
 
-static std::mutex              msgmutex;
-static std::queue<enq_msg_t>   msg_queue;
-static std::condition_variable msg_cv;
-static bool                    finished_dls = false;
+std::mutex              msgmutex;
+std::queue<enq_msg_t>   msg_queue;
+std::condition_variable msg_cv;
+bool                    finished_dls = false;
 
-static std::size_t files_processed = 0UL;
-static std::size_t bytes_processed = 0UL;
+std::size_t files_processed = 0UL;
+std::size_t bytes_processed = 0UL;
 
 void print_progress() {
   if (cli.progress) {
@@ -81,8 +89,8 @@ void print_progress() {
     auto elapsed_trunc = floor<std::chrono::seconds>(elapsed);
     auto elapsed_sec   = std::chrono::duration_cast<std::chrono::duration<double>>(elapsed).count();
 
-    std::lock_guard lk(cerr_mutex);
-    auto            files_todo = cli.index_limit - start_index;
+    const std::lock_guard lk(cerr_mutex);
+    auto                  files_todo = cli.index_limit - start_index;
     std::cerr << fmt::format("Elapsed: {:%H:%M:%S}  Progress: {} / {} files  {:.1f}MB/s  {:5.1f}%  "
                              "  Write queue size: {:4d}\r",
                              elapsed_trunc, files_processed, files_todo,
@@ -93,7 +101,7 @@ void print_progress() {
   }
 }
 
-static std::size_t write_lines(write_fn_t& write_fn, download& dl) {
+std::size_t write_lines(write_fn_t& write_fn, download& dl) {
   // "embarrassing" copy onto std:string until C++26 P2495R3 Interfacing stringstreams with
   // string_view
   std::stringstream ss(std::string(dl.buffer.data(), dl.buffer.size()));
@@ -101,7 +109,7 @@ static std::size_t write_lines(write_fn_t& write_fn, download& dl) {
   auto recordcount = 0UL;
 
   for (std::string line, prefixed_line; std::getline(ss, line);) {
-    if (line.size() > 0) {
+    if (!line.empty()) {
       prefixed_line = dl.prefix + line;
       prefixed_line.erase(prefixed_line.find_last_not_of('\r') + 1);
 
@@ -115,12 +123,13 @@ static std::size_t write_lines(write_fn_t& write_fn, download& dl) {
   bytes_processed += dl.buffer.size();
   return recordcount;
 }
+} // namespace
 
 // the following 2 functions are the msg api and called from other thread(s)
 
 void enqueue_downloads_for_writing(enq_msg_t&& msg) {
   {
-    std::lock_guard lk(msgmutex);
+    const std::lock_guard lk(msgmutex);
     logger.log(fmt::format("message received: msg.size() = {}", msg.size()));
     msg_queue.emplace(std::move(msg));
   }
@@ -128,7 +137,7 @@ void enqueue_downloads_for_writing(enq_msg_t&& msg) {
 }
 
 void finished_downloads() {
-  std::lock_guard lk(msgmutex);
+  const std::lock_guard lk(msgmutex);
   finished_dls = true;
 }
 
@@ -217,8 +226,8 @@ void run_downloads(write_fn_t write_fn, std::size_t start_index_) {
   requests_thread.join();
 
   // use temps to avoid short cct eval
-  bool ex_requests = handle_exception(requests_exception, req_thr_id);
-  bool ex_queuemgt = handle_exception(queuemgt_exception, que_thr_id);
+  const bool ex_requests = handle_exception(requests_exception, req_thr_id);
+  const bool ex_queuemgt = handle_exception(queuemgt_exception, que_thr_id);
   if (ex_requests || ex_queuemgt) {
     curl_and_event_cleanup();
     throw std::runtime_error("Thread exceptions thrown as above. Sorry, we are aborting. You can "
@@ -242,11 +251,11 @@ std::size_t get_last_prefix(const std::string& filename) {
 
   std::stringstream ss;
   ss << last_db_ppw;
-  std::string last_db_hash = ss.str().substr(0, 40);
-  std::string prefix       = last_db_hash.substr(0, 5);
-  std::string suffix       = last_db_hash.substr(5, 40 - 5);
+  const std::string last_db_hash = ss.str().substr(0, 40);
+  std::string       prefix       = last_db_hash.substr(0, 5);
+  const std::string suffix       = last_db_hash.substr(5, 40 - 5);
 
-  std::string filebody = curl_sync_get("https://api.pwnedpasswords.com/range/" + prefix);
+  const std::string filebody = curl_sync_get("https://api.pwnedpasswords.com/range/" + prefix);
 
   auto pos_colon = filebody.find_last_of(':');
   if (pos_colon == std::string::npos || pos_colon < 35) {

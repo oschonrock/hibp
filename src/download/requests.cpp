@@ -1,29 +1,35 @@
 #include "download/requests.hpp"
 #include "download/shared.hpp"
 #include "fmt/format.h"
+#include <algorithm>
+#include <bits/types/struct_timeval.h>
 #include <cstddef>
 #include <cstdlib>
 #include <curl/curl.h>
+#include <curl/easy.h>
 #include <curl/multi.h>
 #include <event2/event.h>
+#include <event2/util.h>
 #include <iostream>
 #include <iterator>
 #include <memory>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
+namespace {
 // double indirection via unique_ptr. Strictly unecessary for address stability, but consistent with
 // other queues and non critical
-static std::unordered_map<std::size_t, std::unique_ptr<download>> download_slots;
+std::unordered_map<std::size_t, std::unique_ptr<download>> download_slots;
 
-static CURLM* curl_multi_handle;
-static event* timeout;
+CURLM* curl_multi_handle;
+event* timeout;
 
-static event_base* ebase;
+event_base* ebase;
 
-static std::size_t next_index = 0x0UL;
+std::size_t next_index = 0x0UL;
 
 // connects an event with a socketfd
 struct curl_context_t {
@@ -31,9 +37,9 @@ struct curl_context_t {
   curl_socket_t sockfd;
 };
 
-static void curl_perform_event_cb(evutil_socket_t fd, short event, void* arg);
+void curl_perform_event_cb(evutil_socket_t fd, short event, void* arg);
 
-static curl_context_t* create_curl_context(curl_socket_t sockfd) {
+curl_context_t* create_curl_context(curl_socket_t sockfd) {
   auto* context = new curl_context_t; // NOLINT manual new and delete
 
   context->sockfd = sockfd;
@@ -43,7 +49,7 @@ static curl_context_t* create_curl_context(curl_socket_t sockfd) {
   return context;
 }
 
-static void destroy_curl_context(curl_context_t* context) {
+void destroy_curl_context(curl_context_t* context) {
   event_del(context->event);
   event_free(context->event);
   delete context; // NOLINT manual new and delete
@@ -52,7 +58,7 @@ static void destroy_curl_context(curl_context_t* context) {
 static std::size_t write_data_curl_cb(char* ptr, std::size_t size, std::size_t nmemb,
                                       void* userdata);
 
-static void add_download(std::size_t index) {
+void add_download(std::size_t index) {
   auto [dl_iter, inserted] =
       download_slots.insert(std::make_pair(index, std::make_unique<download>(index)));
 
@@ -75,13 +81,13 @@ static void add_download(std::size_t index) {
   dl->easy = easy;
 }
 
-static void fill_download_queue() {
+void fill_download_queue() {
   while (download_slots.size() != cli.parallel_max && next_index != cli.index_limit) {
     add_download(next_index++);
   }
 }
 
-static void process_curl_done_msg(CURLMsg* message, enq_msg_t& msg) {
+void process_curl_done_msg(CURLMsg* message, enq_msg_t& msg) {
   CURL* easy_handle = message->easy_handle;
 
   auto result = message->data.result;
@@ -113,7 +119,7 @@ static void process_curl_done_msg(CURLMsg* message, enq_msg_t& msg) {
   curl_multi_add_handle(curl_multi_handle, easy_handle); // try again with same handle
 }
 
-static void process_curl_messages() {
+void process_curl_messages() {
   CURLMsg* message = nullptr;
   int      pending = 0;
 
@@ -137,7 +143,7 @@ static void process_curl_messages() {
 
 // event callbacks
 
-static void curl_perform_event_cb(evutil_socket_t /*fd*/, short event, void* arg) {
+void curl_perform_event_cb(evutil_socket_t /*fd*/, short event, void* arg) {
   int running_handles = 0;
   int flags           = 0;
 
@@ -151,7 +157,7 @@ static void curl_perform_event_cb(evutil_socket_t /*fd*/, short event, void* arg
   process_curl_messages();
 }
 
-static void timeout_event_cb(evutil_socket_t /*fd*/, short /*events*/, void* /*arg*/) {
+void timeout_event_cb(evutil_socket_t /*fd*/, short /*events*/, void* /*arg*/) {
   int running_handles = 0;
   curl_multi_socket_action(curl_multi_handle, CURL_SOCKET_TIMEOUT, 0, &running_handles);
   process_curl_messages();
@@ -159,8 +165,7 @@ static void timeout_event_cb(evutil_socket_t /*fd*/, short /*events*/, void* /*a
 
 // CURL callbacks
 
-static std::size_t write_data_curl_cb(char* ptr, std::size_t size, std::size_t nmemb,
-                                      void* userdata) {
+std::size_t write_data_curl_cb(char* ptr, std::size_t size, std::size_t nmemb, void* userdata) {
   auto* dl       = static_cast<download*>(userdata);
   auto  realsize = size * nmemb;
   std::copy(ptr, ptr + realsize, std::back_inserter(dl->buffer));
@@ -168,7 +173,7 @@ static std::size_t write_data_curl_cb(char* ptr, std::size_t size, std::size_t n
   return realsize;
 }
 
-static int start_timeout_curl_cb(CURLM* /*multi*/, long timeout_ms, void* /*userp*/) {
+int start_timeout_curl_cb(CURLM* /*multi*/, long timeout_ms, void* /*userp*/) {
   if (timeout_ms < 0) {
     evtimer_del(timeout);
   } else {
@@ -183,8 +188,8 @@ static int start_timeout_curl_cb(CURLM* /*multi*/, long timeout_ms, void* /*user
   return 0;
 }
 
-static int handle_socket_curl_cb(CURL* /*easy*/, curl_socket_t s, int action, void* /*userp*/,
-                                 void* socketp) {
+int handle_socket_curl_cb(CURL* /*easy*/, curl_socket_t s, int action, void* /*userp*/,
+                          void* socketp) {
   curl_context_t* curl_context = nullptr;
   short           events       = 0;
 
@@ -221,6 +226,8 @@ static int handle_socket_curl_cb(CURL* /*easy*/, curl_socket_t s, int action, vo
   }
   return 0;
 }
+
+} // namespace
 
 std::string curl_sync_get(const std::string& url) {
   CURL* curl = curl_easy_init();
