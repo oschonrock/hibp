@@ -78,15 +78,20 @@ auto search_and_respond(flat_file::database<hibp::pawned_pw>& db, const hibp::pa
                         auto req) {
   std::optional<hibp::pawned_pw> maybe_ppw;
 
-  if (cli.toc) {
-    maybe_ppw = toc_search(db, needle);
-  } else if (cli.toc2) {
-    maybe_ppw = toc2_search(db, needle, cli.toc2_bits);
-  } else if (auto iter = std::lower_bound(db.begin(), db.end(), needle);
-             iter != db.end() && *iter == needle) {
-    maybe_ppw = *iter;
+  try {
+    if (cli.toc) {
+      maybe_ppw = toc_search(db, needle);
+    } else if (cli.toc2) {
+      maybe_ppw = toc2_search(db, needle, cli.toc2_bits);
+    } else {
+      auto iter = std::lower_bound(db.begin(), db.end(), needle);
+      if (iter != db.end() && *iter == needle) {
+        maybe_ppw = *iter;
+      }
+    }
+  } catch (const std::exception& e) {
+      return req->create_response(restinio::status_internal_server_error()).set_body(e.what()).connection_close().done();
   }
-
   int count = maybe_ppw ? maybe_ppw->count : -1;
 
   std::string content_type = cli.json ? "application/json" : "text/plain";

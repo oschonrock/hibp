@@ -6,8 +6,6 @@
 #include <bits/types/struct_timeval.h>
 #elif __has_include(<sys/_timeval.h>)
 #include <sys/_timeval.h>
-#else
-#error cannot find header for timeval.h
 #endif
 #include <cstddef>
 #include <cstdlib>
