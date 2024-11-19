@@ -13,9 +13,6 @@ then
     echo $USAGE
     exit 1
 fi
-echo "$OLD_VERSION $NEW_VERSION"
-exit 0
-
 
 NEW_PACKAGE_DIR="$HOME/hibp_$NEW_VERSION-1_amd64"
 
