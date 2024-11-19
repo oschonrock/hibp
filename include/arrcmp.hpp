@@ -254,7 +254,7 @@ template <std::size_t N, typename Comp>
 constexpr typename Comp::return_t array_compare(const std::array<std::byte, N>& a,
                                                 const std::array<std::byte, N>& b,
                                                 Comp                            comp) noexcept {
-  return array_compare<N>(&a[0], &b[0], comp);
+  return array_compare<N>(a.data(), b.data(), comp);
 }
 
 } // namespace arrcmp

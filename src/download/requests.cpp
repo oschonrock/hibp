@@ -1,11 +1,11 @@
 #include "download/requests.hpp"
 #include "download/shared.hpp"
+#include "fmt/core.h"
 #include <cstddef>
 #include <cstdlib>
 #include <curl/curl.h>
 #include <curl/multi.h>
 #include <event2/event.h>
-#include "fmt/core.h"
 #include <iostream>
 #include <iterator>
 #include <memory>

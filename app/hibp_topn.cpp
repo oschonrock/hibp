@@ -6,7 +6,9 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdlib>
+#if HIBP_USE_PSTL && __cpp_lib_parallel_algorithm
 #include <execution>
+#endif
 #include <fstream>
 #include <ios>
 #include <stdexcept>
