@@ -125,10 +125,11 @@ void run_server() {
     using request_handler_t = restinio::router::express_router_t<>;
   };
 
-  std::cerr << fmt::format(
-      "Serving from {}:{}\nMake a request to either of\nhttp://{}:{}/check/plain/password123\n"
-      "http://{}:{}/check/sha1/CBFDAC6008F9CAB4083784CBD1874F76618D2A97\n",
-      cli.bind_address, cli.port, cli.bind_address, cli.port, cli.bind_address, cli.port);
+  std::cerr << fmt::format("Serving from {0}:{1}\n"
+                           "Make a request to either of:\n"
+                           "http://{0}:{1}/check/plain/password123\n"
+                           "http://{0}:{1}/check/sha1/CBFDAC6008F9CAB4083784CBD1874F76618D2A97\n",
+                           cli.bind_address, cli.port);
 
   auto settings = restinio::on_thread_pool<my_server_traits>(cli.threads)
                       .address(cli.bind_address)
