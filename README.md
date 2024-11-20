@@ -19,7 +19,7 @@ binary format and writing to disk, takes *under 12 minutes*.
 
 On a full 1Gbit/s connection this should take *under 5 minutes*.
 
-## Quick start - Linux amd64 .deb systems
+## Quick start - Linux amd64 .deb systems (for others see below!)
 
 #### Install
 
@@ -62,21 +62,22 @@ To remove the package:
 sudo apt remove hibp
 ```
 
-## High peformance with a small memory and disk footprint
+## Design: High peformance with a small memory, disk and CPU footprint
 
-By deafult, this set of utilities uses a binary format to store and
-search the data. The orginal text records are about 45 bytes per
-password record, our binary format is 24 bytes, so storage
-requirements are almost halved (21GB currently).
+These utilities are designed to have a very modest resource
+footprint. By default, they use a binary format to store and search
+the data. The orginal text records are about 45 bytes per password
+record, our binary format is 24 bytes, so storage requirements are
+almost halved (21GB currently).
 
 *If you don't like the binary format, you can always ouput the
 conventional text version as well.*
 
-Now that each record is a fixed width, and the records are maintained
-in a sorted order, searches become very efficient, because we can use
-random access binary search. There is an additional "table of
-contents" feature to reduce disk access further at the expense of (by
-default, but tunable) 2MB of memory. 
+In the binary format each record is a fixed width, and the records are
+maintained in a sorted order, so searches become very efficient,
+because we can use random access binary search. There is an additional
+"table of contents" feature (see `--toc2`below) to reduce disk access
+further at the expense of only 4MB of memory.
 
 The local http server component is both multi threaded and event loop
 driven for high efficiency. Even in a minimal configuration it should
@@ -87,15 +88,15 @@ The in memory footprint of these utilities is also very small, just a
 few megabytes.
 
 If you want to reduce diskspace even further, you could use utilities
-like `hibp-topn` which will conveniently reduce a file to the `N` most
-common pawned passwords. By default this is a ~1GB file for the 50,000,000
-most common records.
+like `hibp-topn` (see below) which will conveniently reduce a file to
+the `N` most common pawned passwords. By default this is a ~1GB file
+for the 50,000,000 most commonly leaked passwords.
 
 ## Building from source
 
-`hibp` has a very modest dependencies and should compile without
-problems on many platforms. gcc >=10 and clang => 11.2 are tested
-under several `.deb` and `.rpm` based systems, under FreeBSD and under
+`hibp` has very modest dependencies and should compile without
+problems on many platforms. gcc >= 10 and clang >= 11 are tested
+on several `.deb` and `.rpm` based systems, under FreeBSD and under
 Windows (MSYS2/mingw).
 
 You will likely also suceed with minimal platforms like the
@@ -129,20 +130,22 @@ connection and consume ~21GB of disk space during this time:
 - your network connection should be saturated with HTTP2 multiplexed requests
 - `top` in threads mode (key `H`) should show 2 `hibp-download` threads.
 - One "curl thread" with ~50-80% CPU and
-- The "main thread" with ~15-30% CPU, primarily converting data to binary and writing to disk
+- The "main thread" with ~15-30% CPU, primarily converting data to
+  binary and writing to disk
 
 ```bash
 ./build/gcc/release/hibp-download hibp_all.bin
 ```
 
 If any transfer fails, even after 5 retries, the programme will
-abort. In this case, you can try rerunnung with `--resume`
+abort. In this case, you can try rerunnung with `--resume`.
 
 For all options run `hibp-download --help`.
 
 ### Run some sample "pawned password" queries from the command line: `hibp-search`
 
-This is a tiny program / debug utility that runs a single query against the downloaded binary database.
+This is a tiny program / debug utility that runs a single query
+against the downloaded binary database.
 
 ```bash
 # replace 'password' as you wish
@@ -160,11 +163,9 @@ with `--toc2`
 
 ### Running a local server: `hibp-server`
 
-You can run a high performance server for "pawned password queries" as follows. 
-This is a simple "REST" server using the "restinio" library.
-Searches does this by during "binary search" of the downloaded binary data database on disk. 
-The process consumes <100Mb of virtual memory and < 5MB of resident memory. 
-Note these are 100% accurate searches and not using some probabilistic "bloom filter" as in some similar projects.
+You can run a high performance server for "pawned password queries" as
+follows.  This is a simple "REST" server using the "restinio" library.
+The server process consumes <5MB of resident memory.
 
 ```bash
 ./build/gcc/release/hibp-server hibp_all.bin
@@ -226,11 +227,11 @@ Time per request:       0.983 [ms] (mean, across all concurrent requests)
 #### Enhanced performance for constrained devices: `--toc2`
 
 If you are runnning this database on a constrained device, with
-perhaps limited free RAM or a slow disk, You may want to try using the
-"table of contents" features, which builds an index into the "chapters"
-in the database and then holds this index in memory.
+limited free RAM or a slow disk, You may want to try using the "table
+of contents" features, which builds an index into the "chapters" of
+the database and then holds this index in memory.
 
-This only consumes an additional 8MB of RAM by default, but maintains
+This only consumes an additional 4MB of RAM by default, but maintains
 excellent performance even without any OS level disk caching.
 
 `--toc2` is available on the `hibp-search` test utility, and the `hibp-server`. 
