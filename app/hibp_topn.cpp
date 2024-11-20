@@ -1,7 +1,6 @@
-#include "CLI/CLI.hpp"
 #include "flat_file.hpp"
-#include "fmt/chrono.h" // IWYU pragma: keep
 #include "hibp.hpp"
+#include <CLI/CLI.hpp>
 #include <algorithm>
 #if __has_include(<bits/chrono.h>)
 #include <bits/chrono.h>
@@ -9,6 +8,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdlib>
+#include <fmt/chrono.h> // IWYU pragma: keep
 #include <fmt/format.h>
 #if HIBP_USE_PSTL && __cpp_lib_parallel_algorithm
 #include <execution>

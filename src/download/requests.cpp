@@ -1,7 +1,7 @@
 #include "download/requests.hpp"
 #include "download/shared.hpp"
-#include "fmt/format.h"
 #include <algorithm>
+#include <fmt/format.h>
 #if __has_include(<bits/types/struct_timeval.h>)
 #include <bits/types/struct_timeval.h>
 #elif __has_include(<sys/_timeval.h>)

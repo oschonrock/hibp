@@ -1,6 +1,6 @@
-#include "CLI/CLI.hpp"
 #include "flat_file.hpp"
 #include "hibp.hpp"
+#include <CLI/CLI.hpp>
 #include <cstdlib>
 #include <exception>
 #include <fmt/format.h>
