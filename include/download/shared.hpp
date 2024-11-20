@@ -14,7 +14,22 @@
 #include <unordered_map>
 #include <vector>
 
+
+namespace hibp::dnl  {
+
 // shared types
+// app wide cli_config
+
+struct cli_config_t {
+  std::string output_db_filename;
+  bool        debug        = false;
+  bool        progress     = true;
+  bool        resume       = false;
+  bool        text_out     = false;
+  bool        force        = false;
+  std::size_t index_limit  = 0x100000;
+  std::size_t parallel_max = 300;
+};
 
 struct download {
   explicit download(std::size_t index_) : index(index_) {
@@ -39,21 +54,6 @@ using enq_msg_t = std::vector<std::unique_ptr<download>>;
 void enqueue_downloads_for_writing(enq_msg_t&& msg);
 void finished_downloads();
 
-// app wide cli_config
-
-struct cli_config_t {
-  std::string output_db_filename;
-  bool        debug        = false;
-  bool        progress     = true;
-  bool        resume       = false;
-  bool        text_out     = false;
-  bool        force        = false;
-  std::size_t index_limit  = 0x100000;
-  std::size_t parallel_max = 300;
-};
-
-extern cli_config_t cli;
-
 // simple logging
 
 extern std::mutex                                       cerr_mutex;
@@ -72,4 +72,7 @@ struct thread_logger {
   bool debug = false;
 };
 
+extern cli_config_t cli;
 extern thread_logger logger;
+  
+}  // namespace hibp::dnl

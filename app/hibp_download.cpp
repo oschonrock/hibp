@@ -15,7 +15,7 @@
 #include <stdexcept>
 #include <string>
 
-void define_options(CLI::App& app, cli_config_t& cli_) {
+void define_options(CLI::App& app, hibp::dnl::cli_config_t& cli_) {
 
   app.add_option("output_db_filename", cli_.output_db_filename,
                  "The file that the downloaded binary database will be written to")
@@ -42,18 +42,22 @@ void define_options(CLI::App& app, cli_config_t& cli_) {
                  "or 1 048 576 dec)");
 }
 
+namespace hibp::dnl  {
 thread_logger logger;
 cli_config_t  cli;
+} // namespace hibp::dnl
 
 int main(int argc, char* argv[]) {
 
+  using hibp::dnl::cli;
+  
   CLI::App app;
   define_options(app, cli);
   CLI11_PARSE(app, argc, argv);
 
   if (cli.debug) cli.progress = false;
 
-  logger.debug = cli.debug;
+  hibp::dnl::logger.debug = cli.debug;
 
   try {
     if (cli.text_out && cli.resume) {
@@ -70,7 +74,7 @@ int main(int argc, char* argv[]) {
     auto        mode        = cli.text_out ? std::ios_base::out : std::ios_base::binary;
 
     if (cli.resume) {
-      start_index = get_last_prefix(cli.output_db_filename) + 1;
+      start_index = hibp::dnl::get_last_prefix(cli.output_db_filename) + 1;
 
       if (cli.index_limit <= start_index) {
         throw std::runtime_error(fmt::format("File '{}' contains {} records already, but you have "
@@ -88,12 +92,12 @@ int main(int argc, char* argv[]) {
                                            std::strerror(errno))); // NOLINT errno
     }
     if (cli.text_out) {
-      auto tw = text_writer(output_db_stream);
-      run_downloads([&](const std::string& line) { tw.write(line); }, start_index);
+      auto tw = hibp::dnl::text_writer(output_db_stream);
+      hibp::dnl::run([&](const std::string& line) { tw.write(line); }, start_index);
 
     } else {
       auto ffsw = flat_file::stream_writer<hibp::pawned_pw>(output_db_stream);
-      run_downloads([&](const std::string& line) { ffsw.write(line); }, start_index);
+      hibp::dnl::run([&](const std::string& line) { ffsw.write(line); }, start_index);
     }
 
   } catch (const std::exception& e) {

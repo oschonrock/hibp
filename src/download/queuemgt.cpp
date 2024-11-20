@@ -39,15 +39,14 @@
 
 // We have 3 queues:
 //
-// 1. `download_queue` managed by `requests.cpp` (the `requests`
-// thread), contains the current set of parallel downloads. it is a
-// std::unordered_map<download>, so not really a 'queue' as such. Just
-// a collection of 'slots' which are used for downloading. As each set
-// of downloads completes the requests thread sends an `enq_msg_t` message to
-// queuemgt.cpp (running in the main thread) by calling
-// enqueue_downloads_for_writing(). This inserts the message into the
-// `message_queue`.  When all dowloads are done it calls
-// finished_downloads().
+// 1. `download_slots` managed by `requests.cpp` (the `requests`
+// thread), contains the current set of parallel downloads. it is an
+// unordered_map, so not really a 'queue' as such, just a collection
+// of parallel 'slots'. As each set of downloads completes the
+// requests thread sends an `enq_msg_t` to queuemgt.cpp (running in
+// the main thread) by calling `enqueue_downloads_for_writing()`. This
+// inserts the message into the `message_queue`.  When all dowloads
+// are done it calls finished_downloads().
 //
 // 2. `message_queue` managed by queuemgr.cpp. When receiving messages
 // from the requests thread, the main thread is notified and it
@@ -63,7 +62,9 @@
 // throughout to keep the address of the downloads stable as they move
 // through the 3 queues. This ensures the curl C-APi has stable pointers.
 
-namespace {
+namespace hibp::dnl {
+
+namespace qmgt {
 
 using clk = std::chrono::high_resolution_clock;
 
@@ -125,64 +126,6 @@ std::size_t write_lines(write_fn_t& write_fn, download& dl) {
   bytes_processed += dl.buffer.size();
   return recordcount;
 }
-} // namespace
-
-// the following 2 functions are the msg api and called from other thread(s)
-
-void enqueue_downloads_for_writing(enq_msg_t&& msg) {
-  {
-    const std::lock_guard lk(msgmutex);
-    logger.log(fmt::format("message received: msg.size() = {}", msg.size()));
-    msg_queue.emplace(std::move(msg));
-  }
-  msg_cv.notify_one();
-}
-
-void finished_downloads() {
-  const std::lock_guard lk(msgmutex);
-  finished_dls = true;
-}
-
-// end of msg API
-
-void service_queue(write_fn_t& write_fn, std::size_t next_index) {
-
-  while (true) {
-    std::unique_lock lk(msgmutex);
-    msg_cv.wait(lk, [] { return !msg_queue.empty() || finished_dls; });
-
-    // bring messages over into process_queue
-    while (!msg_queue.empty()) {
-      auto& msg = msg_queue.front();
-      logger.log(fmt::format("processing message: msg.size() = {}", msg.size()));
-      for (auto& dl: msg) {
-        process_queue.emplace(std::move(dl));
-      }
-      msg_queue.pop();
-    }
-    lk.unlock(); // free up other thread to pass us more messages
-
-    // now do the work in the process queue
-    // there is no contention on this queue, and this is slow processing
-    logger.log(fmt::format("process_queue.size() = {}", process_queue.size()));
-    while (!process_queue.empty()) {
-      const auto& top = process_queue.top();
-      if (top->index != next_index) {
-        break; // must wait for an earlier batch to preserve the correct order
-      }
-      logger.log(fmt::format("service_queue: writing prefix = {}", top->prefix));
-      write_lines(write_fn, *top);
-      process_queue.pop();
-      next_index++;
-      files_processed++;
-    }
-    print_progress();
-    if (finished_dls && msg_queue.empty()) break;
-  }
-  if (cli.progress) {
-    std::cerr << "\n"; // clear line after progress if being shown, bit nasty
-  }
-}
 
 bool handle_exception(const std::exception_ptr& exception_ptr, std::thread::id thr_id) {
   if (exception_ptr) {
@@ -196,13 +139,71 @@ bool handle_exception(const std::exception_ptr& exception_ptr, std::thread::id t
   return false;
 }
 
-void run_downloads(write_fn_t write_fn, std::size_t start_index_) {
+} // namespace qmgt
+
+// msg API between threads
+void enqueue_downloads_for_writing(enq_msg_t&& msg) {
+  {
+    const std::lock_guard lk(qmgt::msgmutex);
+    logger.log(fmt::format("message received: msg.size() = {}", msg.size()));
+    qmgt::msg_queue.emplace(std::move(msg));
+  }
+  qmgt::msg_cv.notify_one();
+}
+
+// msg API between threads
+void finished_downloads() {
+  const std::lock_guard lk(qmgt::msgmutex);
+  qmgt::finished_dls = true;
+}
+
+void service_queue(write_fn_t& write_fn, std::size_t next_index) {
+
+  while (true) {
+    std::unique_lock lk(qmgt::msgmutex);
+    qmgt::msg_cv.wait(lk, [] { return !qmgt::msg_queue.empty() || qmgt::finished_dls; });
+
+    // bring messages over into process_queue
+    while (!qmgt::msg_queue.empty()) {
+      auto& msg = qmgt::msg_queue.front();
+      logger.log(fmt::format("processing message: msg.size() = {}", msg.size()));
+      for (auto& dl: msg) {
+        qmgt::process_queue.emplace(std::move(dl));
+      }
+      qmgt::msg_queue.pop();
+    }
+    lk.unlock(); // free up other thread to pass us more messages
+
+    // now do the work in the process queue
+    // there is no contention on this queue, and this is slow processing
+    logger.log(fmt::format("process_queue.size() = {}", qmgt::process_queue.size()));
+    while (!qmgt::process_queue.empty()) {
+      const auto& top = qmgt::process_queue.top();
+      if (top->index != next_index) {
+        break; // must wait for an earlier batch to preserve the correct order
+      }
+      logger.log(fmt::format("service_queue: writing prefix = {}", top->prefix));
+      qmgt::write_lines(write_fn, *top);
+      qmgt::process_queue.pop();
+      next_index++;
+      qmgt::files_processed++;
+    }
+    qmgt::print_progress();
+    if (qmgt::finished_dls && qmgt::msg_queue.empty()) break;
+  }
+  if (cli.progress) {
+    std::cerr << "\n"; // clear line after progress if being shown, bit nasty
+  }
+}
+
+// main entry point for the download process
+void run(write_fn_t write_fn, std::size_t start_index_) {
 
   std::exception_ptr requests_exception;
   std::exception_ptr queuemgt_exception;
 
-  start_time  = clk::now();   // for progress
-  start_index = start_index_; // for progress
+  qmgt::start_time  = qmgt::clk::now(); // for progress
+  qmgt::start_index = start_index_;     // for progress
   init_curl_and_events();
 
   auto que_thr_id      = std::this_thread::get_id();
@@ -228,8 +229,8 @@ void run_downloads(write_fn_t write_fn, std::size_t start_index_) {
   requests_thread.join();
 
   // use temps to avoid short cct eval
-  const bool ex_requests = handle_exception(requests_exception, req_thr_id);
-  const bool ex_queuemgt = handle_exception(queuemgt_exception, que_thr_id);
+  const bool ex_requests = qmgt::handle_exception(requests_exception, req_thr_id);
+  const bool ex_queuemgt = qmgt::handle_exception(queuemgt_exception, que_thr_id);
   if (ex_requests || ex_queuemgt) {
     curl_and_event_cleanup();
     throw std::runtime_error("Thread exceptions thrown as above. Sorry, we are aborting. You can "
@@ -294,7 +295,7 @@ std::size_t get_last_prefix(const std::string& filename) {
   std::cerr << fmt::format("found: trimming file to {}.\n", trimmed_file_size);
 
   std::filesystem::resize_file(filename, trimmed_file_size);
-  db = flat_file::database<hibp::pawned_pw>{filename}; // reload, does this work safely?
+  db = flat_file::database<hibp::pawned_pw>{filename}; // reload db
 
   std::size_t last_prefix{};
   std::from_chars(first_file_hash.c_str(), first_file_hash.c_str() + 5, last_prefix, 16);
@@ -302,3 +303,5 @@ std::size_t get_last_prefix(const std::string& filename) {
   // the last file was incompletely written, so we have trimmed and will do it again
   return last_prefix - 1;
 }
+
+} // namespace hibp::dnl

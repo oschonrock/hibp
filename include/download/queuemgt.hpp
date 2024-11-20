@@ -5,6 +5,8 @@
 #include <iostream>
 #include <string>
 
+namespace hibp::dnl {
+  
 std::size_t get_last_prefix(const std::string& filename);
 
 // alternative simple text writer
@@ -23,4 +25,6 @@ private:
 // prefer use of std::function (ie stdlib type erasure) rather than templates to keep .hpp interface
 // clean
 using write_fn_t = std::function<void(const std::string&)>;
-void run_downloads(write_fn_t write_fn, std::size_t start_index_);
+void run(write_fn_t write_fn, std::size_t start_index_);
+
+}  // namespace hibp::dnl
