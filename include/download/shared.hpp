@@ -4,7 +4,7 @@
 #include <compare>
 #include <cstddef>
 #include <curl/curl.h>
-#include <fmt/chrono.h>
+#include <fmt/chrono.h> // IWYU pragma: keep
 #include <fmt/format.h>
 #include <iostream>
 #include <memory>
