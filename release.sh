@@ -36,8 +36,8 @@ git pull &&
 
 echo "package built, if all works nicely do this:"
 echo
-echo "git tag v$NEW_VERSION"
 echo "git commit -m\"releasing new version $NEW_VERSION\"" DEBIAN/control README.md
+echo "git tag v$NEW_VERSION"
 echo "git push"
 echo "git push origin --tags"
 echo
