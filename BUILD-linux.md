@@ -16,18 +16,3 @@ sudo apt install clang gcc-14 g++-14  # need gcc-14 because clang tries to use i
 
 ```
 
-#### Fix bug in libstdc++ parallel algos integration with libtbb-dev
-NB: only necessary for hibp_sort, which is mostly deprecated, because we preserve order during download.
-
-see here
-https://gcc.gnu.org/bugzilla/show_bug.cgi?id=117276
-
-install the patch provided in bug report above into both versions of libstdc++ now installed on the machine
-
-```bash
-cd /usr/include/c++/13/
-curl https://gcc.gnu.org/bugzilla/attachment.cgi?id=59419 | sudo patch --backup --strip 5
-cd ../14/
-curl https://gcc.gnu.org/bugzilla/attachment.cgi?id=59419 | sudo patch --backup --strip 5
-cd ~/hibp
-```

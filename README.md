@@ -19,43 +19,14 @@ binary format and writing to disk, takes *under 12 minutes*.
 
 On a full 1Gbit/s connection this should take *under 5 minutes*.
 
-### High peformance with a small memory and disk footprint
-
-By deafult, this set of utilities uses a binary format to store and
-search the data. The orginal text records are about 45 bytes per
-password record, our binary format is 24 bytes, so storage
-requirements are almost halved (21GB currently).
-
-*If you don't like the binary format, you can always ouput the
-conventional text version as well.*
-
-Now that each record is a fixed width, and the records are maintained
-in a sorted order, searches become very efficient, because we can use
-random access binary search. There is an additional "table of
-contents" feature to reduce disk access further at the expense of (by
-default, but tunable) 2MB of memory. 
-
-The local http server component is both multi threaded and event loop
-driven for high efficiency. Even in a minimal configuration it should
-be more than sufficient to back almost any site, at over 1,000req/s
-on a single core.
-
-The in memory footprint of these utilities is also very small, just a
-few megabytes.
-
-If you want to reduce diskspace even further, you could use utilities
-like `hibp-topn` which will conveniently reduce a file to the `N` most
-common pawned passwords. By default this is a ~1GB file for the 50,000,000
-most common records.
-
-### Quick start - Linux .deb systems
+## Quick start - Linux amd64 .deb systems
 
 #### Install
 
 [Download latest .deb and install](https://github.com/oschonrock/hibp/releases/latest)
 ```bash
 wget -q https://github.com/oschonrock/hibp/releases/download/v0.2.1/hibp_0.2.1-1_amd64.deb
-sudo apt install ./hibp_0.2.1-1_amd64.deb
+sudo apt install ./hibp_0.2.1-1_amd64.deb  # will install minimal dependencies (eg `libevent`)
 ```
 
 #### Usage
@@ -84,14 +55,51 @@ warnings to the user that they using a compromised password.
 
 For production, make this server a proper autostart "service" on your distribution. 
 
-### Uninstall
+#### Uninstall
 
 To remove the package:
 ```bash
 sudo apt remove hibp
 ```
 
+## High peformance with a small memory and disk footprint
+
+By deafult, this set of utilities uses a binary format to store and
+search the data. The orginal text records are about 45 bytes per
+password record, our binary format is 24 bytes, so storage
+requirements are almost halved (21GB currently).
+
+*If you don't like the binary format, you can always ouput the
+conventional text version as well.*
+
+Now that each record is a fixed width, and the records are maintained
+in a sorted order, searches become very efficient, because we can use
+random access binary search. There is an additional "table of
+contents" feature to reduce disk access further at the expense of (by
+default, but tunable) 2MB of memory. 
+
+The local http server component is both multi threaded and event loop
+driven for high efficiency. Even in a minimal configuration it should
+be more than sufficient to back almost any site, at over 1,000req/s
+on a single core.
+
+The in memory footprint of these utilities is also very small, just a
+few megabytes.
+
+If you want to reduce diskspace even further, you could use utilities
+like `hibp-topn` which will conveniently reduce a file to the `N` most
+common pawned passwords. By default this is a ~1GB file for the 50,000,000
+most common records.
+
 ## Building from source
+
+`hibp` has a very modest dependencies and should compile without
+problems on many platforms. gcc >=10 and clang => 11.2 are tested
+under several `.deb` and `.rpm` based systems, under FreeBSD and under
+Windows (MSYS2/mingw).
+
+You will likely also suceed with minimal platforms like the
+raspberry-pi.
 
 ### Installing build dependencies
 
@@ -109,9 +117,12 @@ refer to OS specific instructions
 ## Usage
 
 ### Run full download: `hibp-download`
-Program will download the currently ~38GB of 1million 30-40kB text files from api.haveibeenpawned.com 
-It does this using libcurl with curl_multi and 300 parallel requests on a single thread.
-With a second thread doing the conversion to binary format and writing to disk.
+
+Program will download the currently ~38GB of 1million 30-40kB text
+files from api.haveibeenpawned.com It does this using libcurl with
+curl_multi and 300 parallel requests on a single thread.  With a
+second thread doing the conversion to binary format and writing to
+disk.
 
 *Warning* this will (currently) take just under 12mins on a 400Mbit/s
 connection and consume ~21GB of disk space during this time:
@@ -124,13 +135,12 @@ connection and consume ~21GB of disk space during this time:
 ./build/gcc/release/hibp-download hibp_all.bin
 ```
 
-You may see some warnings about failures and retries. If any transfer
-fails, even after 5 retries, the programme will abort.  after a
-permanent failure / abort, you can try rerunnung with `--resume`
+If any transfer fails, even after 5 retries, the programme will
+abort. In this case, you can try rerunnung with `--resume`
 
 For all options run `hibp-download --help`.
 
-### Run some sample "pawned password" queries from command line: `hibp-search`
+### Run some sample "pawned password" queries from the command line: `hibp-search`
 
 This is a tiny program / debug utility that runs a single query against the downloaded binary database.
 
@@ -144,7 +154,9 @@ needle = 5BAA61E4C9B93F3F0682250B6CF8331B7EE68FD8:-1
 found  = 5BAA61E4C9B93F3F0682250B6CF8331B7EE68FD8:10434004
 ```
 
-Performance will be mainly down to your disk and be around 15-20ms per uncached query, and <0.2ms cached.
+Performance will be mainly down to your disk and be 5-8ms per uncached
+query, and <0.3ms cached.  See below for further improved performance
+with `--toc2`
 
 ### Running a local server: `hibp-server`
 
@@ -187,7 +199,8 @@ And run apache bench like this (generating a somewhat random password to start w
 hash=$(date | sha1sum); ab -c100 -n10000 "http://localhost:8082/check/plain/${hash:0:10}"
 ```
 
-These are the key figures from a short run on an old i5-3470 CPU @ 3.20GHz with 4 threads
+These are the key figures from a short run on an old i5-3470 CPU @ 3.20GHz with 3 threads
+(one thread is consumed running `ab`).
 
 ```
 Requests per second:    3166.96 [#/sec] (mean)
@@ -210,9 +223,21 @@ Time per request:       24.578 [ms] (mean)
 Time per request:       0.983 [ms] (mean, across all concurrent requests)
 ```
 
-You can try the `--toc` feature on hibp-server which may improve
-performance signficantly further especially if you have limited free RAM for
-the OS to cache the disk.
+#### Enhanced performance for constrained devices: `--toc2`
+
+If you are runnning this database on a constrained device, with
+perhaps limited free RAM or a slow disk, You may want to try using the
+"table of contents" features, which builds an index into the "chapters"
+in the database and then holds this index in memory.
+
+This only consumes an additional 8MB of RAM by default, but maintains
+excellent performance even without any OS level disk caching.
+
+`--toc2` is available on the `hibp-search` test utility, and the `hibp-server`. 
+
+The first run with `--toc2` builds the index, which takes about 1
+minute, depending on your sequential disk speed. `hibp-search` shows
+that completely uncached queries *reduce from 5-8ms to just 0.7ms*.
 
 ## Other utilities
 
@@ -222,9 +247,7 @@ the OS to cache the disk.
 
 `./build/gcc/release/hibp-sort`    : sort a binary file using external disk space (takes 3x space on disk)!
 
-eful since hibp-download)
-
-In each case for all options run `program_name --help`.
+In each case, for all options run `program_name --help`.
 
 ## Under the hood
 
@@ -233,6 +256,8 @@ These utilities are written in C++ and centre around a `flat_file` class to mode
 	`hibp-download`, `hibp-server`, `hibp-sort` and `hibp-topn`.
 - `libcurl`, `libevent` are used for the highly concurrent download
 - `restinio` is used for the local server, based on `ASIO` for efficient concurrency
+- [`arrcmp`](https://github.com/oschonrock/arrcmp) is used as a high
+  performance, compile time optimised replacement for `memcmp`
 - libtbb is used for local sorting in `hibp-sort` and
 	`hibp-topn`. Note that for the parallelism (ie PSTL using libtbb)
 	you currently have to compile from source, but this only has a small
