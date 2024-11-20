@@ -12,5 +12,5 @@
 # current directory. This is quite a slow process and may take
 # several minutes, hence the use of gnu parallel.
 time find app/ src/ include/ -type f -name '*.cpp' -or -name '*.hpp' | \
-    parallel -q clang-tidy --quiet -p --config-file=.clang-tidy \
-	     -header-filter='.*/hibp/include/.*' --use-color
+    nice parallel -q clang-tidy --quiet -p --config-file=.clang-tidy \
+	 -header-filter='.*/hibp/include/.*' --use-color
