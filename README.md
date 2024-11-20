@@ -31,14 +31,16 @@ sudo apt install ./hibp_0.2.1-1_amd64.deb  # will install minimal dependencies (
 
 #### Usage
 
-Download "Have I been pawned" database.
-38GB download, uses 21GB of disk space and takes ~5/12 minutes on 1Gbit/400Mbit connection. Detailed progress is shown.
+Download "Have I been pawned" database.  38GB download, uses 21GB of
+disk space and takes ~5/12 minutes on 1Gbit/400Mbit
+connection. Detailed progress is shown.
 
 ```bash
 hibp-download hibp_all.bin
 ```
 
-Serve the data on local http server.
+Serve the data on a local http server.
+
 ```bash
 hibp-server hibp_all.bin
 ```
@@ -47,13 +49,17 @@ Test the server (in a different terminal)
 
 ```bash
 curl http://localhost:8082/check/plain/password123
+
+# or if you prefer
+
+curl http://localhost:8082/check/sha1/CBFDAC6008F9CAB4083784CBD1874F76618D2A97
 ```
 
 The output will be the number of times that pasword has appeared in
 leaks. Integrate this into your signup and login processes to show
 warnings to the user that they using a compromised password.
 
-For production, make this server a proper autostart "service" on your distribution. 
+For production, make this server a proper "autostart service" on your distribution. 
 
 #### Uninstall
 
@@ -119,15 +125,15 @@ refer to OS specific instructions
 
 ### Run full download: `hibp-download`
 
-Program will download the currently ~38GB of 1million 30-40kB text
-files from api.haveibeenpawned.com It does this using libcurl with
-curl_multi and 300 parallel requests on a single thread.  With a
-second thread doing the conversion to binary format and writing to
-disk.
+Program will download the currently ~38GB of data, containing 1
+million 30-40kB text files from api.haveibeenpawned.com It does this
+using `libcurl` with `curl_multi` and 300 parallel requests
+(adjustable) on a single thread.  A second thread does the
+conversion to binary format and writing to disk.
 
 *Warning* this will (currently) take just under 12mins on a 400Mbit/s
 connection and consume ~21GB of disk space during this time:
-- your network connection should be saturated with HTTP2 multiplexed requests
+- your network connection will be saturated with HTTP2 multiplexed requests
 - `top` in threads mode (key `H`) should show 2 `hibp-download` threads.
 - One "curl thread" with ~50-80% CPU and
 - The "main thread" with ~15-30% CPU, primarily converting data to
