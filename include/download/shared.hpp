@@ -1,10 +1,11 @@
 #pragma once
 
-#include "fmt/chrono.h" // IWYU pragma: keep
 #include <chrono>
 #include <compare>
 #include <cstddef>
 #include <curl/curl.h>
+#include <fmt/chrono.h>
+#include <fmt/format.h>
 #include <iostream>
 #include <memory>
 #include <mutex>

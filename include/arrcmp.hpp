@@ -4,9 +4,11 @@
 #include <bit>
 #include <compare>
 #include <concepts>
+#include <cstddef>
 #include <cstdint>
 #include <emmintrin.h>
 #include <immintrin.h>
+#include <type_traits>
 
 namespace arrcmp {
 

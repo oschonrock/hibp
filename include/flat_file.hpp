@@ -13,9 +13,12 @@
 #include <functional>
 #include <ios>
 #include <iostream>
+#include <iterator>
 #include <queue>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace flat_file {

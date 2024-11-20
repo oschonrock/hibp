@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <ostream>
+#include <string>
 
 namespace hibp {
 
