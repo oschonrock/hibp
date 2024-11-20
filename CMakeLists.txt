@@ -139,15 +139,6 @@ set_target_properties(hibp_convert PROPERTIES OUTPUT_NAME hibp-convert)
 target_compile_options(hibp_convert PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_convert PRIVATE CLI11 sha1 hibp flat_file fmt::fmt)
 
-add_executable(hibp_join app/hibp_join.cpp)
-set_target_properties(hibp_join PROPERTIES OUTPUT_NAME hibp-join)
-target_compile_options(hibp_join PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_join PRIVATE hibp CLI11 flat_file fmt::fmt)
-
-# don't seem to need these? 
-# find_package(CURL REQUIRED)
-# pkg_search_module(LIBEVENT libevent)
-
 add_executable(hibp_download
   app/hibp_download.cpp
   src/download/queuemgt.cpp
@@ -168,7 +159,6 @@ if (NOT NOPCH AND NOT CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
   target_precompile_headers(hibp_sort REUSE_FROM hibp_search)
   target_precompile_headers(hibp_convert REUSE_FROM hibp_search)
   target_precompile_headers(hibp_topn REUSE_FROM hibp_search)
-  target_precompile_headers(hibp_join REUSE_FROM hibp_search)
   target_precompile_headers(hibp_download REUSE_FROM hibp_search)
 endif()
 
@@ -180,4 +170,4 @@ else(HIBP_TEST)
   message(STATUS "HIBP Tests are disabled. Set HIBP_TEST to ON to run tests.")
 endif(HIBP_TEST)
 
-install(TARGETS hibp_download hibp_sort hibp_search hibp_join hibp_convert hibp_server hibp_topn RUNTIME)
+install(TARGETS hibp_download hibp_sort hibp_search hibp_convert hibp_server hibp_topn RUNTIME)

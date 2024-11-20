@@ -222,7 +222,7 @@ the OS to cache the disk.
 
 `./build/gcc/release/hibp-sort`    : sort a binary file using external disk space (takes 3x space on disk)!
 
-`./build/gcc/release/hibp-join`    : join the ~1M text files into one large binary one in arbitrary order (not useful since hibp-download)
+eful since hibp-download)
 
 In each case for all options run `program_name --help`.
 
