@@ -77,22 +77,15 @@ auto search_and_respond(flat_file::database<hibp::pawned_pw>& db, const hibp::pa
                         auto req) {
   std::optional<hibp::pawned_pw> maybe_ppw;
 
-  try {
-    if (cli.toc) {
-      maybe_ppw = toc_search(db, needle);
-    } else if (cli.toc2) {
-      maybe_ppw = toc2_search(db, needle, cli.toc2_bits);
-    } else {
-      auto iter = std::lower_bound(db.begin(), db.end(), needle);
-      if (iter != db.end() && *iter == needle) {
-        maybe_ppw = *iter;
-      }
+  if (cli.toc) {
+    maybe_ppw = toc_search(db, needle);
+  } else if (cli.toc2) {
+    maybe_ppw = toc2_search(db, needle, cli.toc2_bits);
+  } else {
+    auto iter = std::lower_bound(db.begin(), db.end(), needle);
+    if (iter != db.end() && *iter == needle) {
+      maybe_ppw = *iter;
     }
-  } catch (const std::exception& e) {
-    return req->create_response(restinio::status_internal_server_error())
-        .set_body(e.what())
-        .connection_close()
-        .done();
   }
   int count = maybe_ppw ? maybe_ppw->count : -1;
 
@@ -112,34 +105,42 @@ auto search_and_respond(flat_file::database<hibp::pawned_pw>& db, const hibp::pa
 auto get_router(const std::string& db_filename) {
   auto router = std::make_unique<restinio::router::express_router_t<>>();
   router->http_get(R"(/check/:format/:password)", [&](auto req, auto params) {
-    // one db object (ie set of buffers and pointers) per thread
-    thread_local flat_file::database<hibp::pawned_pw> db(db_filename,
-                                                         4096 / sizeof(hibp::pawned_pw));
+    try {
+      // one db object (ie set of buffers and pointers) per thread
+      thread_local flat_file::database<hibp::pawned_pw> db(db_filename,
+                                                           4096 / sizeof(hibp::pawned_pw));
 
-    static std::atomic<int> uniq{}; // for performance testing, make uniq_pw for each request
+      static std::atomic<int> uniq{}; // for performance testing, make uniq_pw for each request
 
-    if (params["format"] != "plain" && params["format"] != "sha1") {
-      return req->create_response(restinio::status_not_found()).connection_close().done();
-    }
-
-    std::string sha1_txt_pw;
-    if (params["format"] == "plain") {
-      SHA1 sha1;
-      auto pw = std::string(params["password"]);
-      if (cli.perf_test) {
-        pw += std::to_string(uniq++);
+      if (params["format"] != "plain" && params["format"] != "sha1") {
+        return req->create_response(restinio::status_not_found()).connection_close().done();
       }
-      sha1_txt_pw = sha1(pw);
-    } else {
-      if (params["password"].size() != 40 ||
-          params["password"].find_first_not_of("0123456789ABCDEF") != std::string_view::npos) {
-        return req->create_response(restinio::status_bad_request()).connection_close().done();
-      }
-      sha1_txt_pw = std::string{params["password"]};
-    }
-    const hibp::pawned_pw needle = hibp::convert_to_binary(sha1_txt_pw);
 
-    return search_and_respond(db, needle, req);
+      std::string sha1_txt_pw;
+      if (params["format"] == "plain") {
+        SHA1 sha1;
+        auto pw = std::string(params["password"]);
+        if (cli.perf_test) {
+          pw += std::to_string(uniq++);
+        }
+        sha1_txt_pw = sha1(pw);
+      } else {
+        if (params["password"].size() != 40 ||
+            params["password"].find_first_not_of("0123456789ABCDEF") != std::string_view::npos) {
+          return req->create_response(restinio::status_bad_request()).connection_close().done();
+        }
+        sha1_txt_pw = std::string{params["password"]};
+      }
+      const hibp::pawned_pw needle = hibp::convert_to_binary(sha1_txt_pw);
+
+      return search_and_respond(db, needle, req);
+
+    } catch (const std::exception& e) {
+      return req->create_response(restinio::status_internal_server_error())
+          .set_body(e.what())
+          .connection_close()
+          .done();
+    }
   });
 
   router->non_matched_request_handler([](auto req) {
