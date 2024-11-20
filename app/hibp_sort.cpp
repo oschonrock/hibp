@@ -9,8 +9,8 @@
 
 struct cli_config_t {
   std::string input_filename;
-  bool        sort_by_count   = false;
-  std::size_t max_memory      = 1000;
+  bool        sort_by_count = false;
+  std::size_t max_memory    = 1000;
 };
 
 void define_options(CLI::App& app, cli_config_t& cli) {

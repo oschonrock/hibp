@@ -8,4 +8,3 @@ void shutdown_curl_and_events();
 void curl_and_event_cleanup();
 
 std::string curl_sync_get(const std::string& url);
-

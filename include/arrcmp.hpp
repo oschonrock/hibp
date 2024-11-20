@@ -57,8 +57,9 @@ concept any_of = (std::same_as<T, U> || ...);
 // It is the caller's responsibility to ensure that enough bytes are
 // readable/dereferencable etc. This compiles to just a `mov` and `bswap`
 template <typename T, bool swap_if_required = true>
-constexpr T bytearray_cast(const std::byte* source) noexcept requires
-    any_of<T, std::uint64_t, std::uint32_t, std::uint16_t, std::uint8_t> {
+constexpr T bytearray_cast(const std::byte* source) noexcept
+  requires any_of<T, std::uint64_t, std::uint32_t, std::uint16_t, std::uint8_t>
+{
 
   static_assert(std::endian::native == std::endian::big ||
                     std::endian::native == std::endian::little,
@@ -123,7 +124,7 @@ constexpr std::size_t next_size() noexcept {
 }
 
 template <typename T>
-requires std::integral<T>
+  requires std::integral<T>
 constexpr std::strong_ordering cmp(T a, T b) noexcept {
 // gcc & MSVC compile a fast `<=>`, but clang is quite slow
 #ifdef __clang__
@@ -138,7 +139,7 @@ constexpr std::strong_ordering cmp(std::byte a, std::byte b) noexcept {
 }
 
 template <typename T>
-requires std::integral<T>
+  requires std::integral<T>
 constexpr int cmp_by_substracting(T a, T b) noexcept {
   if constexpr (sizeof(T) < sizeof(int)) {
     // returning an int which has enough range for this subtraction

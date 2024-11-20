@@ -36,7 +36,6 @@ struct cli_config_t {
   unsigned      toc2_bits    = 20; // 1Mega chapters
 };
 
-
 void define_options(CLI::App& app, cli_config_t& cli) {
 
   app.add_option("db_filename", cli.db_filename,
@@ -90,7 +89,10 @@ auto search_and_respond(flat_file::database<hibp::pawned_pw>& db, const hibp::pa
       }
     }
   } catch (const std::exception& e) {
-      return req->create_response(restinio::status_internal_server_error()).set_body(e.what()).connection_close().done();
+    return req->create_response(restinio::status_internal_server_error())
+        .set_body(e.what())
+        .connection_close()
+        .done();
   }
   int count = maybe_ppw ? maybe_ppw->count : -1;
 

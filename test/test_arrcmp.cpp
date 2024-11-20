@@ -35,8 +35,7 @@ void test() {
           SCOPED_TRACE("N=" + std::to_string(N) +
                        ", a_byte=" + std::to_string(static_cast<unsigned>(a_byte)) +
                        ", b_byte=" + std::to_string(static_cast<unsigned>(b_byte)) +
-                       ", pos=" + std::to_string(pos) +
-                       ", b_pos=" + std::to_string(b_pos));
+                       ", pos=" + std::to_string(pos) + ", b_pos=" + std::to_string(b_pos));
 
           EXPECT_EQ(arrcmp::array_compare(a, b, arrcmp::equal{}), a == b);
           EXPECT_EQ(arrcmp::array_compare(a, b, arrcmp::three_way{}), a <=> b);
@@ -55,8 +54,9 @@ void test() {
 
 template <std::size_t Min, std::size_t Max>
 void test_set() {
-  []<std::size_t... Sizes>(std::index_sequence<Sizes...> /*sizes*/) { (test<Min + Sizes>(), ...); }
-  (std::make_index_sequence<Max - Min + 1>{});
+  []<std::size_t... Sizes>(std::index_sequence<Sizes...> /*sizes*/) {
+    (test<Min + Sizes>(), ...);
+  }(std::make_index_sequence<Max - Min + 1>{});
 }
 
 TEST(arrcmp, arrays) {                         // NOLINT

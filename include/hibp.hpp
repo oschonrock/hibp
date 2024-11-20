@@ -15,7 +15,6 @@ struct pawned_pw;
 
 inline pawned_pw convert_to_binary(const std::string& text);
 
-
 constexpr char nibble_to_char(std::byte nibble) {
   auto n = std::to_integer<uint8_t>(nibble);
   assert(n <= 15);
@@ -84,7 +83,7 @@ inline pawned_pw convert_to_binary(const std::string& text) {
     ++i;
   }
 
-  ppw.count = -1;
+  ppw.count      = -1;
   auto count_idx = ppw.hash.size() * 2 + 1;
   if (text.size() > count_idx) {
     std::from_chars(text.c_str() + count_idx, text.c_str() + text.size(), ppw.count);

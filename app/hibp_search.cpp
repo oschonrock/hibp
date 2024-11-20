@@ -59,7 +59,7 @@ int main(int argc, char* argv[]) {
     if ((cli.toc && cli.toc2)) {
       throw std::runtime_error("You can't use --toc and --toc2 together");
     }
-    
+
     flat_file::database<hibp::pawned_pw> db(cli.db_filename, 4096 / sizeof(hibp::pawned_pw));
 
     if (cli.toc) {
@@ -68,7 +68,7 @@ int main(int argc, char* argv[]) {
       build_toc2(cli.db_filename, cli.toc2_bits);
     }
 
-    SHA1            hash;
+    SHA1                  hash;
     const hibp::pawned_pw needle = hibp::convert_to_binary(hash(cli.plain_text_password));
 
     std::optional<hibp::pawned_pw> maybe_ppw;

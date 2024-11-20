@@ -209,7 +209,7 @@ std::optional<hibp::pawned_pw> toc2_search(flat_file::database<hibp::pawned_pw>&
   }
 
   const std::size_t db_start_search_index = toc2[pw_prefix];
-  std::size_t db_end_search_index{};
+  std::size_t       db_end_search_index{};
   if (pw_prefix + 1 < toc2.size()) {
     db_end_search_index = toc2[pw_prefix + 1];
   } else {

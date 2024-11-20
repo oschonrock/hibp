@@ -23,4 +23,3 @@ private:
 // clean
 using write_fn_t = std::function<void(const std::string&)>;
 void run_downloads(write_fn_t write_fn, std::size_t start_index_);
-
