@@ -87,9 +87,9 @@ auto search_and_respond(flat_file::database<hibp::pawned_pw>& db, const hibp::pa
       maybe_ppw = *iter;
     }
   }
-  int count = maybe_ppw ? maybe_ppw->count : -1;
+  const int count = maybe_ppw ? maybe_ppw->count : -1;
 
-  std::string content_type = cli.json ? "application/json" : "text/plain";
+  const std::string content_type = cli.json ? "application/json" : "text/plain";
 
   auto response = req->create_response().append_header(
       restinio::http_field::content_type, fmt::format("{}; charset=utf-8", content_type));
