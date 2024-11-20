@@ -108,7 +108,7 @@ public:
 
   const ValueType& get_record(std::size_t pos) {
     if (!(pos >= buf_start_ && pos < buf_end_)) { // NOLINT can be simplified
-      db_.seekg(static_cast<std::ifstream::pos_type>(pos * sizeof(ValueType)));
+      db_.seekg(static_cast<std::streamoff>(pos * sizeof(ValueType)));
 
       const std::size_t nrecs = std::min(buf_.size(), dbsize_ - pos);
 

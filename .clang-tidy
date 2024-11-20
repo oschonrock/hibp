@@ -1,4 +1,5 @@
-Checks: '*,-fuchsia*,
+Checks: '*,
+-fuchsia*,
 -llvmlibc*,
 -*braces-around-statements,
 -hicpp-noexcept-move,
