@@ -141,20 +141,29 @@ bool handle_exception(const std::exception_ptr& exception_ptr, std::thread::id t
 
 } // namespace qmgt
 
-// msg API between threads
+// msg API called by requests thread
 void enqueue_downloads_for_writing(enq_msg_t&& msg) {
   {
     const std::lock_guard lk(qmgt::msgmutex);
-    logger.log(fmt::format("message received: msg.size() = {}", msg.size()));
+    auto msg_size = msg.size();
     qmgt::msg_queue.emplace(std::move(msg));
+    logger.log(fmt::format("enqueue_downloads_for_writing(): "
+                           "acquired lock and received mesage of size = {}, "
+                           "notifying queuemgt thread", msg_size));
   }
   qmgt::msg_cv.notify_one();
 }
 
-// msg API between threads
+// msg API called by requests thread
 void finished_downloads() {
-  const std::lock_guard lk(qmgt::msgmutex);
-  qmgt::finished_dls = true;
+  {
+    const std::lock_guard lk(qmgt::msgmutex);
+    qmgt::finished_dls = true;
+    logger.log("finished_downloads(): acquired lock, "
+               "set finished_dls = true, "
+               "notifying queuemgt thread");
+  }
+  qmgt::msg_cv.notify_one();
 }
 
 void service_queue(write_fn_t& write_fn, std::size_t next_index) {
@@ -213,7 +222,9 @@ void run(write_fn_t write_fn, std::size_t start_index_) {
     try {
       run_event_loop(start_index_);
     } catch (...) {
+      logger.log("caught exception");
       requests_exception = std::current_exception();
+      finished_downloads(); // try to unblock queuemgt thread
     }
   });
 
@@ -223,6 +234,7 @@ void run(write_fn_t write_fn, std::size_t start_index_) {
   try {
     service_queue(write_fn, start_index_);
   } catch (...) {
+    logger.log("caught exception");
     queuemgt_exception = std::current_exception();
   }
 
