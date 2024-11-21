@@ -98,48 +98,46 @@ int main(int argc, char* argv[]) {
       output_stream_name = cli.output_filename;
     }
 
-    flat_file::database<hibp::pawned_pw> db(cli.input_filename,
-                                            (1U << 16U) / sizeof(hibp::pawned_pw));
+    flat_file::database<hibp::pawned_pw> input_db(cli.input_filename,
+                                                  (1U << 16U) / sizeof(hibp::pawned_pw));
 
-    std::vector<hibp::pawned_pw> output_db(cli.topn);
+    if (input_db.number_records() <= cli.topn) {
+      throw std::runtime_error(
+          fmt::format("size of input db ({}) <= topn ({}). Output would be identical. Aborting.",
+                      input_db.number_records(), cli.topn));
+    }
+    std::vector<hibp::pawned_pw> memdb(cli.topn);
 
-    std::cerr << fmt::format("{:50}", "Read db from disk and topN sort by count desc...");
-    using clk  = std::chrono::high_resolution_clock;
-    auto start = clk::now();
+    std::cerr << fmt::format("{:50}", "Read db from disk and topN sort by count desc ...");
+
+    using clk   = std::chrono::high_resolution_clock;
+    using fsecs = std::chrono::duration<double>;
+    auto start  = clk::now();
 
     // TopN sort descending by count (par_unseq makes no sense, as disk bound and flat_file not
     // thread safe)
-    std::partial_sort_copy(db.begin(), db.end(), output_db.begin(), output_db.end(),
+    std::partial_sort_copy(input_db.begin(), input_db.end(), memdb.begin(), memdb.end(),
                            [](auto& a, auto& b) { return a.count > b.count; });
 
-    auto stop = clk::now();
-    std::cerr << fmt::format("{:%M:%Ss}\n", floor<std::chrono::milliseconds>(stop - start));
+    std::cerr << fmt::format("{:>8.3}\n", duration_cast<fsecs>(clk::now() - start));
 
-    std::cerr << fmt::format("{:50}", "Sort by hash ascending...");
+    std::cerr << fmt::format("{:50}", "Sort by hash ascending ...");
     start = clk::now();
     // default sort by hash ascending
     std::sort(
 #if HIBP_USE_PSTL && __cpp_lib_parallel_algorithm
-        // it is also possible to use std::sort(par_unseq from PTSL in libc++ with
-        // -fexperimental-library
         std::execution::par_unseq,
 #endif
-        output_db.begin(), output_db.end());
-    stop = clk::now();
-    std::cerr << fmt::format(
-        "{:9.3}s\n",
-        std::chrono::duration_cast<std::chrono::duration<double>>(stop - start).count());
+        memdb.begin(), memdb.end());
+    std::cerr << fmt::format("{:>8.3}\n", duration_cast<fsecs>(clk::now() - start));
 
     start = clk::now();
-    std::cerr << fmt::format("{:50}", "Write TopN db to disk...");
-    auto writer = flat_file::stream_writer<hibp::pawned_pw>(*output_stream);
-    for (const auto& pw: output_db) {
-      writer.write(pw);
+    std::cerr << fmt::format("{:50}", "Write TopN db to disk ...");
+    auto output_db = flat_file::stream_writer<hibp::pawned_pw>(*output_stream);
+    for (const auto& pw: memdb) {
+      output_db.write(pw);
     }
-    stop = clk::now();
-    std::cerr << fmt::format(
-        "{:9.3}s\n",
-        std::chrono::duration_cast<std::chrono::duration<double>>(stop - start).count());
+    std::cerr << fmt::format("{:>8.3}\n", duration_cast<fsecs>(clk::now() - start));
 
   } catch (const std::exception& e) {
     std::cerr << fmt::format("Error: {}\n", e.what());
