@@ -1,3 +1,5 @@
+#pragma once
+
 #include "flat_file.hpp"
 #include "hibp.hpp"
 #include <cstdlib>

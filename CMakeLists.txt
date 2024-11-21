@@ -115,7 +115,9 @@ target_link_libraries(hibp_search PRIVATE CLI11 sha1 hibp flat_file fmt::fmt)
 
 find_package(Threads)
 
-add_executable(hibp_server app/hibp_server.cpp src/toc.cpp)
+add_executable(hibp_server app/hibp_server.cpp
+  src/srv/server.cpp
+  src/toc.cpp)
 set_target_properties(hibp_server PROPERTIES OUTPUT_NAME hibp-server)
 target_compile_options(hibp_server PRIVATE ${PROJECT_COMPILE_OPTIONS})
 if (MINGW)
