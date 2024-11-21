@@ -3,6 +3,8 @@
 OLD_VERSION="$1"
 NEW_VERSION="$2"
 
+PROJECT_DIR="$(dirname $(realpath $0))"
+
 USAGE=$(cat <<-END
     	Usage: $0 OLD_VERSION NEW_VERSION
 END
@@ -20,19 +22,20 @@ sed -i "s/${OLD_VERSION//./\\.}/${NEW_VERSION//./\\.}/g" DEBIAN/control README.m
 
 rm -rf $NEW_PACKAGE_DIR
 mkdir -p $NEW_PACKAGE_DIR/DEBIAN/
-cp DEBIAN/control $NEW_PACKAGE_DIR/DEBIAN/
+egrep -v '^Depends:' $PROJECT_DIR/DEBIAN/control > $NEW_PACKAGE_DIR/DEBIAN/control
 
 git pull &&
     ./build.sh -c gcc -b release --purge --nopch --install --install-prefix=$NEW_PACKAGE_DIR/usr/local &&
     cd $NEW_PACKAGE_DIR &&
     mkdir debian &&
-    touch debian/control &&
+    touch debian/control && # needs to present temporarily
     DEPS="$(dpkg-shlibdeps -O usr/local/bin/hibp-* 2>/dev/null)" &&
     echo "Depends: ${DEPS/shlibs:Depends=/}" >> DEBIAN/control &&
-    rm -rf debian/control &&
-    cd $HOME &&
+    cp $NEW_PACKAGE_DIR/DEBIAN/control $PROJECT_DIR/DEBIAN/control
+    rm -rf $NEW_PACKAGE_DIR/debian &&
+    cd $NEW_PACKAGE_DIR/.. &&
     dpkg-deb --build --root-owner-group $NEW_PACKAGE_DIR &&
-    cd hibp
+    cd $PROJECT_DIR
 
 echo "package built, if all works nicely do this:"
 echo
