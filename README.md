@@ -17,7 +17,9 @@ binary format and writing to disk, takes *under 12 minutes*.
 
 ![](https://github.com/oschonrock/hibp/blob/main/media/download.gif)
 
-On a full 1Gbit/s connection this should take *under 5 minutes*.
+On a full 1Gbit/s connection this take *around 6 minutes*, as shown here under Windows:
+
+![](https://github.com/oschonrock/hibp/blob/main/media/windows_download.png)
 
 ## Quick start - Linux amd64 .deb systems (for others see below!)
 
@@ -32,7 +34,7 @@ sudo apt install ./hibp_0.2.1-1_amd64.deb  # will install minimal dependencies (
 #### Usage
 
 Download "Have I been pawned" database.  38GB download, uses 21GB of
-disk space and takes ~5/12 minutes on 1Gbit/400Mbit
+disk space and takes ~6/12 minutes on 1Gbit/400Mbit
 connection. Detailed progress is shown.
 
 ```bash
