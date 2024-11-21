@@ -12,9 +12,8 @@
 
 namespace hibp {
 
+template <unsigned HashSize>
 struct pawned_pw;
-
-inline pawned_pw convert_to_binary(const std::string& text);
 
 namespace detail {
 
@@ -41,11 +40,24 @@ constexpr char nibble_to_char(std::byte nibble) {
 }
 } // namespace detail
 
+template <unsigned HashSize>
 struct pawned_pw {
   pawned_pw() = default;
 
-  pawned_pw(const std::string& text) // NOLINT detailicit conversion
-      : pawned_pw(convert_to_binary(text)) {}
+  pawned_pw(const std::string& text) { // NOLINT implicit
+    assert(text.length() >= hash.size() * 2);
+    std::size_t i = 0;
+    for (auto& b: hash) {
+      b = detail::make_byte(&text[2 * i]);
+      ++i;
+    }
+
+    count          = -1;
+    auto count_idx = hash.size() * 2 + 1;
+    if (text.size() > count_idx) {
+      std::from_chars(text.c_str() + count_idx, text.c_str() + text.size(), count);
+    }
+  }
 
   std::strong_ordering operator<=>(const pawned_pw& rhs) const {
     return arrcmp::array_compare(hash, rhs.hash, arrcmp::three_way{});
@@ -72,27 +84,11 @@ struct pawned_pw {
     return os << rhs.to_string();
   }
 
-  std::array<std::byte, 20> hash;
-  std::int32_t              count; // important to be definitive about size
+  std::array<std::byte, HashSize> hash{};
+  std::int32_t                    count = -1; // important to be definitive about size
 };
 
-// `text` must be an uppper- or lowercase sha1 hexstr
-// with optional ":123" appended (123 is the count).
-inline pawned_pw convert_to_binary(const std::string& text) {
-  pawned_pw ppw; // NOLINT initlialisation not needed here
+using pawned_pw_sha1 = pawned_pw<20>;
+using pawned_pw_ntlm = pawned_pw<16>;
 
-  assert(text.length() >= ppw.hash.size() * 2);
-  std::size_t i = 0;
-  for (auto& b: ppw.hash) {
-    b = detail::make_byte(&text[2 * i]);
-    ++i;
-  }
-
-  ppw.count      = -1;
-  auto count_idx = ppw.hash.size() * 2 + 1;
-  if (text.size() > count_idx) {
-    std::from_chars(text.c_str() + count_idx, text.c_str() + text.size(), ppw.count);
-  }
-  return ppw;
-}
 } // namespace hibp

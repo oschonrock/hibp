@@ -39,7 +39,7 @@ int main(int argc, char* argv[]) {
   CLI11_PARSE(app, argc, argv);
 
   try {
-    flat_file::database<hibp::pawned_pw> db(cli.input_filename, 1'000);
+    flat_file::database<hibp::pawned_pw_sha1> db(cli.input_filename, 1'000);
 
     auto max_mem_bytes = cli.max_memory * 1024 * 1024;
 

@@ -78,17 +78,17 @@ std::ofstream get_output_stream(const std::string& output_filename, bool force) 
 
 void txt_to_bin(std::istream& input_stream, std::ostream& output_stream, std::size_t limit) {
 
-  auto writer = flat_file::stream_writer<hibp::pawned_pw>(output_stream);
+  auto writer = flat_file::stream_writer<hibp::pawned_pw_sha1>(output_stream);
 
   std::size_t count = 0;
   for (std::string line; std::getline(input_stream, line) && count != limit; count++) {
-    writer.write(hibp::convert_to_binary(line));
+    writer.write(line);
   }
 }
 
 void bin_to_txt(const std::string& input_filename, std::ostream& output_stream, std::size_t limit) {
 
-  flat_file::database<hibp::pawned_pw> db{input_filename, 4096 / sizeof(hibp::pawned_pw)};
+  flat_file::database<hibp::pawned_pw_sha1> db{input_filename, 4096 / sizeof(hibp::pawned_pw_sha1)};
 
   std::size_t count = 0;
   for (const auto& record: db) {

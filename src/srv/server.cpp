@@ -21,9 +21,9 @@
 
 namespace hibp::srv {
 
-auto search_and_respond(flat_file::database<hibp::pawned_pw>& db, const hibp::pawned_pw& needle,
-                        auto req) {
-  std::optional<hibp::pawned_pw> maybe_ppw;
+auto search_and_respond(flat_file::database<hibp::pawned_pw_sha1>& db,
+                        const hibp::pawned_pw_sha1& needle, auto req) {
+  std::optional<hibp::pawned_pw_sha1> maybe_ppw;
 
   if (cli.toc) {
     maybe_ppw = hibp::toc_search(db, needle, cli.toc_bits);
@@ -53,8 +53,8 @@ auto get_router(const std::string& db_filename) {
   router->http_get(R"(/check/:format/:password)", [&](auto req, auto params) {
     try {
       // one db object (ie set of buffers and pointers) per thread
-      thread_local flat_file::database<hibp::pawned_pw> db(db_filename,
-                                                           4096 / sizeof(hibp::pawned_pw));
+      thread_local flat_file::database<hibp::pawned_pw_sha1> db(
+          db_filename, 4096 / sizeof(hibp::pawned_pw_sha1));
 
       static std::atomic<int> uniq{}; // for performance testing, make uniq_pw for each request
 
@@ -77,7 +77,7 @@ auto get_router(const std::string& db_filename) {
         }
         sha1_txt_pw = std::string{params["password"]};
       }
-      const hibp::pawned_pw needle = hibp::convert_to_binary(sha1_txt_pw);
+      const hibp::pawned_pw_sha1 needle{sha1_txt_pw};
 
       return search_and_respond(db, needle, req);
 

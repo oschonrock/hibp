@@ -1,3 +1,4 @@
+#include "hibp.hpp"
 #include "srv/server.hpp"
 #include "toc.hpp"
 #include <CLI/CLI.hpp>
@@ -53,7 +54,8 @@ int main(int argc, char* argv[]) {
 
   try {
     if (cli.toc) {
-      hibp::toc_build(cli.db_filename, cli.toc_bits);
+      // TODO diverge for ntlm
+      hibp::toc_build<hibp::pawned_pw_sha1>(cli.db_filename, cli.toc_bits);
     } else {
       auto input_stream = std::ifstream(cli.db_filename);
       if (!input_stream) {

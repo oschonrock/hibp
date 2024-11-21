@@ -98,15 +98,15 @@ int main(int argc, char* argv[]) {
       output_stream_name = cli.output_filename;
     }
 
-    flat_file::database<hibp::pawned_pw> input_db(cli.input_filename,
-                                                  (1U << 16U) / sizeof(hibp::pawned_pw));
+    flat_file::database<hibp::pawned_pw_sha1> input_db(cli.input_filename,
+                                                       (1U << 16U) / sizeof(hibp::pawned_pw_sha1));
 
     if (input_db.number_records() <= cli.topn) {
       throw std::runtime_error(
           fmt::format("size of input db ({}) <= topn ({}). Output would be identical. Aborting.",
                       input_db.number_records(), cli.topn));
     }
-    std::vector<hibp::pawned_pw> memdb(cli.topn);
+    std::vector<hibp::pawned_pw_sha1> memdb(cli.topn);
 
     std::cerr << fmt::format("{:50}", "Read db from disk and topN sort by count desc ...");
 
@@ -133,7 +133,7 @@ int main(int argc, char* argv[]) {
 
     start = clk::now();
     std::cerr << fmt::format("{:50}", "Write TopN db to disk ...");
-    auto output_db = flat_file::stream_writer<hibp::pawned_pw>(*output_stream);
+    auto output_db = flat_file::stream_writer<hibp::pawned_pw_sha1>(*output_stream);
     for (const auto& pw: memdb) {
       output_db.write(pw);
     }

@@ -15,29 +15,31 @@
 #include <stdexcept>
 #include <string>
 
-void define_options(CLI::App& app, hibp::dnl::cli_config_t& cli_) {
+void define_options(CLI::App& app, hibp::dnl::cli_config_t& cli) {
 
-  app.add_option("output_db_filename", cli_.output_db_filename,
+  app.add_option("output_db_filename", cli.output_db_filename,
                  "The file that the downloaded binary database will be written to")
       ->required();
 
-  app.add_flag("--debug", cli_.debug,
+  app.add_flag("--debug", cli.debug,
                "Send verbose thread debug output to stderr. Turns off progress.");
-  app.add_flag("--progress,!--no-progress", cli_.progress,
+  app.add_flag("--progress,!--no-progress", cli.progress,
                "Show a progress meter on stderr. This is the default.");
 
-  app.add_flag("--resume", cli_.resume,
+  app.add_flag("--resume", cli.resume,
                "Attempt to resume an earlier download. Not with --text-out.");
 
-  app.add_flag("--text-out", cli_.text_out,
+  app.add_flag("--ntlm", cli.ntlm, "Download the NTLM format password hashes instead of SHA1.");
+
+  app.add_flag("--text-out", cli.text_out,
                "Output text format, rather than the default custom binary format.");
 
-  app.add_flag("--force", cli_.force, "Overwrite any existing file!");
+  app.add_flag("--force", cli.force, "Overwrite any existing file!");
 
-  app.add_option("--parallel-max", cli_.parallel_max,
+  app.add_option("--parallel-max", cli.parallel_max,
                  "The maximum number of requests that will be started concurrently (default: 300)");
 
-  app.add_option("--limit", cli_.index_limit,
+  app.add_option("--limit", cli.index_limit,
                  "The maximum number (prefix) files that will be downloaded (default: 100 000 hex "
                  "or 1 048 576 dec)");
 }
@@ -96,8 +98,8 @@ int main(int argc, char* argv[]) {
       hibp::dnl::run([&](const std::string& line) { tw.write(line); }, start_index);
 
     } else {
-      // use a larger 2.4MB output buffer, attempt to keep Windows/mingw happy
-      auto ffsw = flat_file::stream_writer<hibp::pawned_pw>(output_db_stream, 100'000);
+      // use a largegish output buffer ~240kB for efficient writes
+      auto ffsw = flat_file::stream_writer<hibp::pawned_pw_sha1>(output_db_stream, 10'000);
       hibp::dnl::run([&](const std::string& line) { ffsw.write(line); }, start_index);
     }
 

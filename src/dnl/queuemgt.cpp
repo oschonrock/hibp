@@ -145,11 +145,12 @@ bool handle_exception(const std::exception_ptr& exception_ptr, std::thread::id t
 void enqueue_downloads_for_writing(enq_msg_t&& msg) {
   {
     const std::lock_guard lk(qmgt::msgmutex);
-    auto msg_size = msg.size();
+    auto                  msg_size = msg.size();
     qmgt::msg_queue.emplace(std::move(msg));
     logger.log(fmt::format("enqueue_downloads_for_writing(): "
                            "acquired lock and received mesage of size = {}, "
-                           "notifying queuemgt thread", msg_size));
+                           "notifying queuemgt thread",
+                           msg_size));
   }
   qmgt::msg_cv.notify_one();
 }
@@ -254,13 +255,13 @@ void run(write_fn_t write_fn, std::size_t start_index_) {
 // utility function for --resume
 std::size_t get_last_prefix(const std::string& filename) {
   auto filesize = std::filesystem::file_size(filename);
-  if (auto tailsize = filesize % sizeof(hibp::pawned_pw); tailsize != 0) {
+  if (auto tailsize = filesize % sizeof(hibp::pawned_pw_sha1); tailsize != 0) {
     std::cerr << fmt::format("db_file '{}' size was not a multiple of {}, trimmed off {} bytes.\n",
-                             filename, sizeof(hibp::pawned_pw), tailsize);
+                             filename, sizeof(hibp::pawned_pw_sha1), tailsize);
     std::filesystem::resize_file(filename, filesize - tailsize);
   }
 
-  flat_file::database<hibp::pawned_pw> db(filename);
+  flat_file::database<hibp::pawned_pw_sha1> db(filename);
 
   const auto& last_db_ppw = db.back();
 
@@ -293,7 +294,7 @@ std::size_t get_last_prefix(const std::string& filename) {
       "Searching backward to hash just before beginning of last retrieved file.\n");
 
   auto first_file_hash = prefix + filebody.substr(0, 35);
-  auto needle          = hibp::pawned_pw(first_file_hash);
+  auto needle          = hibp::pawned_pw_sha1(first_file_hash);
   auto rbegin          = std::make_reverse_iterator(db.end());
   auto rend            = std::make_reverse_iterator(db.begin());
   auto found_iter      = std::find(rbegin, rend, needle);
@@ -303,11 +304,11 @@ std::size_t get_last_prefix(const std::string& filename) {
   }
 
   auto trimmed_file_size =
-      static_cast<std::size_t>(rend - found_iter - 1) * sizeof(hibp::pawned_pw);
+      static_cast<std::size_t>(rend - found_iter - 1) * sizeof(hibp::pawned_pw_sha1);
   std::cerr << fmt::format("found: trimming file to {}.\n", trimmed_file_size);
 
   std::filesystem::resize_file(filename, trimmed_file_size);
-  db = flat_file::database<hibp::pawned_pw>{filename}; // reload db
+  db = flat_file::database<hibp::pawned_pw_sha1>{filename}; // reload db
 
   std::size_t last_prefix{};
   std::from_chars(first_file_hash.c_str(), first_file_hash.c_str() + 5, last_prefix, 16);

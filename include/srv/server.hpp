@@ -21,8 +21,8 @@ struct cli_config_t {
 
 extern cli_config_t cli;
 
-auto search_and_respond(flat_file::database<hibp::pawned_pw>& db, const hibp::pawned_pw& needle,
-                        auto req);
+auto search_and_respond(flat_file::database<hibp::pawned_pw_sha1>& db,
+                        const hibp::pawned_pw_sha1& needle, auto req);
 auto get_router(const std::string& db_filename);
 void run_server();
 
