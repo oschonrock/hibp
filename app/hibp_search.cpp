@@ -49,7 +49,7 @@ int main(int argc, char* argv[]) {
     flat_file::database<hibp::pawned_pw> db(cli.db_filename, 4096 / sizeof(hibp::pawned_pw));
 
     if (cli.toc) {
-      hibp::build_toc(cli.db_filename, cli.toc_bits);
+      hibp::toc_build(cli.db_filename, cli.toc_bits);
     }
 
     SHA1                  hash;

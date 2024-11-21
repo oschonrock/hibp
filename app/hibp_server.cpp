@@ -53,7 +53,7 @@ int main(int argc, char* argv[]) {
 
   try {
     if (cli.toc) {
-      hibp::build_toc(cli.db_filename, cli.toc_bits);
+      hibp::toc_build(cli.db_filename, cli.toc_bits);
     } else {
       auto input_stream = std::ifstream(cli.db_filename);
       if (!input_stream) {
