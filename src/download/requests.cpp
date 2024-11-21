@@ -80,7 +80,7 @@ void add_download(std::size_t index) {
   curl_easy_setopt(easy, CURLOPT_WRITEDATA, dl.get());
   curl_easy_setopt(easy, CURLOPT_PRIVATE, dl.get());
   curl_easy_setopt(easy, CURLOPT_URL, url.c_str());
-  // abort if slower than 1000 bytes/sec during 5 seconds
+  // abort if slower than 1000 bytes/sec for 5 seconds
   curl_easy_setopt(easy, CURLOPT_LOW_SPEED_TIME, 5L);
   curl_easy_setopt(easy, CURLOPT_LOW_SPEED_LIMIT, 1000L);
   curl_multi_add_handle(curl_multi_handle, easy);
@@ -96,7 +96,7 @@ void fill_download_queue() {
 void process_curl_done_msg(CURLMsg* message, enq_msg_t& msg) {
   CURL* easy_handle = message->easy_handle;
 
-  auto result = message->data.result;
+  const auto result = message->data.result;
 
   download* dl = nullptr;
   curl_easy_getinfo(easy_handle, CURLINFO_PRIVATE, &dl);
@@ -114,14 +114,14 @@ void process_curl_done_msg(CURLMsg* message, enq_msg_t& msg) {
   if (dl->retries_left == 0) {
     // hard fail, will eventually terminate whole program
     throw std::runtime_error(fmt::format("prefix '{}': returned result '{}' after {} retries",
-                                         dl->prefix, curl_easy_strerror(message->data.result),
+                                         dl->prefix, curl_easy_strerror(result),
                                          download::max_retries));
   }
 
   dl->retries_left--;
   dl->buffer.clear(); // throw away anything that was returned
   logger.log(fmt::format("prefix '{}': returned result '{}'. {} retries left\n", dl->prefix,
-                         curl_easy_strerror(message->data.result), dl->retries_left));
+                         curl_easy_strerror(result), dl->retries_left));
   curl_multi_add_handle(curl_multi_handle, easy_handle); // try again with same handle
 }
 
