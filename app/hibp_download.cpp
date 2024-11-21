@@ -98,9 +98,15 @@ int main(int argc, char* argv[]) {
       hibp::dnl::run([&](const std::string& line) { tw.write(line); }, start_index);
 
     } else {
+
       // use a largegish output buffer ~240kB for efficient writes
-      auto ffsw = flat_file::stream_writer<hibp::pawned_pw_sha1>(output_db_stream, 10'000);
-      hibp::dnl::run([&](const std::string& line) { ffsw.write(line); }, start_index);
+      if (cli.ntlm) {
+        auto ffsw = flat_file::stream_writer<hibp::pawned_pw_ntlm>(output_db_stream, 10'000);
+        hibp::dnl::run([&](const std::string& line) { ffsw.write(line); }, start_index);
+      } else {
+        auto ffsw = flat_file::stream_writer<hibp::pawned_pw_sha1>(output_db_stream, 10'000);
+        hibp::dnl::run([&](const std::string& line) { ffsw.write(line); }, start_index);
+      }
     }
 
   } catch (const std::exception& e) {

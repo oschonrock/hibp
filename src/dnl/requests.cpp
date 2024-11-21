@@ -72,7 +72,7 @@ void add_download(std::size_t index) {
     throw std::runtime_error(fmt::format("unexpected condition: index {} already existed", index));
   }
   auto& dl  = dl_iter->second;
-  auto  url = "https://api.pwnedpasswords.com/range/" + dl->prefix;
+  auto  url = "https://api.pwnedpasswords.com/range/" + dl->prefix + (cli.ntlm ? "?mode=ntlm" : "");
 
   CURL* easy = curl_easy_init();
   curl_easy_setopt(easy, CURLOPT_PIPEWAIT, 1L); // wait for multiplexing! key for perf

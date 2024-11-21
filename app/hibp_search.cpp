@@ -12,12 +12,14 @@
 #include <iostream>
 #include <optional>
 #include <ratio>
+#include <stdexcept>
 #include <string>
 
 struct cli_config_t {
   std::string db_filename;
   std::string plain_text_password;
   bool        toc      = false;
+  bool        hash     = false;
   bool        ntlm     = false;
   unsigned    toc_bits = 20; // 1Mega chapters
 };
@@ -31,6 +33,9 @@ void define_options(CLI::App& app, cli_config_t& cli) {
   app.add_option("plain-text-password", cli.plain_text_password,
                  "The plain text password that you want to check for in the provided hibp_db")
       ->required();
+
+  app.add_flag("--hash", cli.hash,
+               "Provide a hash on command line, instead of a plaintex password.");
 
   app.add_flag("--ntlm", cli.ntlm, "Use ntlm hashes rather than sha1.");
 
@@ -50,8 +55,17 @@ void run_search(const cli_config_t& cli) {
     hibp::toc_build<PwType>(cli.db_filename, cli.toc_bits);
   }
 
-  SHA1         hash;
-  const PwType needle{hash(cli.plain_text_password)};
+  PwType needle;
+  if (cli.hash) {
+    needle = {cli.plain_text_password};
+  } else {
+    if (cli.ntlm) {
+      throw std::runtime_error(
+          "Sorry, providing plaintext passwords for ntlm lookup is not yet supported");
+    }
+    SHA1 hash;
+    needle = {hash(cli.plain_text_password)};
+  }
 
   std::optional<PwType> maybe_ppw;
 
