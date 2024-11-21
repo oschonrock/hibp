@@ -7,6 +7,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <exception>
+#include <fmt/chrono.h>
 #include <fmt/format.h>
 #include <iostream>
 #include <optional>
@@ -57,18 +58,16 @@ int main(int argc, char* argv[]) {
 
     std::optional<hibp::pawned_pw> maybe_ppw;
 
-    using clk          = std::chrono::high_resolution_clock;
-    using double_milli = std::chrono::duration<double, std::milli>;
-    auto start_time    = clk::now();
+    using clk    = std::chrono::high_resolution_clock;
+    using fmilli = std::chrono::duration<double, std::milli>;
+    auto start_time = clk::now();
     if (cli.toc) {
       maybe_ppw = hibp::toc_search(db, needle, cli.toc_bits);
     } else if (auto iter = std::lower_bound(db.begin(), db.end(), needle);
                iter != db.end() && *iter == needle) {
       maybe_ppw = *iter;
     }
-    std::cout << fmt::format(
-        "search took {:.1f}ms\n",
-        std::chrono::duration_cast<double_milli>(clk::now() - start_time).count());
+    std::cout << fmt::format("search took {:.2}\n", duration_cast<fmilli>(clk::now() - start_time));
 
     std::cout << "needle = " << needle << "\n";
     if (maybe_ppw)
