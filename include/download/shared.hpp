@@ -14,8 +14,7 @@
 #include <unordered_map>
 #include <vector>
 
-
-namespace hibp::dnl  {
+namespace hibp::dnl {
 
 // shared types
 // app wide cli_config
@@ -72,7 +71,7 @@ struct thread_logger {
   bool debug = false;
 };
 
-extern cli_config_t cli;
+extern cli_config_t  cli;
 extern thread_logger logger;
-  
-}  // namespace hibp::dnl
+
+} // namespace hibp::dnl

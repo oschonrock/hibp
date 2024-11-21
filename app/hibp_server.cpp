@@ -31,9 +31,7 @@ struct cli_config_t {
   bool          json         = false;
   bool          perf_test    = false;
   bool          toc          = false;
-  std::size_t   toc_entries  = 1U << 16U; // 64k chapters
-  bool          toc2         = false;
-  unsigned      toc2_bits    = 20; // 1Mega chapters
+  unsigned      toc_bits     = 20; // 1Mega chapters
 };
 
 void define_options(CLI::App& app, cli_config_t& cli) {
@@ -62,11 +60,9 @@ void define_options(CLI::App& app, cli_config_t& cli) {
 
   app.add_flag("--toc", cli.toc, "Use a table of contents for extra performance.");
 
-  app.add_flag("--toc2", cli.toc2, "Use a table of contents for extra performance.");
-
-  app.add_option(
-      "--toc-entries", cli.toc_entries,
-      fmt::format("Specify how may table of contents entries to use. default {}", cli.toc_entries));
+  app.add_option("--toc-bits", cli.toc_bits,
+                 fmt::format("Specify how may bits to use for table of content mask. default {}",
+                             cli.toc_bits));
 }
 
 namespace {
@@ -78,9 +74,7 @@ auto search_and_respond(flat_file::database<hibp::pawned_pw>& db, const hibp::pa
   std::optional<hibp::pawned_pw> maybe_ppw;
 
   if (cli.toc) {
-    maybe_ppw = toc_search(db, needle);
-  } else if (cli.toc2) {
-    maybe_ppw = toc2_search(db, needle, cli.toc2_bits);
+    maybe_ppw = hibp::toc_search(db, needle, cli.toc_bits);
   } else {
     auto iter = std::lower_bound(db.begin(), db.end(), needle);
     if (iter != db.end() && *iter == needle) {
@@ -177,9 +171,7 @@ int main(int argc, char* argv[]) {
 
   try {
     if (cli.toc) {
-      build_toc(cli.db_filename, cli.toc_entries);
-    } else if (cli.toc2) {
-      build_toc2(cli.db_filename, cli.toc2_bits);
+      hibp::build_toc(cli.db_filename, cli.toc_bits);
     } else {
       auto input_stream = std::ifstream(cli.db_filename);
       if (!input_stream) {

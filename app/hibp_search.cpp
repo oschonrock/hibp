@@ -5,23 +5,19 @@
 #include <CLI/CLI.hpp>
 #include <algorithm>
 #include <chrono>
-#include <cstddef>
 #include <cstdlib>
 #include <exception>
 #include <fmt/format.h>
 #include <iostream>
 #include <optional>
 #include <ratio>
-#include <stdexcept>
 #include <string>
 
 struct cli_config_t {
   std::string db_filename;
   std::string plain_text_password;
-  bool        toc         = false;
-  std::size_t toc_entries = 1U << 16U; // 64k chapters
-  bool        toc2        = false;
-  unsigned    toc2_bits   = 20; // 1Mega chapters
+  bool        toc      = false;
+  unsigned    toc_bits = 20; // 1Mega chapters
 };
 
 void define_options(CLI::App& app, cli_config_t& cli) {
@@ -34,18 +30,12 @@ void define_options(CLI::App& app, cli_config_t& cli) {
                  "The plain text password that you want to check for in the provided hibp_db")
       ->required();
 
-  app.add_flag("--toc", cli.toc, "Use a table of contents for extra performance.");
-
-  app.add_option(
-      "--toc-entries", cli.toc_entries,
-      fmt::format("Specify how may table of contents entries to use. default {}", cli.toc_entries));
-
-  app.add_flag("--toc2", cli.toc2,
+  app.add_flag("--toc", cli.toc,
                "Use a bit mask oriented table of contents for extra performance.");
 
-  app.add_option("--toc2-bits", cli.toc2_bits,
-                 fmt::format("Specify how may bits are to be used to mask the entries. default {}",
-                             cli.toc2_bits));
+  app.add_option("--toc-bits", cli.toc_bits,
+                 fmt::format("Specify how may bits to use for table of content mask. default {}",
+                             cli.toc_bits));
 }
 
 int main(int argc, char* argv[]) {
@@ -56,16 +46,10 @@ int main(int argc, char* argv[]) {
   CLI11_PARSE(app, argc, argv);
 
   try {
-    if ((cli.toc && cli.toc2)) {
-      throw std::runtime_error("You can't use --toc and --toc2 together");
-    }
-
     flat_file::database<hibp::pawned_pw> db(cli.db_filename, 4096 / sizeof(hibp::pawned_pw));
 
     if (cli.toc) {
-      build_toc(cli.db_filename, cli.toc_entries);
-    } else if (cli.toc2) {
-      build_toc2(cli.db_filename, cli.toc2_bits);
+      hibp::build_toc(cli.db_filename, cli.toc_bits);
     }
 
     SHA1                  hash;
@@ -77,9 +61,7 @@ int main(int argc, char* argv[]) {
     using double_milli = std::chrono::duration<double, std::milli>;
     auto start_time    = clk::now();
     if (cli.toc) {
-      maybe_ppw = toc_search(db, needle);
-    } else if (cli.toc2) {
-      maybe_ppw = toc2_search(db, needle, cli.toc2_bits);
+      maybe_ppw = hibp::toc_search(db, needle, cli.toc_bits);
     } else if (auto iter = std::lower_bound(db.begin(), db.end(), needle);
                iter != db.end() && *iter == needle) {
       maybe_ppw = *iter;

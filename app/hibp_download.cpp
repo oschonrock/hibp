@@ -42,7 +42,7 @@ void define_options(CLI::App& app, hibp::dnl::cli_config_t& cli_) {
                  "or 1 048 576 dec)");
 }
 
-namespace hibp::dnl  {
+namespace hibp::dnl {
 thread_logger logger;
 cli_config_t  cli;
 } // namespace hibp::dnl
@@ -50,7 +50,7 @@ cli_config_t  cli;
 int main(int argc, char* argv[]) {
 
   using hibp::dnl::cli;
-  
+
   CLI::App app;
   define_options(app, cli);
   CLI11_PARSE(app, argc, argv);

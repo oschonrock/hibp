@@ -82,7 +82,7 @@ conventional text version as well.*
 In the binary format each record is a fixed width, and the records are
 maintained in a sorted order, so searches become very efficient,
 because we can use random access binary search. There is an additional
-"table of contents" feature (see `--toc2`below) to reduce disk access
+"table of contents" feature (see `--toc`below) to reduce disk access
 further at the expense of only 4MB of memory.
 
 The local http server component is both multi threaded and event loop
@@ -165,7 +165,7 @@ found  = 5BAA61E4C9B93F3F0682250B6CF8331B7EE68FD8:10434004
 
 Performance will be mainly down to your disk and be 5-8ms per uncached
 query, and <0.3ms cached.  See below for further improved performance
-with `--toc2`
+with `--toc`
 
 ### Running a local server: `hibp-server`
 
@@ -230,7 +230,7 @@ Time per request:       24.578 [ms] (mean)
 Time per request:       0.983 [ms] (mean, across all concurrent requests)
 ```
 
-#### Enhanced performance for constrained devices: `--toc2`
+#### Enhanced performance for constrained devices: `--toc`
 
 If you are runnning this database on a constrained device, with
 limited free RAM or a slow disk, You may want to try using the "table
@@ -240,9 +240,9 @@ the database and then holds this index in memory.
 This only consumes an additional 4MB of RAM by default, but maintains
 excellent performance even without any OS level disk caching.
 
-`--toc2` is available on the `hibp-search` test utility, and the `hibp-server`. 
+`--toc` is available on the `hibp-search` test utility, and the `hibp-server`. 
 
-The first run with `--toc2` builds the index, which takes about 1
+The first run with `--toc` builds the index, which takes about 1
 minute, depending on your sequential disk speed. `hibp-search` shows
 that completely uncached queries *reduce from 5-8ms to just 0.7ms*.
 

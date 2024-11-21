@@ -17,7 +17,7 @@ struct pawned_pw;
 inline pawned_pw convert_to_binary(const std::string& text);
 
 namespace detail {
-  
+
 constexpr std::byte make_nibble(char c) {
   assert((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f'));
   auto nibble = c - '0';
