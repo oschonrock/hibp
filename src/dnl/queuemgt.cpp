@@ -1,6 +1,6 @@
-#include "download/queuemgt.hpp"
-#include "download/requests.hpp"
-#include "download/shared.hpp"
+#include "dnl/queuemgt.hpp"
+#include "dnl/requests.hpp"
+#include "dnl/shared.hpp"
 #include "flat_file.hpp"
 #include "hibp.hpp"
 #include <algorithm>

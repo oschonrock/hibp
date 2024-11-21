@@ -143,9 +143,9 @@ target_link_libraries(hibp_convert PRIVATE CLI11 sha1 hibp flat_file fmt::fmt)
 
 add_executable(hibp_download
   app/hibp_download.cpp
-  src/download/queuemgt.cpp
-  src/download/requests.cpp
-  src/download/shared.cpp)
+  src/dnl/queuemgt.cpp
+  src/dnl/requests.cpp
+  src/dnl/shared.cpp)
 set_target_properties(hibp_download PROPERTIES OUTPUT_NAME hibp-download)
 target_compile_features(hibp_download PRIVATE cxx_std_20)
 target_compile_options(hibp_download PRIVATE ${PROJECT_COMPILE_OPTIONS})

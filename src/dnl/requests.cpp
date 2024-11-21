@@ -1,5 +1,5 @@
-#include "download/requests.hpp"
-#include "download/shared.hpp"
+#include "dnl/requests.hpp"
+#include "dnl/shared.hpp"
 #include <algorithm>
 #include <fmt/format.h>
 #if __has_include(<bits/types/struct_timeval.h>)

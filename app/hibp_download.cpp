@@ -1,5 +1,5 @@
-#include "download/queuemgt.hpp"
-#include "download/shared.hpp"
+#include "dnl/queuemgt.hpp"
+#include "dnl/shared.hpp"
 #include "flat_file.hpp"
 #include "hibp.hpp"
 #include <CLI/CLI.hpp>
