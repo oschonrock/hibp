@@ -96,7 +96,8 @@ int main(int argc, char* argv[]) {
       hibp::dnl::run([&](const std::string& line) { tw.write(line); }, start_index);
 
     } else {
-      auto ffsw = flat_file::stream_writer<hibp::pawned_pw>(output_db_stream);
+      // use a larger 2.4MB output buffer, attempt to keep Windows/mingw happy
+      auto ffsw = flat_file::stream_writer<hibp::pawned_pw>(output_db_stream, 100'000);
       hibp::dnl::run([&](const std::string& line) { ffsw.write(line); }, start_index);
     }
 
