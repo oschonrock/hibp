@@ -17,10 +17,10 @@ hibp::pawned_pw_ntlm ntlm(const std::string& pw) {
   std::array<std::uint32_t, 16> nt_buffer{};
   std::array<std::uint32_t, 4>  output{};
 
+  // The length of pw need to be <= 27
   auto length = static_cast<unsigned>(pw.length());
 
   // Prepare the string for hash calculation
-  // The length of key need to be <= 27
   unsigned i = 0;
   for (; i < length / 2; i++) {
     nt_buffer[i] =
@@ -49,59 +49,59 @@ hibp::pawned_pw_ntlm ntlm(const std::string& pw) {
   d += (c ^ (a & (b ^ c)))  +  nt_buffer[1] ; d = (d << 7U ) | (d >> 25U);
   c += (b ^ (d & (a ^ b)))  +  nt_buffer[2] ; c = (c << 11U) | (c >> 21U);
   b += (a ^ (c & (d ^ a)))  +  nt_buffer[3] ; b = (b << 19U) | (b >> 13U);
-                                                                       
+
   a += (d ^ (b & (c ^ d)))  +  nt_buffer[4] ; a = (a << 3U ) | (a >> 29U);
   d += (c ^ (a & (b ^ c)))  +  nt_buffer[5] ; d = (d << 7U ) | (d >> 25U);
   c += (b ^ (d & (a ^ b)))  +  nt_buffer[6] ; c = (c << 11U) | (c >> 21U);
   b += (a ^ (c & (d ^ a)))  +  nt_buffer[7] ; b = (b << 19U) | (b >> 13U);
-                                                                       
+
   a += (d ^ (b & (c ^ d)))  +  nt_buffer[8] ; a = (a << 3U ) | (a >> 29U);
   d += (c ^ (a & (b ^ c)))  +  nt_buffer[9] ; d = (d << 7U ) | (d >> 25U);
   c += (b ^ (d & (a ^ b)))  +  nt_buffer[10]; c = (c << 11U) | (c >> 21U);
   b += (a ^ (c & (d ^ a)))  +  nt_buffer[11]; b = (b << 19U) | (b >> 13U);
-                                                                       
+
   a += (d ^ (b & (c ^ d)))  +  nt_buffer[12]; a = (a << 3U ) | (a >> 29U);
   d += (c ^ (a & (b ^ c)))  +  nt_buffer[13]; d = (d << 7U ) | (d >> 25U);
   c += (b ^ (d & (a ^ b)))  +  nt_buffer[14]; c = (c << 11U) | (c >> 21U);
   b += (a ^ (c & (d ^ a)))  +  nt_buffer[15]; b = (b << 19U) | (b >> 13U);
 
   // Round 2
-  a += ((b & (c | d)) | (c & d)) + nt_buffer[0]  + SQRT_2; a = (a<<3U ) | (a>>29U);
-  d += ((a & (b | c)) | (b & c)) + nt_buffer[4]  + SQRT_2; d = (d<<5U ) | (d>>27U);
-  c += ((d & (a | b)) | (a & b)) + nt_buffer[8]  + SQRT_2; c = (c<<9U ) | (c>>23U);
-  b += ((c & (d | a)) | (d & a)) + nt_buffer[12] + SQRT_2; b = (b<<13U) | (b>>19U);
-                                                                                
-  a += ((b & (c | d)) | (c & d)) + nt_buffer[1]  + SQRT_2; a = (a<<3U ) | (a>>29U);
-  d += ((a & (b | c)) | (b & c)) + nt_buffer[5]  + SQRT_2; d = (d<<5U ) | (d>>27U);
-  c += ((d & (a | b)) | (a & b)) + nt_buffer[9]  + SQRT_2; c = (c<<9U ) | (c>>23U);
-  b += ((c & (d | a)) | (d & a)) + nt_buffer[13] + SQRT_2; b = (b<<13U) | (b>>19U);
-                                                                                
-  a += ((b & (c | d)) | (c & d)) + nt_buffer[2]  + SQRT_2; a = (a<<3U ) | (a>>29U);
-  d += ((a & (b | c)) | (b & c)) + nt_buffer[6]  + SQRT_2; d = (d<<5U ) | (d>>27U);
-  c += ((d & (a | b)) | (a & b)) + nt_buffer[10] + SQRT_2; c = (c<<9U ) | (c>>23U);
-  b += ((c & (d | a)) | (d & a)) + nt_buffer[14] + SQRT_2; b = (b<<13U) | (b>>19U);
-                                                                                
-  a += ((b & (c | d)) | (c & d)) + nt_buffer[3]  + SQRT_2; a = (a<<3U ) | (a>>29U);
-  d += ((a & (b | c)) | (b & c)) + nt_buffer[7]  + SQRT_2; d = (d<<5U ) | (d>>27U);
-  c += ((d & (a | b)) | (a & b)) + nt_buffer[11] + SQRT_2; c = (c<<9U ) | (c>>23U);
-  b += ((c & (d | a)) | (d & a)) + nt_buffer[15] + SQRT_2; b = (b<<13U) | (b>>19U);
+  a += ((b & (c | d)) | (c & d)) + nt_buffer[0]  + SQRT_2; a = (a << 3U ) | (a >> 29U);
+  d += ((a & (b | c)) | (b & c)) + nt_buffer[4]  + SQRT_2; d = (d << 5U ) | (d >> 27U);
+  c += ((d & (a | b)) | (a & b)) + nt_buffer[8]  + SQRT_2; c = (c << 9U ) | (c >> 23U);
+  b += ((c & (d | a)) | (d & a)) + nt_buffer[12] + SQRT_2; b = (b << 13U) | (b >> 19U);
+
+  a += ((b & (c | d)) | (c & d)) + nt_buffer[1]  + SQRT_2; a = (a << 3U ) | (a >> 29U);
+  d += ((a & (b | c)) | (b & c)) + nt_buffer[5]  + SQRT_2; d = (d << 5U ) | (d >> 27U);
+  c += ((d & (a | b)) | (a & b)) + nt_buffer[9]  + SQRT_2; c = (c << 9U ) | (c >> 23U);
+  b += ((c & (d | a)) | (d & a)) + nt_buffer[13] + SQRT_2; b = (b << 13U) | (b >> 19U);
+
+  a += ((b & (c | d)) | (c & d)) + nt_buffer[2]  + SQRT_2; a = (a << 3U ) | (a >> 29U);
+  d += ((a & (b | c)) | (b & c)) + nt_buffer[6]  + SQRT_2; d = (d << 5U ) | (d >> 27U);
+  c += ((d & (a | b)) | (a & b)) + nt_buffer[10] + SQRT_2; c = (c << 9U ) | (c >> 23U);
+  b += ((c & (d | a)) | (d & a)) + nt_buffer[14] + SQRT_2; b = (b << 13U) | (b >> 19U);
+
+  a += ((b & (c | d)) | (c & d)) + nt_buffer[3]  + SQRT_2; a = (a << 3U ) | (a >> 29U);
+  d += ((a & (b | c)) | (b & c)) + nt_buffer[7]  + SQRT_2; d = (d << 5U ) | (d >> 27U);
+  c += ((d & (a | b)) | (a & b)) + nt_buffer[11] + SQRT_2; c = (c << 9U ) | (c >> 23U);
+  b += ((c & (d | a)) | (d & a)) + nt_buffer[15] + SQRT_2; b = (b << 13U) | (b >> 19U);
 
   // Round 3 
   a += (d ^ c ^ b) + nt_buffer[0]  +  SQRT_3; a = (a << 3U ) | (a >> 29U);
   d += (c ^ b ^ a) + nt_buffer[8]  +  SQRT_3; d = (d << 9U ) | (d >> 23U);
   c += (b ^ a ^ d) + nt_buffer[4]  +  SQRT_3; c = (c << 11U) | (c >> 21U);
   b += (a ^ d ^ c) + nt_buffer[12] +  SQRT_3; b = (b << 15U) | (b >> 17U);
-                                                                       
+
   a += (d ^ c ^ b) + nt_buffer[2]  +  SQRT_3; a = (a << 3U ) | (a >> 29U);
   d += (c ^ b ^ a) + nt_buffer[10] +  SQRT_3; d = (d << 9U ) | (d >> 23U);
   c += (b ^ a ^ d) + nt_buffer[6]  +  SQRT_3; c = (c << 11U) | (c >> 21U);
   b += (a ^ d ^ c) + nt_buffer[14] +  SQRT_3; b = (b << 15U) | (b >> 17U);
-                                                                       
+
   a += (d ^ c ^ b) + nt_buffer[1]  +  SQRT_3; a = (a << 3U ) | (a >> 29U);
   d += (c ^ b ^ a) + nt_buffer[9]  +  SQRT_3; d = (d << 9U ) | (d >> 23U);
   c += (b ^ a ^ d) + nt_buffer[5]  +  SQRT_3; c = (c << 11U) | (c >> 21U);
   b += (a ^ d ^ c) + nt_buffer[13] +  SQRT_3; b = (b << 15U) | (b >> 17U);
-                                                                       
+
   a += (d ^ c ^ b) + nt_buffer[3]  +  SQRT_3; a = (a << 3U ) | (a >> 29U);
   d += (c ^ b ^ a) + nt_buffer[11] +  SQRT_3; d = (d << 9U ) | (d >> 23U);
   c += (b ^ a ^ d) + nt_buffer[7]  +  SQRT_3; c = (c << 11U) | (c >> 21U);
