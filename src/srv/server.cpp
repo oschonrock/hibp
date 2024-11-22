@@ -78,22 +78,15 @@ auto handle_plain_search(flat_file::database<PwType>& sha1_db, std::string plain
   return search_and_respond<PwType>(sha1_db, needle, req);
 }
 
-auto handle_sha1_search(flat_file::database<pawned_pw_sha1>& sha1_db,
-                        const std::string& sha1_password, auto req) {
-  if (!is_valid_hash(sha1_password, 40)) {
-    return bad_request("Invalid sha1 provided.", req);
-  }
-  const pawned_pw_sha1 needle{sha1_password};
-  return search_and_respond<pawned_pw_sha1>(sha1_db, needle, req);
-}
+template <pw_type PwType>
+auto handle_hash_search(flat_file::database<PwType>& db,
+                        const std::string& password, auto req) {
 
-auto handle_ntlm_search(flat_file::database<pawned_pw_ntlm>& ntlm_db,
-                        const std::string& ntlm_password, auto req) {
-  if (!is_valid_hash(ntlm_password, 32)) {
-    return bad_request("Invalid ntlm provided.", req);
+  if (!is_valid_hash<PwType>(password)) {
+    return bad_request("Invalid hash provided. Check type of hash.", req);
   }
-  const pawned_pw_ntlm needle{ntlm_password};
-  return search_and_respond<pawned_pw_ntlm>(ntlm_db, needle, req);
+  const PwType needle{password};
+  return search_and_respond<PwType>(db, needle, req);
 }
 
 auto get_router(const std::string& sha1_db_filename, const std::string& ntlm_db_filename) {
@@ -126,11 +119,11 @@ auto get_router(const std::string& sha1_db_filename, const std::string& ntlm_db_
       }
       if (params["format"] == "sha1") {
         if (!sha1_db) return fail_missing_db_for_format(req, "--sha1-db", "/check/sha1");
-        return handle_sha1_search(*sha1_db, password, req);
+        return handle_hash_search(*sha1_db, password, req);
       }
       if (params["format"] == "ntlm") {
         if (!ntlm_db) return fail_missing_db_for_format(req, "--ntlm-db", "/check/ntlm");
-        return handle_ntlm_search(*ntlm_db, password, req);
+        return handle_hash_search(*ntlm_db, password, req);
       }
       return req->create_response(restinio::status_not_found())
           .set_body("Bad format specified.")

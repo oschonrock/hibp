@@ -42,6 +42,8 @@ constexpr char nibble_to_char(std::byte nibble) {
 
 template <unsigned HashSize>
 struct pawned_pw {
+  constexpr static unsigned hash_size = HashSize;
+
   pawned_pw() = default;
 
   pawned_pw(const std::string& text) { // NOLINT implicit
@@ -94,8 +96,10 @@ using pawned_pw_ntlm = pawned_pw<16>;
 template <typename T>
 concept pw_type = std::is_same_v<T, pawned_pw_sha1> || std::is_same_v<T, pawned_pw_ntlm>;
 
-inline bool is_valid_hash(const std::string& hash, unsigned len) {
-  return hash.size() == len && hash.find_first_not_of("0123456789ABCDEF") == std::string_view::npos;
+template <pw_type PwType>
+inline bool is_valid_hash(const std::string& hash) {
+  return hash.size() == PwType::hash_size * 2 &&
+         hash.find_first_not_of("0123456789ABCDEF") == std::string_view::npos;
 }
 
 } // namespace hibp

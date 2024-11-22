@@ -1,7 +1,5 @@
 #pragma once
 
-#include "flat_file.hpp"
-#include "hibp.hpp"
 #include <cstdint>
 #include <string>
 #include <thread>
@@ -22,9 +20,6 @@ struct cli_config_t {
 
 extern cli_config_t cli;
 
-auto search_and_respond(flat_file::database<hibp::pawned_pw_sha1>& db,
-                        const hibp::pawned_pw_sha1& needle, auto req);
-auto get_router(const std::string& db_filename);
 void run_server();
 
 } // namespace hibp::srv

@@ -21,15 +21,16 @@ namespace details {
 
 using toc_entry = unsigned; // limited to 4Billion pws. will throw when too big
 
+// one instance per type of pw
 template <pw_type PwType>
 std::vector<toc_entry> toc;
 
-template <typename PwType>
+template <pw_type PwType>
 unsigned pw_to_prefix(const PwType& pw, unsigned bits) {
   return arrcmp::impl::bytearray_cast<unsigned>(pw.hash.data()) >> (sizeof(toc_entry) * 8 - bits);
 }
 
-template <typename PwType>
+template <pw_type PwType>
 void build(const std::string& db_filename, unsigned bits) {
   // big buffer for sequential read
   flat_file::database<PwType> db(db_filename, (1U << 16U) / sizeof(PwType));
@@ -88,7 +89,7 @@ void load(const std::string& toc_filename) {
                   static_cast<std::streamsize>(toc_file_size));
 }
 
-template <typename PwType>
+template <pw_type PwType>
 std::optional<PwType> search(flat_file::database<PwType>& db, const PwType& needle, unsigned bits) {
   const unsigned pw_prefix = pw_to_prefix(needle, bits);
 
@@ -107,24 +108,6 @@ std::optional<PwType> search(flat_file::database<PwType>& db, const PwType& need
   return {}; // not found;
 }
 
-// explicit instantiations
-
-template unsigned pw_to_prefix(const hibp::pawned_pw_sha1& pw, unsigned bits);
-
-template void build<hibp::pawned_pw_sha1>(const std::string& db_filename, unsigned bits);
-
-template std::optional<hibp::pawned_pw_sha1> search(flat_file::database<hibp::pawned_pw_sha1>& db,
-                                                    const hibp::pawned_pw_sha1& needle,
-                                                    unsigned                    bits);
-
-unsigned pw_to_prefix(const hibp::pawned_pw_ntlm& pw, unsigned bits);
-
-template void build<hibp::pawned_pw_ntlm>(const std::string& db_filename, unsigned bits);
-
-template std::optional<hibp::pawned_pw_ntlm> search(flat_file::database<hibp::pawned_pw_ntlm>& db,
-                                                    const hibp::pawned_pw_ntlm& needle,
-                                                    unsigned                    bits);
-
 } // namespace details
 
 // TOC: "Table of contents"
@@ -132,7 +115,7 @@ template std::optional<hibp::pawned_pw_ntlm> search(flat_file::database<hibp::pa
 // bit masks the needle's pw_hash to index into a table of db positions
 // effectively the same as selecting one of the published files to download
 // but all in a single file and therefore much lower syscall i/o overhead
-template <typename PwType>
+template <pw_type PwType>
 void toc_build(const std::string& db_filename, unsigned bits) {
 
   const std::string toc_filename = fmt::format("{}.{}.toc", db_filename, bits);
@@ -147,20 +130,24 @@ void toc_build(const std::string& db_filename, unsigned bits) {
   }
 }
 
-template <typename PwType>
+template <pw_type PwType>
 std::optional<PwType> toc_search(flat_file::database<PwType>& db, const PwType& needle,
                                  unsigned bits) {
 
   return details::search(db, needle, bits);
 }
 
-// explicit instantiations
+// explicit instantiations for public API
+
+// sha1
 
 template void toc_build<hibp::pawned_pw_sha1>(const std::string& db_filename, unsigned bits);
 
 template std::optional<hibp::pawned_pw_sha1>
 toc_search<hibp::pawned_pw_sha1>(flat_file::database<hibp::pawned_pw_sha1>& db,
                                  const hibp::pawned_pw_sha1& needle, unsigned bits);
+
+// ntlm
 
 template void toc_build<hibp::pawned_pw_ntlm>(const std::string& db_filename, unsigned bits);
 

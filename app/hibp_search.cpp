@@ -60,7 +60,7 @@ void run_search(const cli_config_t& cli) {
   PwType needle;
   if constexpr (std::is_same_v<PwType, hibp::pawned_pw_ntlm>) {
     if (cli.hash) {
-      if (!hibp::is_valid_hash(cli.plain_text_password, 32)) {
+      if (!hibp::is_valid_hash<PwType>(cli.plain_text_password)) {
         throw std::runtime_error("Not a valid ntlm hash.");
       }
       needle = {cli.plain_text_password};
@@ -69,7 +69,7 @@ void run_search(const cli_config_t& cli) {
     }
   } else { // sha1
     if (cli.hash) {
-      if (!hibp::is_valid_hash(cli.plain_text_password, 40)) {
+      if (!hibp::is_valid_hash<PwType>(cli.plain_text_password)) {
         throw std::runtime_error("Not a valid sha1 hash.");
       }
       needle = {cli.plain_text_password};
