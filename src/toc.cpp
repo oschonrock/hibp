@@ -20,6 +20,8 @@ namespace hibp {
 namespace details {
 
 using toc_entry = unsigned; // limited to 4Billion pws. will throw when too big
+
+template <pw_type PwType>
 std::vector<toc_entry> toc;
 
 template <typename PwType>
@@ -51,7 +53,7 @@ void build(const std::string& db_filename, unsigned bits) {
   std::cerr << fmt::format("{:25s} {:15d} records in db on average\n", "each toc_entry covers",
                            toc_entry_size);
   std::cerr << fmt::format("building table of contents MK2..\n");
-  toc.reserve(toc_entries);
+  toc<PwType>.reserve(toc_entries);
 
   unsigned last_pos = 0;
   for (unsigned prefix = 0; prefix != toc_entries; prefix++) {
@@ -64,22 +66,24 @@ void build(const std::string& db_filename, unsigned bits) {
                                            prefix));
     }
     last_pos = static_cast<toc_entry>(found_iter - db.begin());
-    toc.push_back(last_pos);
+    toc<PwType>.push_back(last_pos);
   }
 }
 
+template <pw_type PwType>
 void save(const std::string& toc_filename) {
   auto toc_stream = std::ofstream(toc_filename, std::ios_base::binary);
-  toc_stream.write(reinterpret_cast<char*>(toc.data()), // NOLINT reincast
-                   static_cast<std::streamsize>(sizeof(toc_entry) * toc.size()));
+  toc_stream.write(reinterpret_cast<char*>(toc<PwType>.data()), // NOLINT reincast
+                   static_cast<std::streamsize>(sizeof(toc_entry) * toc<PwType>.size()));
 }
 
+template <pw_type PwType>
 void load(const std::string& toc_filename) {
   std::cerr << fmt::format("loading table of contents..\n");
   const auto toc_file_size = std::filesystem::file_size(toc_filename);
   auto       toc_stream    = std::ifstream(toc_filename, std::ios_base::binary);
-  toc                      = std::vector<toc_entry>(toc_file_size / sizeof(toc_entry));
-  toc_stream.read(reinterpret_cast<char*>(toc.data()), // NOLINT reincast
+  toc<PwType>              = std::vector<toc_entry>(toc_file_size / sizeof(toc_entry));
+  toc_stream.read(reinterpret_cast<char*>(toc<PwType>.data()), // NOLINT reincast
                   static_cast<std::streamsize>(toc_file_size));
 }
 
@@ -87,13 +91,13 @@ template <typename PwType>
 std::optional<PwType> search(flat_file::database<PwType>& db, const PwType& needle, unsigned bits) {
   const unsigned pw_prefix = pw_to_prefix(needle, bits);
 
-  if (pw_prefix >= toc.size()) {
+  if (pw_prefix >= toc<PwType>.size()) {
     return {}; // must be partial db & toc, and therefore "not found"
   }
 
-  const std::size_t begin_offset = toc[pw_prefix];
+  const std::size_t begin_offset = toc<PwType>[pw_prefix];
   const std::size_t end_offset =
-      pw_prefix + 1 < toc.size() ? toc[pw_prefix + 1] : db.number_records();
+      pw_prefix + 1 < toc<PwType>.size() ? toc<PwType>[pw_prefix + 1] : db.number_records();
 
   if (auto iter = std::lower_bound(db.begin() + begin_offset, db.begin() + end_offset, needle);
       iter != db.end() && *iter == needle) {
@@ -136,9 +140,9 @@ void toc_build(const std::string& db_filename, unsigned bits) {
                                                  std::filesystem::last_write_time(db_filename))) {
 
     details::build<PwType>(db_filename, bits);
-    details::save(toc_filename);
+    details::save<PwType>(toc_filename);
   } else {
-    details::load(toc_filename);
+    details::load<PwType>(toc_filename);
   }
 }
 

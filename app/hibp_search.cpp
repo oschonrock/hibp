@@ -13,6 +13,7 @@
 #include <optional>
 #include <ratio>
 #include <sha1.h>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
 
@@ -48,7 +49,7 @@ void define_options(CLI::App& app, cli_config_t& cli) {
                              cli.toc_bits));
 }
 
-template <typename PwType>
+template <hibp::pw_type PwType>
 void run_search(const cli_config_t& cli) {
   flat_file::database<PwType> db(cli.db_filename, 4096 / sizeof(PwType));
 
@@ -57,12 +58,22 @@ void run_search(const cli_config_t& cli) {
   }
 
   PwType needle;
-  if (cli.hash) {
-    needle = {cli.plain_text_password};
-  } else {
-    if constexpr (std::is_same_v<PwType, hibp::pawned_pw_ntlm>) {
+  if constexpr (std::is_same_v<PwType, hibp::pawned_pw_ntlm>) {
+    if (cli.hash) {
+      if (!hibp::is_valid_hash(cli.plain_text_password, 32)) {
+        throw std::runtime_error("Not a valid hash.");
+      }
+      needle = {cli.plain_text_password};
+    } else {
       needle.hash = hibp::ntlm(cli.plain_text_password);
-    } else if constexpr (std::is_same_v<PwType, hibp::pawned_pw_sha1>) {
+    }
+  } else { // sha1
+    if (cli.hash) {
+      if (!hibp::is_valid_hash(cli.plain_text_password, 40)) {
+        throw std::runtime_error("Not a valid hash.");
+      }
+      needle = {cli.plain_text_password};
+    } else {
       needle = {SHA1{}(cli.plain_text_password)};
     }
   }

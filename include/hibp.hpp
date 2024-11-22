@@ -91,4 +91,11 @@ struct pawned_pw {
 using pawned_pw_sha1 = pawned_pw<20>;
 using pawned_pw_ntlm = pawned_pw<16>;
 
+template <typename T>
+concept pw_type = std::is_same_v<T, pawned_pw_sha1> || std::is_same_v<T, pawned_pw_ntlm>;
+
+inline bool is_valid_hash(const std::string& hash, unsigned len) {
+  return hash.size() == len && hash.find_first_not_of("0123456789ABCDEF") == std::string_view::npos;
+}
+
 } // namespace hibp

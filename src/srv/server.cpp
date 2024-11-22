@@ -17,14 +17,10 @@
 #include <restinio/traits.hpp>
 #include <sha1.h>
 #include <string>
-#include <string_view>
 #include <type_traits>
 #include <utility>
 
 namespace hibp::srv {
-
-template <typename T>
-concept pw_type = std::is_same_v<T, pawned_pw_sha1> || std::is_same_v<T, pawned_pw_ntlm>;
 
 template <pw_type PwType>
 auto search_and_respond(flat_file::database<PwType>& db, const PwType& needle, auto req) {
@@ -62,10 +58,6 @@ auto bad_request(const std::string& msg, auto req) {
 
 auto fail_missing_db_for_format(auto req, const std::string& option, const std::string& endpoint) {
   return bad_request("You need to pass " + option + " for a " + endpoint + " request.", req);
-}
-
-bool is_valid_hash(const std::string& hash, unsigned len) {
-  return hash.size() == len && hash.find_first_not_of("0123456789ABCDEF") == std::string_view::npos;
 }
 
 template <pw_type PwType>

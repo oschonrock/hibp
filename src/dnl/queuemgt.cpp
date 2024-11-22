@@ -90,7 +90,7 @@ void print_progress() {
   if (cli.progress) {
     auto elapsed       = clk::now() - start_time;
     auto elapsed_trunc = floor<std::chrono::seconds>(elapsed);
-    auto elapsed_sec   = std::chrono::duration_cast<std::chrono::duration<double>>(elapsed).count();
+    auto elapsed_sec   = duration_cast<std::chrono::duration<double>>(elapsed).count();
 
     const std::lock_guard lk(cerr_mutex);
     auto                  files_todo = cli.index_limit - start_index;

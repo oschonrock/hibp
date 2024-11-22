@@ -62,15 +62,16 @@ int main(int argc, char* argv[]) {
 
     if (!cli.sha1_db_filename.empty()) {
       auto test_db = flat_file::database<hibp::pawned_pw_sha1>{cli.sha1_db_filename};
+      if (cli.toc) {
+        hibp::toc_build<hibp::pawned_pw_sha1>(cli.sha1_db_filename, cli.toc_bits);
+      }
     }
 
     if (!cli.ntlm_db_filename.empty()) {
       auto test_db = flat_file::database<hibp::pawned_pw_ntlm>{cli.ntlm_db_filename};
-    }
-
-    if (cli.toc) {
-      // TODO diverge for ntlm
-      hibp::toc_build<hibp::pawned_pw_sha1>(cli.sha1_db_filename, cli.toc_bits);
+      if (cli.toc) {
+        hibp::toc_build<hibp::pawned_pw_ntlm>(cli.ntlm_db_filename, cli.toc_bits);
+      }
     }
 
     hibp::srv::run_server();
