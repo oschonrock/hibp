@@ -107,7 +107,7 @@ if (NOT MSVC)
   target_compile_options(expected-lite INTERFACE -Wno-missing-noreturn)
 endif()
 
-add_executable(hibp_search app/hibp_search.cpp src/toc.cpp)
+add_executable(hibp_search app/hibp_search.cpp src/toc.cpp src/ntlm.cpp)
 set_target_properties(hibp_search PROPERTIES OUTPUT_NAME hibp-search)
 target_compile_features(hibp_search PRIVATE cxx_std_20)
 target_compile_options(hibp_search PRIVATE ${PROJECT_COMPILE_OPTIONS})

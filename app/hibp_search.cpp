@@ -1,6 +1,6 @@
 #include "flat_file.hpp"
 #include "hibp.hpp"
-#include "sha1.h"
+#include "ntlm.hpp"
 #include "toc.hpp"
 #include <CLI/CLI.hpp>
 #include <algorithm>
@@ -12,8 +12,9 @@
 #include <iostream>
 #include <optional>
 #include <ratio>
-#include <stdexcept>
+#include <sha1.h>
 #include <string>
+#include <type_traits>
 
 struct cli_config_t {
   std::string db_filename;
@@ -59,12 +60,11 @@ void run_search(const cli_config_t& cli) {
   if (cli.hash) {
     needle = {cli.plain_text_password};
   } else {
-    if (cli.ntlm) {
-      throw std::runtime_error(
-          "Sorry, providing plaintext passwords for ntlm lookup is not yet supported");
+    if constexpr (std::is_same_v<PwType, hibp::pawned_pw_ntlm>) {
+      needle = hibp::ntlm(cli.plain_text_password);
+    } else if constexpr (std::is_same_v<PwType, hibp::pawned_pw_sha1>) {
+      needle = {SHA1{}(cli.plain_text_password)};
     }
-    SHA1 hash;
-    needle = {hash(cli.plain_text_password)};
   }
 
   std::optional<PwType> maybe_ppw;
