@@ -1,6 +1,7 @@
 #include "hibp.hpp"
+#include <array>
+#include <cstdint>
 #include <cstring>
-#include <fmt/format.h>
 #include <string>
 
 namespace hibp {
