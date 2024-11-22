@@ -101,7 +101,9 @@ public:
 
     dbsize_ = dbfsize_ / sizeof(ValueType);
 
-    if (!db_.is_open()) throw std::ios::failure("cannot open db: " + filename_);
+    if (!db_.is_open())
+      throw std::ios::failure("cannot open db: " + filename_ + ". because '" +
+                              std::strerror(errno) + "'"); // NOLINT errno
 
     db_.exceptions(std::ios::badbit | std::ios::failbit); // throw on any future errors
   }
