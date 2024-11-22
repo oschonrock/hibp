@@ -38,16 +38,16 @@ disk space and takes ~6/12 minutes on 1Gbit/400Mbit
 connection. Detailed progress is shown.
 
 ```bash
-hibp-download hibp_all.bin
+hibp-download hibp_all.sha1.bin
 ```
 
 Serve the data on a local http server.
 
 ```bash
-hibp-server hibp_all.bin
+hibp-server --sha1-db=hibp_all.sha1.bin
 ```
 
-Test the server (in a different terminal)
+Try out the server (in a different terminal)
 
 ```bash
 curl http://localhost:8082/check/plain/password123
@@ -142,7 +142,7 @@ connection and consume ~21GB of disk space during this time:
   binary and writing to disk
 
 ```bash
-./build/gcc/release/hibp-download hibp_all.bin
+./build/gcc/release/hibp-download hibp_all.sha1.bin
 ```
 
 If any transfer fails, even after 5 retries, the programme will
@@ -158,7 +158,7 @@ against the downloaded binary database.
 ```bash
 # replace 'password' as you wish
 
-./build/gcc/release/hibp-search hibp_all.bin 'password'
+./build/gcc/release/hibp-search hibp_all.sha1.bin password
 # output should be 
 search took                0.2699 ms
 needle = 5BAA61E4C9B93F3F0682250B6CF8331B7EE68FD8:-1
@@ -168,6 +168,24 @@ found  = 5BAA61E4C9B93F3F0682250B6CF8331B7EE68FD8:10434004
 Performance will be mainly down to your disk and be 5-8ms per uncached
 query, and <0.3ms cached.  See below for further improved performance
 with `--toc`
+
+### NT Hash (AKA NTLM)
+
+The compromised password database is also available using the NTLM
+hash, rather than sha1. This might be useful if analysing local
+Windows server authetication systems.
+
+```bash
+./build/gcc/release/hibp-download --ntlm hibp_all.ntlm.bin
+```
+and then search
+```bash
+./build/gcc/release/hibp-search --ntlm hibp_all.ntlm.bin password
+```
+or maybe "by hash" rather than plaintext password? 
+```bash
+./build/gcc/release/hibp-search --ntlm hibp_all.ntlm.bin --hash 00000011059407D743D40689940F858C
+```
 
 ### Running a local server: `hibp-server`
 
@@ -248,6 +266,36 @@ The first run with `--toc` builds the index, which takes about 1
 minute, depending on your sequential disk speed. `hibp-search` shows
 that completely uncached queries *reduce from 5-8ms to just 0.7ms*.
 
+#### The "ultimate" server
+
+Maybe you want to server plaintext, sha1 and ntlm at the same time,
+while taking advantage extra of `--toc` performance. Here is the full
+script for that. Assuming the programs are on you `PATH` for brevity:
+
+```bash
+hibp-download --sha1 hibp_all.sha1.bin
+hibp-download --ntlm hibp_all.ntlm.bin
+
+hibp-download --sha1-db=hibp_all.sha1.bin --ntlm-db=hibp_all.ntlm.bin --toc
+
+Make a request to any of:
+http://localhost:8082/check/plain/password123  [using sha1 db]
+http://localhost:8082/check/sha1/CBFDAC6008F9CAB4083784CBD1874F76618D2A97
+http://localhost:8082/check/ntlm/A9FDFA038C4B75EBC76DC855DD74F0DA
+```
+
+And if you wanted to conserve diskspace you could, use `hibp-topn`:
+
+```bash
+hibp-topn hibp_all.sha1.bin -o hibp_topn.sha1.bin
+hibp-topn --ntlm hibp_all.ntlm.bin -o hibp_topn.ntlm.bin
+
+hibp-server --sha1-db=hibp_topn.sha1.bin --ntlm-db=hibp_topn.ntlm.bin --toc
+```
+
+You can now remove the really big files, if the top 50million entries
+is enough for you.
+
 ## Other utilities
 
 `./build/gcc/release/hibp-topn`    : reduce a db to the N most common passwords (saves diskspace)
@@ -266,7 +314,8 @@ These utilities are written in C++ and centre around a `flat_file` class to mode
 - `libcurl`, `libevent` are used for the highly concurrent download
 - `restinio` is used for the local server, based on `ASIO` for efficient concurrency
 - [`arrcmp`](https://github.com/oschonrock/arrcmp) is used as a high
-  performance, compile time optimised replacement for `memcmp`
+  performance, compile time optimised replacement for `memcmp`, which
+  makes agressive use of your CPU's vector instructions
 - libtbb is used for local sorting in `hibp-sort` and
 	`hibp-topn`. Note that for the parallelism (ie PSTL using libtbb)
 	you currently have to compile from source, but this only has a small
