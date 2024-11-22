@@ -1,7 +1,7 @@
-#include "hibp.hpp"
+#include <array>
 
 namespace hibp {
 
-pawned_pw_ntlm ntlm(const std::string& pw);
+std::array<std::byte, 16> ntlm(const std::string& pw);
 
 } // namespace hibp

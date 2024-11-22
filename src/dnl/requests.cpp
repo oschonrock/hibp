@@ -25,6 +25,9 @@
 
 namespace hibp::dnl {
 
+// management of the concurrent set of requests for a download this
+// file uses a slightly "C-style", painly because it is interfacing
+// with a 2x C-APIs, libcurl and libevent
 namespace req {
 
 // double indirection via unique_ptr. Strictly unecessary for address stability, but consistent with

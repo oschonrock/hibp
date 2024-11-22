@@ -61,7 +61,7 @@ void run_search(const cli_config_t& cli) {
     needle = {cli.plain_text_password};
   } else {
     if constexpr (std::is_same_v<PwType, hibp::pawned_pw_ntlm>) {
-      needle = hibp::ntlm(cli.plain_text_password);
+      needle.hash = hibp::ntlm(cli.plain_text_password);
     } else if constexpr (std::is_same_v<PwType, hibp::pawned_pw_sha1>) {
       needle = {SHA1{}(cli.plain_text_password)};
     }

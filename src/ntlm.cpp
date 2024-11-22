@@ -1,4 +1,3 @@
-#include "hibp.hpp"
 #include <array>
 #include <cstdint>
 #include <cstring>
@@ -6,7 +5,10 @@
 
 namespace hibp {
 
-hibp::pawned_pw_ntlm ntlm(const std::string& pw) {
+std::array<std::byte, 16> ntlm(const std::string& pw) {
+
+  static_assert(std::endian::native == std::endian::little, "only little endian supported");
+
   constexpr std::uint32_t INIT_A = 0x67452301;
   constexpr std::uint32_t INIT_B = 0xefcdab89;
   constexpr std::uint32_t INIT_C = 0x98badcfe;
@@ -114,9 +116,9 @@ hibp::pawned_pw_ntlm ntlm(const std::string& pw) {
   output[2] = c + INIT_C;
   output[3] = d + INIT_D;
 
-  hibp::pawned_pw_ntlm hash;
-  // the 4 unsigned ints in series contain exactly what we need, despite little endian byte order
-  std::memcpy(&hash.hash, &output, 16);
+  std::array<std::byte, 16> hash; // NOLINT no init needed
+  // the 4 contiguous unsigned ints contain exactly what we need, despite little endian byte order
+  std::memcpy(&hash, &output, 16);
   return hash;
 }
 } // namespace hibp
