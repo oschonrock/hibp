@@ -93,7 +93,7 @@ set(RESTINIO_EXPLICIT_CPPSTD 20)
 set(RESTINIO_ASIO_SOURCE standalone)
 set(asio_INCLUDE_DIRS ../asio/include) # relative to ext/restinio/dev/restinio
 add_subdirectory(ext/restinio/dev/nodejs/llhttp EXCLUDE_FROM_ALL)
-# using our own direct submodule, restions will use that also
+# using our own direct submodule, restinio will use that also
 # add_subdirectory(ext/restinio/dev/fmt)
 add_subdirectory(ext/restinio/dev/expected-lite EXCLUDE_FROM_ALL)
 add_subdirectory(ext/restinio/dev/restinio)
@@ -107,24 +107,30 @@ if (NOT MSVC)
   target_compile_options(expected-lite INTERFACE -Wno-missing-noreturn)
 endif()
 
-add_executable(hibp_search app/hibp_search.cpp src/toc.cpp src/ntlm.cpp)
+add_library(ntlm src/ntlm.cpp)
+target_compile_features(ntlm PRIVATE cxx_std_20)
+set(DEPCREATED_OPTIONS "${PROJECT_COMPILE_OPTIONS} -Wno-deprecated-declarations")
+target_compile_options(ntlm PRIVATE ${DEPRECATED_OPTIONS})
+target_link_libraries(ntlm PRIVATE crypto)
+
+add_executable(hibp_search app/hibp_search.cpp src/toc.cpp)
 set_target_properties(hibp_search PROPERTIES OUTPUT_NAME hibp-search)
 target_compile_features(hibp_search PRIVATE cxx_std_20)
 target_compile_options(hibp_search PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_search PRIVATE CLI11 sha1 hibp flat_file fmt::fmt)
+target_link_libraries(hibp_search PRIVATE CLI11 sha1 ntlm hibp flat_file fmt::fmt)
 
 find_package(Threads)
 
 add_executable(hibp_server app/hibp_server.cpp
   src/srv/server.cpp
   src/toc.cpp
-  src/toc.cpp src/ntlm.cpp)
+  src/toc.cpp)
 set_target_properties(hibp_server PROPERTIES OUTPUT_NAME hibp-server)
 target_compile_options(hibp_server PRIVATE ${PROJECT_COMPILE_OPTIONS})
 if (MINGW)
-  target_link_libraries(hibp_server PRIVATE CLI11 sha1 hibp flat_file fmt::fmt restinio gdi32 wsock32 ws2_32)
+  target_link_libraries(hibp_server PRIVATE CLI11 sha1 ntlm hibp flat_file fmt::fmt restinio gdi32 wsock32 ws2_32)
 else()
-  target_link_libraries(hibp_server PRIVATE CLI11 sha1 hibp flat_file fmt::fmt restinio ${CMAKE_THREAD_LIBS_INIT})
+  target_link_libraries(hibp_server PRIVATE CLI11 sha1 ntlm hibp flat_file fmt::fmt restinio ${CMAKE_THREAD_LIBS_INIT})
 endif()
 
 add_executable(hibp_sort app/hibp_sort.cpp)

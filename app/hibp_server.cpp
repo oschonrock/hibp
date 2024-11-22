@@ -57,16 +57,14 @@ int main(int argc, char* argv[]) {
 
   try {
     if (cli.sha1_db_filename.empty() && cli.ntlm_db_filename.empty()) {
-      throw std::runtime_error("You must provide either `--sha1-db` or `--ntlm-db`");
+      throw std::runtime_error("You must provide either --sha1-db or --ntlm-db");
     }
 
     if (!cli.sha1_db_filename.empty()) {
-      // will throw for file reasons or db format reasons (right now just % 24)
       auto test_db = flat_file::database<hibp::pawned_pw_sha1>{cli.sha1_db_filename};
     }
 
     if (!cli.ntlm_db_filename.empty()) {
-      // will throw for file reasons or db format reasons (right now just % 20)
       auto test_db = flat_file::database<hibp::pawned_pw_ntlm>{cli.ntlm_db_filename};
     }
 

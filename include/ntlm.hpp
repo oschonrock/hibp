@@ -2,6 +2,6 @@
 
 namespace hibp {
 
-std::array<std::byte, 16> ntlm(const std::string& pw);
+std::array<std::byte, 16> ntlm(const std::string& password);
 
 } // namespace hibp
