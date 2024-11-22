@@ -1,5 +1,6 @@
 #include "dnl/requests.hpp"
 #include "dnl/shared.hpp"
+#include "hibp.hpp"
 #include <algorithm>
 #include <fmt/format.h>
 #if __has_include(<bits/types/struct_timeval.h>)
@@ -75,14 +76,14 @@ void add_download(std::size_t index) {
     throw std::runtime_error(fmt::format("unexpected condition: index {} already existed", index));
   }
   auto& dl  = dl_iter->second;
-  auto  url = "https://api.pwnedpasswords.com/range/" + dl->prefix + (cli.ntlm ? "?mode=ntlm" : "");
-
+  std::string chunk_url = hibp::url(dl->prefix, cli.ntlm);
+  
   CURL* easy = curl_easy_init();
   curl_easy_setopt(easy, CURLOPT_PIPEWAIT, 1L); // wait for multiplexing! key for perf
   curl_easy_setopt(easy, CURLOPT_WRITEFUNCTION, write_data_curl_cb);
   curl_easy_setopt(easy, CURLOPT_WRITEDATA, dl.get());
   curl_easy_setopt(easy, CURLOPT_PRIVATE, dl.get());
-  curl_easy_setopt(easy, CURLOPT_URL, url.c_str());
+  curl_easy_setopt(easy, CURLOPT_URL, chunk_url.c_str());
   // abort if slower than 1000 bytes/sec for 5 seconds
   curl_easy_setopt(easy, CURLOPT_LOW_SPEED_TIME, 5L);
   curl_easy_setopt(easy, CURLOPT_LOW_SPEED_LIMIT, 1000L);

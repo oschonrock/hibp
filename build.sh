@@ -125,12 +125,12 @@ fi
 
 BUILD_OPTIONS="-DCMAKE_C_COMPILER=$C_COMPILER -DCMAKE_CXX_COMPILER=$CXX_COMPILER -DCMAKE_BUILD_TYPE=$BUILDTYPE $INSTALL_PREFIX"
 
-# if command -v mold > /dev/null 2>&1
-# then
-#     BUILD_OPTIONS="$BUILD_OPTIONS -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=mold -DCMAKE_SHARED_LINKER_FLAGS=-fuse-ld=mold"
-# else
-#     echo -e '\033[0;31m'"Consider installing the \`mold\` linker for extra speed!"'\033[0m' 1>&2
-# fi
+if command -v mold > /dev/null 2>&1
+then
+    BUILD_OPTIONS="$BUILD_OPTIONS -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=mold -DCMAKE_SHARED_LINKER_FLAGS=-fuse-ld=mold"
+else
+    echo -e '\033[0;31m'"Consider installing the \`mold\` linker for extra speed!"'\033[0m' 1>&2
+fi
 
 [[ -n $PURGE && -d $BUILD_DIR ]] && rm -rf $BUILD_DIR
 

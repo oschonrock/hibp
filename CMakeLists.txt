@@ -149,6 +149,7 @@ target_link_libraries(hibp_convert PRIVATE CLI11 sha1 hibp flat_file fmt::fmt)
 
 add_executable(hibp_download
   app/hibp_download.cpp
+  src/dnl/resume.cpp
   src/dnl/queuemgt.cpp
   src/dnl/requests.cpp
   src/dnl/shared.cpp)

@@ -43,6 +43,9 @@ constexpr char nibble_to_char(std::byte nibble) {
 template <unsigned HashSize>
 struct pawned_pw {
   constexpr static unsigned hash_size = HashSize;
+  constexpr static unsigned hash_str_size = hash_size * 2;
+  constexpr static unsigned prefix_str_size = 5;
+  constexpr static unsigned suffix_str_size = hash_str_size - prefix_str_size;
 
   pawned_pw() = default;
 
@@ -102,4 +105,24 @@ inline bool is_valid_hash(const std::string& hash) {
          hash.find_first_not_of("0123456789ABCDEF") == std::string_view::npos;
 }
 
+template <pw_type PwType>
+inline std::string url(const std::string& prefix_str) {
+  std::string url = fmt::format("https://api.pwnedpasswords.com/range/{}", prefix_str);
+  if constexpr (std::is_same_v<PwType, pawned_pw_ntlm>) {
+    url += "?mode=ntlm";
+  }
+  return url;
+}
+
+template <pw_type PwType>
+inline std::string url(unsigned prefix) {
+  return url<PwType>(fmt::format("{:05X}", prefix));
+}
+
+inline std::string url(const std::string& prefix_str, bool ntlm) {
+  if (ntlm) {
+    return url<pawned_pw_ntlm>(prefix_str);
+  }
+  return url<pawned_pw_sha1>(prefix_str);
+}
 } // namespace hibp
