@@ -83,8 +83,8 @@ auto handle_sha1_search(flat_file::database<pawned_pw_sha1>& sha1_db,
   if (!is_valid_hash(sha1_password, 40)) {
     return bad_request("Invalid sha1 provided.", req);
   }
-  const hibp::pawned_pw_sha1 needle{sha1_password};
-  return search_and_respond<hibp::pawned_pw_sha1>(sha1_db, needle, req);
+  const pawned_pw_sha1 needle{sha1_password};
+  return search_and_respond<pawned_pw_sha1>(sha1_db, needle, req);
 }
 
 auto handle_ntlm_search(flat_file::database<pawned_pw_ntlm>& ntlm_db,
@@ -92,8 +92,8 @@ auto handle_ntlm_search(flat_file::database<pawned_pw_ntlm>& ntlm_db,
   if (!is_valid_hash(ntlm_password, 32)) {
     return bad_request("Invalid ntlm provided.", req);
   }
-  const hibp::pawned_pw_ntlm needle{ntlm_password};
-  return search_and_respond<hibp::pawned_pw_ntlm>(ntlm_db, needle, req);
+  const pawned_pw_ntlm needle{ntlm_password};
+  return search_and_respond<pawned_pw_ntlm>(ntlm_db, needle, req);
 }
 
 auto get_router(const std::string& sha1_db_filename, const std::string& ntlm_db_filename) {

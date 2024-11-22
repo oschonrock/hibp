@@ -72,6 +72,7 @@ void build(const std::string& db_filename, unsigned bits) {
 
 template <pw_type PwType>
 void save(const std::string& toc_filename) {
+  std::cerr << fmt::format("saving table of contents: {}\n", toc_filename);
   auto toc_stream = std::ofstream(toc_filename, std::ios_base::binary);
   toc_stream.write(reinterpret_cast<char*>(toc<PwType>.data()), // NOLINT reincast
                    static_cast<std::streamsize>(sizeof(toc_entry) * toc<PwType>.size()));
@@ -79,7 +80,7 @@ void save(const std::string& toc_filename) {
 
 template <pw_type PwType>
 void load(const std::string& toc_filename) {
-  std::cerr << fmt::format("loading table of contents..\n");
+  std::cerr << fmt::format("loading table of contents: {}\n", toc_filename);
   const auto toc_file_size = std::filesystem::file_size(toc_filename);
   auto       toc_stream    = std::ifstream(toc_filename, std::ios_base::binary);
   toc<PwType>              = std::vector<toc_entry>(toc_file_size / sizeof(toc_entry));

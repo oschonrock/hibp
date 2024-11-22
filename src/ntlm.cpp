@@ -22,12 +22,12 @@ std::string utf8_to_utf16_le(const std::string& utf8Str) {
 
 std::array<std::byte, 16> ntlm(const std::string& password) {
 
-  std::string utf16LE = utf8_to_utf16_le(password);
+  std::string utf_16_le = utf8_to_utf16_le(password);
 
   std::array<std::byte, 16> hash{};
 
-  MD4(reinterpret_cast<const unsigned char*>(utf16LE.data()), utf16LE.size(), // NOLINT
-      reinterpret_cast<unsigned char*>(hash.data()));                         // NOLINT
+  MD4(reinterpret_cast<const unsigned char*>(utf_16_le.data()), utf_16_le.size(), // NOLINT
+      reinterpret_cast<unsigned char*>(hash.data()));                             // NOLINT
 
   return hash;
 }
