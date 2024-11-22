@@ -1,8 +1,8 @@
+#include <array>
 #include <codecvt>
+#include <locale>
 #include <openssl/md4.h> // OpenSSL library for MD4
 #include <string>
-#include <locale>
-#include <array>
 
 namespace hibp {
 

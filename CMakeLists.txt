@@ -109,8 +109,7 @@ endif()
 
 add_library(ntlm src/ntlm.cpp)
 target_compile_features(ntlm PRIVATE cxx_std_20)
-set(DEPCREATED_OPTIONS "${PROJECT_COMPILE_OPTIONS} -Wno-deprecated-declarations")
-target_compile_options(ntlm PRIVATE ${DEPRECATED_OPTIONS})
+target_compile_options(ntlm PRIVATE ${PROJECT_COMPILE_OPTIONS} -Wno-deprecated-declarations) # MD4 needed
 target_link_libraries(ntlm PRIVATE crypto)
 
 add_executable(hibp_search app/hibp_search.cpp src/toc.cpp)
