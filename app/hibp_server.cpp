@@ -1,4 +1,5 @@
 #include "hibp.hpp"
+#include "flat_file.hpp"
 #include "srv/server.hpp"
 #include "toc.hpp"
 #include <CLI/CLI.hpp>

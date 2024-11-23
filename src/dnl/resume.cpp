@@ -2,9 +2,6 @@
 #include "flat_file.hpp"
 #include "hibp.hpp"
 #include <algorithm>
-#if __has_include(<bits/chrono.h>)
-#include <bits/chrono.h>
-#endif
 #include <charconv>
 #include <cstddef>
 #include <cstdlib>

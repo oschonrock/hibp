@@ -106,7 +106,7 @@ auto get_router(const std::string& sha1_db_filename, const std::string& ntlm_db_
               ? std::unique_ptr<ntlm_db_t>{}
               : std::make_unique<ntlm_db_t>(ntlm_db_filename, 4096 / sizeof(hibp::pawned_pw_ntlm));
 
-      std::string password{params["password"]};
+      const std::string password{params["password"]};
       
       if (params["format"] == "plain") {
         if (sha1_db) {

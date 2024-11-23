@@ -7,8 +7,10 @@
 #include <compare>
 #include <cstddef>
 #include <cstdint>
+#include <fmt/format.h>
 #include <ostream>
 #include <string>
+#include <string_view>
 
 namespace hibp {
 

@@ -76,7 +76,7 @@ void add_download(std::size_t index) {
     throw std::runtime_error(fmt::format("unexpected condition: index {} already existed", index));
   }
   auto& dl  = dl_iter->second;
-  std::string chunk_url = hibp::url(dl->prefix, cli.ntlm);
+  const std::string chunk_url = hibp::url(dl->prefix, cli.ntlm);
   
   CURL* easy = curl_easy_init();
   curl_easy_setopt(easy, CURLOPT_PIPEWAIT, 1L); // wait for multiplexing! key for perf
