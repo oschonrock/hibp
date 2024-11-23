@@ -103,6 +103,75 @@ void bin_to_txt(const std::string& input_filename, std::ostream& output_stream, 
   }
 }
 
+void check_options(const cli_config_t& cli) {
+  if ((cli.bin_to_txt && cli.txt_to_bin) || (!cli.bin_to_txt && !cli.txt_to_bin)) {
+    throw std::runtime_error(
+        "Please use exactly one of --bin-to-txt and --txt-to-bin, not both, and not neither.");
+  }
+
+  if ((!cli.input_filename.empty() && cli.standard_input) ||
+      (cli.input_filename.empty() && !cli.standard_input)) {
+    throw std::runtime_error(
+        "Please use exactly one of -i|--input and --stdin, not both, and not neither.");
+  }
+
+  if (cli.bin_to_txt && cli.standard_input) {
+    throw std::runtime_error(
+        "Sorry, cannot read binary database from standard_input. Please use a file.");
+  }
+
+  if ((!cli.output_filename.empty() && cli.standard_output) ||
+      (cli.output_filename.empty() && !cli.standard_output)) {
+    throw std::runtime_error("Please use exactly one of -o|--output and --stdout, not "
+                             "both, and not neither.");
+  }
+}
+
+void convert(const cli_config_t& cli) {
+  std::istream* input_stream      = &std::cin;
+  std::string   input_stream_name = "standard_input";
+  std::ifstream ifs;
+  if (!cli.standard_input) {
+    ifs               = get_input_stream(cli.input_filename);
+    input_stream      = &ifs;
+    input_stream_name = cli.input_filename;
+  }
+
+  std::ostream* output_stream      = &std::cout;
+  std::string   output_stream_name = "standard_output";
+  std::ofstream ofs;
+  if (!cli.standard_output) {
+    ofs                = get_output_stream(cli.output_filename, cli.force);
+    output_stream      = &ofs;
+    output_stream_name = cli.output_filename;
+  }
+
+  if (cli.txt_to_bin) {
+    std::cerr << fmt::format("Reading `have i been pawned` text database from {}, "
+                             "converting to binary format and writing to {} ... ",
+                             input_stream_name, output_stream_name);
+
+    if (cli.ntlm) {
+      txt_to_bin<hibp::pawned_pw_ntlm>(*input_stream, *output_stream, cli.limit);
+    } else {
+      txt_to_bin<hibp::pawned_pw_sha1>(*input_stream, *output_stream, cli.limit);
+    }
+    std::cerr << "Done.\n";
+  } else if (cli.bin_to_txt) {
+
+    std::cerr << fmt::format("Reading `have i been pawned` binary database from {}, "
+                             "converting to text format and writing to {} ...",
+                             input_stream_name, output_stream_name);
+
+    if (cli.ntlm) {
+      bin_to_txt<hibp::pawned_pw_ntlm>(cli.input_filename, *output_stream, cli.limit);
+    } else {
+      bin_to_txt<hibp::pawned_pw_sha1>(cli.input_filename, *output_stream, cli.limit);
+    }
+    std::cerr << "Done.\n";
+  }
+}
+
 int main(int argc, char* argv[]) {
   cli_config_t cli;
 
@@ -111,68 +180,10 @@ int main(int argc, char* argv[]) {
   CLI11_PARSE(app, argc, argv);
 
   try {
-    if ((cli.bin_to_txt && cli.txt_to_bin) || (!cli.bin_to_txt && !cli.txt_to_bin)) {
-      throw std::runtime_error(
-          "Please use exactly one of --bin-to-txt and --txt-to-bin, not both, and not neither.");
-    }
+    check_options(cli);
 
-    if ((!cli.input_filename.empty() && cli.standard_input) ||
-        (cli.input_filename.empty() && !cli.standard_input)) {
-      throw std::runtime_error(
-          "Please use exactly one of -i|--input and --stdin, not both, and not neither.");
-    }
+    convert(cli);
 
-    if (cli.bin_to_txt && cli.standard_input) {
-      throw std::runtime_error(
-          "Sorry, cannot read binary database from standard_input. Please use a file.");
-    }
-
-    if ((!cli.output_filename.empty() && cli.standard_output) ||
-        (cli.output_filename.empty() && !cli.standard_output)) {
-      throw std::runtime_error("Please use exactly one of -o|--output and --stdout, not "
-                               "both, and not neither.");
-    }
-
-    std::istream* input_stream      = &std::cin;
-    std::string   input_stream_name = "standard_input";
-    std::ifstream ifs;
-    if (!cli.standard_input) {
-      ifs               = get_input_stream(cli.input_filename);
-      input_stream      = &ifs;
-      input_stream_name = cli.input_filename;
-    }
-
-    std::ostream* output_stream      = &std::cout;
-    std::string   output_stream_name = "standard_output";
-    std::ofstream ofs;
-    if (!cli.standard_output) {
-      ofs                = get_output_stream(cli.output_filename, cli.force);
-      output_stream      = &ofs;
-      output_stream_name = cli.output_filename;
-    }
-
-    if (cli.txt_to_bin) {
-      std::cerr << fmt::format("Reading `have i been pawned` text database from {}, "
-                               "converting to binary format and writing to {}.\n",
-                               input_stream_name, output_stream_name);
-
-      if (cli.ntlm) {
-        txt_to_bin<hibp::pawned_pw_ntlm>(*input_stream, *output_stream, cli.limit);
-      } else {
-        txt_to_bin<hibp::pawned_pw_sha1>(*input_stream, *output_stream, cli.limit);
-      }
-    } else if (cli.bin_to_txt) {
-
-      std::cerr << fmt::format("Reading `have i been pawned` binary database from {}, "
-                               "converting to text format and writing to {}.\n",
-                               input_stream_name, output_stream_name);
-
-      if (cli.ntlm) {
-        bin_to_txt<hibp::pawned_pw_ntlm>(cli.input_filename, *output_stream, cli.limit);
-      } else {
-        bin_to_txt<hibp::pawned_pw_sha1>(cli.input_filename, *output_stream, cli.limit);
-      }
-    }
   } catch (const std::exception& e) {
     std::cerr << fmt::format("Error: {}\n", e.what());
     return EXIT_FAILURE;
