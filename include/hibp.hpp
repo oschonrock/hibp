@@ -44,8 +44,8 @@ constexpr char nibble_to_char(std::byte nibble) {
 
 template <unsigned HashSize>
 struct pawned_pw {
-  constexpr static unsigned hash_size = HashSize;
-  constexpr static unsigned hash_str_size = hash_size * 2;
+  constexpr static unsigned hash_size       = HashSize;
+  constexpr static unsigned hash_str_size   = hash_size * 2;
   constexpr static unsigned prefix_str_size = 5;
   constexpr static unsigned suffix_str_size = hash_str_size - prefix_str_size;
 

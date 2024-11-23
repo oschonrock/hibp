@@ -65,13 +65,12 @@ int main(int argc, char* argv[]) {
     } else {
       sorted_filename = sort_db<hibp::pawned_pw_sha1>(cli);
     }
-      std::cerr << "Done. Sorted data was written to " << sorted_filename << "\n";
-      return EXIT_SUCCESS;
-    }
-    catch (const std::exception& e) {
-      std::cerr << "something went wrong: " << e.what() << "\n";
-      return EXIT_FAILURE;
-    }
-
+    std::cerr << "Done. Sorted data was written to " << sorted_filename << "\n";
     return EXIT_SUCCESS;
+  } catch (const std::exception& e) {
+    std::cerr << "something went wrong: " << e.what() << "\n";
+    return EXIT_FAILURE;
   }
+
+  return EXIT_SUCCESS;
+}

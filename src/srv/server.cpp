@@ -79,8 +79,7 @@ auto handle_plain_search(flat_file::database<PwType>& sha1_db, std::string plain
 }
 
 template <pw_type PwType>
-auto handle_hash_search(flat_file::database<PwType>& db,
-                        const std::string& password, auto req) {
+auto handle_hash_search(flat_file::database<PwType>& db, const std::string& password, auto req) {
 
   if (!is_valid_hash<PwType>(password)) {
     return bad_request("Invalid hash provided. Check type of hash.", req);
@@ -107,7 +106,7 @@ auto get_router(const std::string& sha1_db_filename, const std::string& ntlm_db_
               : std::make_unique<ntlm_db_t>(ntlm_db_filename, 4096 / sizeof(hibp::pawned_pw_ntlm));
 
       const std::string password{params["password"]};
-      
+
       if (params["format"] == "plain") {
         if (sha1_db) {
           return handle_plain_search(*sha1_db, password, req);
