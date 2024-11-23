@@ -107,10 +107,9 @@ if (NOT MSVC)
   target_compile_options(expected-lite INTERFACE -Wno-missing-noreturn)
 endif()
 
-add_library(ntlm src/ntlm.cpp)
+add_library(ntlm src/ntlm.cpp src/md4.c)
 target_compile_features(ntlm PRIVATE cxx_std_20)
-target_compile_options(ntlm PRIVATE ${PROJECT_COMPILE_OPTIONS} -Wno-deprecated-declarations) # MD4 needed
-target_link_libraries(ntlm PRIVATE crypto)
+target_include_directories(ntlm PRIVATE include)
 
 add_executable(hibp_search app/hibp_search.cpp src/toc.cpp)
 set_target_properties(hibp_search PROPERTIES OUTPUT_NAME hibp-search)

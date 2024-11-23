@@ -1,8 +1,8 @@
+#include "md4.h" // copy of OpenSSL MD4 from openrsync
 #include <array>
 #include <codecvt>
 #include <cstddef>
 #include <locale>
-#include <openssl/md4.h> // OpenSSL library for MD4
 #include <string>
 
 namespace hibp {
@@ -27,8 +27,13 @@ std::array<std::byte, 16> ntlm(const std::string& password) {
 
   std::array<std::byte, 16> hash{};
 
-  MD4(reinterpret_cast<const unsigned char*>(utf_16_le.data()), utf_16_le.size(), // NOLINT
-      reinterpret_cast<unsigned char*>(hash.data()));                             // NOLINT
+  MD4_CTX ctx;
+  MD4_Init(&ctx);
+
+  MD4_Update(&ctx, reinterpret_cast<const unsigned char*>(utf_16_le.data()), // NOLINT
+             utf_16_le.size());
+
+  MD4_Final(reinterpret_cast<unsigned char*>(hash.data()), &ctx); // NOLINT
 
   return hash;
 }
