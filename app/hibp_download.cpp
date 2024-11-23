@@ -103,7 +103,7 @@ int main(int argc, char* argv[]) {
                                            std::strerror(errno))); // NOLINT errno
     }
     if (cli.txt_out) {
-      auto tw = hibp::dnl::txt_writer(output_db_stream);
+      auto tw = hibp::dnl::text_writer(output_db_stream);
       hibp::dnl::run([&](const std::string& line) { tw.write(line); }, start_index);
 
     } else {
