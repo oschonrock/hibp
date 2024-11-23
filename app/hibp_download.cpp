@@ -28,11 +28,11 @@ void define_options(CLI::App& app, hibp::dnl::cli_config_t& cli) {
                "Show a progress meter on stderr. This is the default.");
 
   app.add_flag("--resume", cli.resume,
-               "Attempt to resume an earlier download. Not with --text-out. And not with --force.");
+               "Attempt to resume an earlier download. Not with --txt-out. And not with --force.");
 
   app.add_flag("--ntlm", cli.ntlm, "Download the NTLM format password hashes instead of SHA1.");
 
-  app.add_flag("--text-out", cli.text_out,
+  app.add_flag("--txt-out", cli.txt_out,
                "Output text format, rather than the default custom binary format.");
 
   app.add_flag("--force", cli.force, "Overwrite any existing file! Not with --resume.");
@@ -63,8 +63,8 @@ int main(int argc, char* argv[]) {
   hibp::dnl::logger.debug = cli.debug;
 
   try {
-    if (cli.text_out && cli.resume) {
-      throw std::runtime_error("can't use `--resume` and `--text-out` together");
+    if (cli.txt_out && cli.resume) {
+      throw std::runtime_error("can't use `--resume` and `--txt-out` together");
     }
 
     if (cli.force && cli.resume) {
@@ -78,7 +78,7 @@ int main(int argc, char* argv[]) {
     }
 
     std::size_t start_index = 0;
-    auto        mode        = cli.text_out ? std::ios_base::out : std::ios_base::binary;
+    auto        mode        = cli.txt_out ? std::ios_base::out : std::ios_base::binary;
 
     if (cli.resume) {
       if (cli.ntlm) {
@@ -102,8 +102,8 @@ int main(int argc, char* argv[]) {
                                            cli.output_db_filename,
                                            std::strerror(errno))); // NOLINT errno
     }
-    if (cli.text_out) {
-      auto tw = hibp::dnl::text_writer(output_db_stream);
+    if (cli.txt_out) {
+      auto tw = hibp::dnl::txt_writer(output_db_stream);
       hibp::dnl::run([&](const std::string& line) { tw.write(line); }, start_index);
 
     } else {
