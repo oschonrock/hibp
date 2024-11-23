@@ -268,16 +268,20 @@ that completely uncached queries *reduce from 5-8ms to just 0.7ms*.
 
 #### The "ultimate" server
 
-Maybe you want to server plaintext, sha1 and ntlm at the same time,
+Maybe you want to serve plaintext, sha1 and ntlm at the same time,
 while taking advantage extra of `--toc` performance. Here is the full
-script for that. Assuming the programs are on you `PATH` for brevity:
+set of commands script for that, assuming the programs are on your
+`PATH` for brevity:
 
 ```bash
 hibp-download --sha1 hibp_all.sha1.bin
 hibp-download --ntlm hibp_all.ntlm.bin
 
-hibp-download --sha1-db=hibp_all.sha1.bin --ntlm-db=hibp_all.ntlm.bin --toc
+hibp-server --sha1-db=hibp_all.sha1.bin --ntlm-db=hibp_all.ntlm.bin --toc
+```
 
+Output:
+```
 Make a request to any of:
 http://localhost:8082/check/plain/password123  [using sha1 db]
 http://localhost:8082/check/sha1/CBFDAC6008F9CAB4083784CBD1874F76618D2A97
