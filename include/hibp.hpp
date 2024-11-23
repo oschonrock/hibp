@@ -119,6 +119,7 @@ inline std::string url(unsigned prefix) {
   return url<PwType>(fmt::format("{:05X}", prefix));
 }
 
+// runtime url selector
 inline std::string url(const std::string& prefix_str, bool ntlm) {
   if (ntlm) {
     return url<pawned_pw_ntlm>(prefix_str);

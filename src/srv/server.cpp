@@ -93,7 +93,7 @@ auto get_router(const std::string& sha1_db_filename, const std::string& ntlm_db_
   auto router = std::make_unique<restinio::router::express_router_t<>>();
   router->http_get(R"(/check/:format/:password)", [&](auto req, auto params) {
     try {
-      // one db object (ie set of buffers and pointers) per thread and per db file supplied
+      // unique db object (ie set of buffers and pointers) per thread and per db file supplied
       using sha1_db_t = flat_file::database<pawned_pw_sha1>;
       thread_local auto sha1_db =
           sha1_db_filename.empty()

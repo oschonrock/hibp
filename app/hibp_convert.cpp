@@ -22,33 +22,36 @@ struct cli_config_t {
   bool        standard_input  = false;
   bool        bin_to_txt      = false;
   bool        txt_to_bin      = false;
+  bool        ntlm            = false;
   std::size_t limit           = -1; // ie max
 };
 
-void define_options(CLI::App& app, cli_config_t& cli_config) {
+void define_options(CLI::App& app, cli_config_t& cli) {
 
-  app.add_flag("--txt-to-bin", cli_config.txt_to_bin,
+  app.add_flag("--txt-to-bin", cli.txt_to_bin,
                "From text to binary format. Choose either --txt-to-bin or --bin-to-txt");
 
-  app.add_flag("--bin-to-txt", cli_config.bin_to_txt,
+  app.add_flag("--bin-to-txt", cli.bin_to_txt,
                "From binary to text format. Choose either --txt-to-bin or --bin-to-txt");
 
-  app.add_option("-i,--input", cli_config.input_filename,
+  app.add_option("-i,--input", cli.input_filename,
                  "The file that the downloaded binary database will be read from");
 
-  app.add_flag("--stdin", cli_config.standard_input,
+  app.add_flag("--stdin", cli.standard_input,
                "Instead of an input file read input from standard_input. Only for text input.");
 
-  app.add_option("-o,--output", cli_config.output_filename,
+  app.add_option("-o,--output", cli.output_filename,
                  "The file that the downloaded binary database will be written to");
 
-  app.add_flag("--stdout", cli_config.standard_output,
+  app.add_flag("--stdout", cli.standard_output,
                "Instead of an output file write output to standard output.");
 
-  app.add_option("-l,--limit", cli_config.limit,
+  app.add_option("-l,--limit", cli.limit,
                  "The maximum number of records that will be converted (default: all)");
 
-  app.add_flag("-f,--force", cli_config.force, "Overwrite any existing output file!");
+  app.add_flag("--ntlm", cli.ntlm, "Use ntlm hashes rather than sha1.");
+
+  app.add_flag("-f,--force", cli.force, "Overwrite any existing output file!");
 }
 
 std::ifstream get_input_stream(const std::string& input_filename) {
@@ -76,9 +79,10 @@ std::ofstream get_output_stream(const std::string& output_filename, bool force) 
   return output_stream;
 }
 
+template <hibp::pw_type PwType>
 void txt_to_bin(std::istream& input_stream, std::ostream& output_stream, std::size_t limit) {
 
-  auto writer = flat_file::stream_writer<hibp::pawned_pw_sha1>(output_stream);
+  auto writer = flat_file::stream_writer<PwType>(output_stream);
 
   std::size_t count = 0;
   for (std::string line; std::getline(input_stream, line) && count != limit; count++) {
@@ -86,9 +90,10 @@ void txt_to_bin(std::istream& input_stream, std::ostream& output_stream, std::si
   }
 }
 
+template <hibp::pw_type PwType>
 void bin_to_txt(const std::string& input_filename, std::ostream& output_stream, std::size_t limit) {
 
-  flat_file::database<hibp::pawned_pw_sha1> db{input_filename, 4096 / sizeof(hibp::pawned_pw_sha1)};
+  flat_file::database<PwType> db{input_filename, 4096 / sizeof(PwType)};
 
   std::size_t count = 0;
   for (const auto& record: db) {
@@ -151,14 +156,22 @@ int main(int argc, char* argv[]) {
                                "converting to binary format and writing to {}.\n",
                                input_stream_name, output_stream_name);
 
-      txt_to_bin(*input_stream, *output_stream, cli.limit);
+      if (cli.ntlm) {
+        txt_to_bin<hibp::pawned_pw_ntlm>(*input_stream, *output_stream, cli.limit);
+      } else {
+        txt_to_bin<hibp::pawned_pw_sha1>(*input_stream, *output_stream, cli.limit);
+      }
     } else if (cli.bin_to_txt) {
 
       std::cerr << fmt::format("Reading `have i been pawned` binary database from {}, "
                                "converting to text format and writing to {}.\n",
                                input_stream_name, output_stream_name);
 
-      bin_to_txt(cli.input_filename, *output_stream, cli.limit);
+      if (cli.ntlm) {
+        bin_to_txt<hibp::pawned_pw_ntlm>(cli.input_filename, *output_stream, cli.limit);
+      } else {
+        bin_to_txt<hibp::pawned_pw_sha1>(cli.input_filename, *output_stream, cli.limit);
+      }
     }
   } catch (const std::exception& e) {
     std::cerr << fmt::format("Error: {}\n", e.what());

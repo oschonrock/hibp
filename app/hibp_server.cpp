@@ -60,6 +60,8 @@ int main(int argc, char* argv[]) {
       throw std::runtime_error("You must provide either --sha1-db or --ntlm-db");
     }
 
+    // test db files open OK, before starting server
+
     if (!cli.sha1_db_filename.empty()) {
       auto test_db = flat_file::database<hibp::pawned_pw_sha1>{cli.sha1_db_filename};
       if (cli.toc) {
