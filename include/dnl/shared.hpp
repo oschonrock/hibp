@@ -24,7 +24,8 @@ struct cli_config_t {
   bool        debug        = false;
   bool        progress     = true;
   bool        resume       = false;
-  bool        text_out     = false;
+  bool        ntlm         = false;
+  bool        txt_out      = false;
   bool        force        = false;
   std::size_t index_limit  = 0x100000;
   std::size_t parallel_max = 300;

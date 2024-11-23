@@ -1,6 +1,7 @@
 #include "srv/server.hpp"
 #include "flat_file.hpp"
 #include "hibp.hpp"
+#include "ntlm.hpp"
 #include "toc.hpp"
 #include <algorithm>
 #include <atomic>
@@ -16,14 +17,14 @@
 #include <restinio/traits.hpp>
 #include <sha1.h>
 #include <string>
-#include <string_view>
+#include <type_traits>
 #include <utility>
 
 namespace hibp::srv {
 
-auto search_and_respond(flat_file::database<hibp::pawned_pw>& db, const hibp::pawned_pw& needle,
-                        auto req) {
-  std::optional<hibp::pawned_pw> maybe_ppw;
+template <pw_type PwType>
+auto search_and_respond(flat_file::database<PwType>& db, const PwType& needle, auto req) {
+  std::optional<PwType> maybe_ppw;
 
   if (cli.toc) {
     maybe_ppw = hibp::toc_search(db, needle, cli.toc_bits);
@@ -48,39 +49,85 @@ auto search_and_respond(flat_file::database<hibp::pawned_pw>& db, const hibp::pa
   return response.done();
 }
 
-auto get_router(const std::string& db_filename) {
+auto bad_request(const std::string& msg, auto req) {
+  return req->create_response(restinio::status_bad_request())
+      .set_body(msg + "\n")
+      .connection_close()
+      .done();
+}
+
+auto fail_missing_db_for_format(auto req, const std::string& option, const std::string& endpoint) {
+  return bad_request("You need to pass " + option + " for a " + endpoint + " request.", req);
+}
+
+template <pw_type PwType>
+auto handle_plain_search(flat_file::database<PwType>& sha1_db, std::string plain_password,
+                         auto req) {
+  // for performance testing, optionally make uniq_pw across threads
+  static std::atomic<int> uniq{};
+  if (cli.perf_test) {
+    plain_password += std::to_string(uniq++);
+  }
+
+  PwType needle;
+  if constexpr (std::is_same_v<PwType, pawned_pw_sha1>) {
+    needle = {SHA1{}(plain_password)};
+  } else {
+    needle.hash = ntlm(plain_password);
+  }
+  return search_and_respond<PwType>(sha1_db, needle, req);
+}
+
+template <pw_type PwType>
+auto handle_hash_search(flat_file::database<PwType>& db, const std::string& password, auto req) {
+
+  if (!is_valid_hash<PwType>(password)) {
+    return bad_request("Invalid hash provided. Check type of hash.", req);
+  }
+  const PwType needle{password};
+  return search_and_respond<PwType>(db, needle, req);
+}
+
+auto get_router(const std::string& sha1_db_filename, const std::string& ntlm_db_filename) {
   auto router = std::make_unique<restinio::router::express_router_t<>>();
   router->http_get(R"(/check/:format/:password)", [&](auto req, auto params) {
     try {
-      // one db object (ie set of buffers and pointers) per thread
-      thread_local flat_file::database<hibp::pawned_pw> db(db_filename,
-                                                           4096 / sizeof(hibp::pawned_pw));
+      // unique db object (ie set of buffers and pointers) per thread and per db file supplied
+      using sha1_db_t = flat_file::database<pawned_pw_sha1>;
+      thread_local auto sha1_db =
+          sha1_db_filename.empty()
+              ? std::unique_ptr<sha1_db_t>{}
+              : std::make_unique<sha1_db_t>(sha1_db_filename, 4096 / sizeof(hibp::pawned_pw_sha1));
 
-      static std::atomic<int> uniq{}; // for performance testing, make uniq_pw for each request
+      using ntlm_db_t = flat_file::database<pawned_pw_ntlm>;
+      thread_local auto ntlm_db =
+          ntlm_db_filename.empty()
+              ? std::unique_ptr<ntlm_db_t>{}
+              : std::make_unique<ntlm_db_t>(ntlm_db_filename, 4096 / sizeof(hibp::pawned_pw_ntlm));
 
-      if (params["format"] != "plain" && params["format"] != "sha1") {
-        return req->create_response(restinio::status_not_found()).connection_close().done();
-      }
+      const std::string password{params["password"]};
 
-      std::string sha1_txt_pw;
       if (params["format"] == "plain") {
-        SHA1 sha1;
-        auto pw = std::string(params["password"]);
-        if (cli.perf_test) {
-          pw += std::to_string(uniq++);
+        if (sha1_db) {
+          return handle_plain_search(*sha1_db, password, req);
         }
-        sha1_txt_pw = sha1(pw);
-      } else {
-        if (params["password"].size() != 40 ||
-            params["password"].find_first_not_of("0123456789ABCDEF") != std::string_view::npos) {
-          return req->create_response(restinio::status_bad_request()).connection_close().done();
+        if (ntlm_db) {
+          return handle_plain_search(*ntlm_db, password, req);
         }
-        sha1_txt_pw = std::string{params["password"]};
+        return fail_missing_db_for_format(req, "--sha1-db or --sha1-db", "/check/plain");
       }
-      const hibp::pawned_pw needle = hibp::convert_to_binary(sha1_txt_pw);
-
-      return search_and_respond(db, needle, req);
-
+      if (params["format"] == "sha1") {
+        if (!sha1_db) return fail_missing_db_for_format(req, "--sha1-db", "/check/sha1");
+        return handle_hash_search(*sha1_db, password, req);
+      }
+      if (params["format"] == "ntlm") {
+        if (!ntlm_db) return fail_missing_db_for_format(req, "--ntlm-db", "/check/ntlm");
+        return handle_hash_search(*ntlm_db, password, req);
+      }
+      return req->create_response(restinio::status_not_found())
+          .set_body("Bad format specified.")
+          .connection_close()
+          .done();
     } catch (const std::exception& e) {
       // TODO log error to std::cerr with thread mutex
       return req->create_response(restinio::status_internal_server_error())
@@ -104,16 +151,26 @@ void run_server() {
   };
 
   std::cerr << fmt::format("Serving from {0}:{1}\n"
-                           "Make a request to either of:\n"
-                           "http://{0}:{1}/check/plain/password123\n"
-                           "http://{0}:{1}/check/sha1/CBFDAC6008F9CAB4083784CBD1874F76618D2A97\n",
-                           cli.bind_address, cli.port);
+                           "Make a request to any of:\n"
+                           "http://{0}:{1}/check/plain/password123  [using {2} db]\n",
+                           cli.bind_address, cli.port,
+                           !cli.sha1_db_filename.empty() ? "sha1" : "ntlm");
+
+  if (!cli.sha1_db_filename.empty()) {
+    std::cerr << fmt::format("http://{0}:{1}/check/sha1/CBFDAC6008F9CAB4083784CBD1874F76618D2A97\n",
+                             cli.bind_address, cli.port);
+  }
+  if (!cli.ntlm_db_filename.empty()) {
+    std::cerr << fmt::format("http://{0}:{1}/check/ntlm/A9FDFA038C4B75EBC76DC855DD74F0DA\n",
+                             cli.bind_address, cli.port);
+  }
 
   auto settings = restinio::on_thread_pool<my_server_traits>(cli.threads)
                       .address(cli.bind_address)
                       .port(cli.port)
-                      .request_handler(get_router(cli.db_filename));
+                      .request_handler(get_router(cli.sha1_db_filename, cli.ntlm_db_filename));
 
   restinio::run(std::move(settings));
 }
+
 } // namespace hibp::srv

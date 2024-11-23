@@ -7,8 +7,6 @@
 
 namespace hibp::dnl {
 
-std::size_t get_last_prefix(const std::string& filename);
-
 // alternative simple text writer
 
 struct text_writer {

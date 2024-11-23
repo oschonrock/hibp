@@ -1,19 +1,24 @@
+#include "flat_file.hpp"
+#include "hibp.hpp"
 #include "srv/server.hpp"
 #include "toc.hpp"
 #include <CLI/CLI.hpp>
 #include <cstdlib>
 #include <exception>
 #include <fmt/format.h>
-#include <fstream>
 #include <iostream>
 #include <stdexcept>
 #include <string>
 
 void define_options(CLI::App& app, hibp::srv::cli_config_t& cli) {
 
-  app.add_option("db_filename", cli.db_filename,
-                 "The file that contains the binary database you downloaded")
-      ->required();
+  app.add_option("--sha1-db", cli.sha1_db_filename,
+                 "The file that contains the binary database you downloaded. "
+                 "Used for /check/sha1|plain/... requests.");
+
+  app.add_option("--ntlm-db", cli.ntlm_db_filename,
+                 "The file that contains the binary database of ntlm hashes you downloaded. "
+                 "Used for /check/ntlm/... requests.");
 
   app.add_option(
       "--bind-address", cli.bind_address,
@@ -52,16 +57,24 @@ int main(int argc, char* argv[]) {
   CLI11_PARSE(app, argc, argv);
 
   try {
-    if (cli.toc) {
-      hibp::toc_build(cli.db_filename, cli.toc_bits);
-    } else {
-      auto input_stream = std::ifstream(cli.db_filename);
-      if (!input_stream) {
-        throw std::runtime_error(fmt::format("Error opening '{}' for reading. Because: \"{}\".\n",
-                                             cli.db_filename,
-                                             std::strerror(errno))); // NOLINT errno
+    if (cli.sha1_db_filename.empty() && cli.ntlm_db_filename.empty()) {
+      throw std::runtime_error("You must provide either --sha1-db or --ntlm-db");
+    }
+
+    // test db files open OK, before starting server
+
+    if (!cli.sha1_db_filename.empty()) {
+      auto test_db = flat_file::database<hibp::pawned_pw_sha1>{cli.sha1_db_filename};
+      if (cli.toc) {
+        hibp::toc_build<hibp::pawned_pw_sha1>(cli.sha1_db_filename, cli.toc_bits);
       }
-      // let stream die, was just to test because we branch into threads, and open it there N times
+    }
+
+    if (!cli.ntlm_db_filename.empty()) {
+      auto test_db = flat_file::database<hibp::pawned_pw_ntlm>{cli.ntlm_db_filename};
+      if (cli.toc) {
+        hibp::toc_build<hibp::pawned_pw_ntlm>(cli.ntlm_db_filename, cli.toc_bits);
+      }
     }
 
     hibp::srv::run_server();

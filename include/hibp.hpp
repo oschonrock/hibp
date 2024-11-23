@@ -7,14 +7,15 @@
 #include <compare>
 #include <cstddef>
 #include <cstdint>
+#include <fmt/format.h>
 #include <ostream>
 #include <string>
+#include <string_view>
 
 namespace hibp {
 
+template <unsigned HashSize>
 struct pawned_pw;
-
-inline pawned_pw convert_to_binary(const std::string& text);
 
 namespace detail {
 
@@ -41,11 +42,29 @@ constexpr char nibble_to_char(std::byte nibble) {
 }
 } // namespace detail
 
+template <unsigned HashSize>
 struct pawned_pw {
+  constexpr static unsigned hash_size       = HashSize;
+  constexpr static unsigned hash_str_size   = hash_size * 2;
+  constexpr static unsigned prefix_str_size = 5;
+  constexpr static unsigned suffix_str_size = hash_str_size - prefix_str_size;
+
   pawned_pw() = default;
 
-  pawned_pw(const std::string& text) // NOLINT detailicit conversion
-      : pawned_pw(convert_to_binary(text)) {}
+  pawned_pw(const std::string& text) { // NOLINT implicit
+    assert(text.length() >= hash.size() * 2);
+    std::size_t i = 0;
+    for (auto& b: hash) {
+      b = detail::make_byte(&text[2 * i]);
+      ++i;
+    }
+
+    count          = -1;
+    auto count_idx = hash.size() * 2 + 1;
+    if (text.size() > count_idx) {
+      std::from_chars(text.c_str() + count_idx, text.c_str() + text.size(), count);
+    }
+  }
 
   std::strong_ordering operator<=>(const pawned_pw& rhs) const {
     return arrcmp::array_compare(hash, rhs.hash, arrcmp::three_way{});
@@ -72,27 +91,41 @@ struct pawned_pw {
     return os << rhs.to_string();
   }
 
-  std::array<std::byte, 20> hash;
-  std::int32_t              count; // important to be definitive about size
+  std::array<std::byte, HashSize> hash{};
+  std::int32_t                    count = -1; // important to be definitive about size
 };
 
-// `text` must be an uppper- or lowercase sha1 hexstr
-// with optional ":123" appended (123 is the count).
-inline pawned_pw convert_to_binary(const std::string& text) {
-  pawned_pw ppw; // NOLINT initlialisation not needed here
+using pawned_pw_sha1 = pawned_pw<20>;
+using pawned_pw_ntlm = pawned_pw<16>;
 
-  assert(text.length() >= ppw.hash.size() * 2);
-  std::size_t i = 0;
-  for (auto& b: ppw.hash) {
-    b = detail::make_byte(&text[2 * i]);
-    ++i;
-  }
+template <typename T>
+concept pw_type = std::is_same_v<T, pawned_pw_sha1> || std::is_same_v<T, pawned_pw_ntlm>;
 
-  ppw.count      = -1;
-  auto count_idx = ppw.hash.size() * 2 + 1;
-  if (text.size() > count_idx) {
-    std::from_chars(text.c_str() + count_idx, text.c_str() + text.size(), ppw.count);
+template <pw_type PwType>
+inline bool is_valid_hash(const std::string& hash) {
+  return hash.size() == PwType::hash_size * 2 &&
+         hash.find_first_not_of("0123456789ABCDEF") == std::string_view::npos;
+}
+
+template <pw_type PwType>
+inline std::string url(const std::string& prefix_str) {
+  std::string url = fmt::format("https://api.pwnedpasswords.com/range/{}", prefix_str);
+  if constexpr (std::is_same_v<PwType, pawned_pw_ntlm>) {
+    url += "?mode=ntlm";
   }
-  return ppw;
+  return url;
+}
+
+template <pw_type PwType>
+inline std::string url(unsigned prefix) {
+  return url<PwType>(fmt::format("{:05X}", prefix));
+}
+
+// runtime url selector
+inline std::string url(const std::string& prefix_str, bool ntlm) {
+  if (ntlm) {
+    return url<pawned_pw_ntlm>(prefix_str);
+  }
+  return url<pawned_pw_sha1>(prefix_str);
 }
 } // namespace hibp

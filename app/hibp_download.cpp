@@ -1,4 +1,5 @@
 #include "dnl/queuemgt.hpp"
+#include "dnl/resume.hpp"
 #include "dnl/shared.hpp"
 #include "flat_file.hpp"
 #include "hibp.hpp"
@@ -15,29 +16,31 @@
 #include <stdexcept>
 #include <string>
 
-void define_options(CLI::App& app, hibp::dnl::cli_config_t& cli_) {
+void define_options(CLI::App& app, hibp::dnl::cli_config_t& cli) {
 
-  app.add_option("output_db_filename", cli_.output_db_filename,
+  app.add_option("output_db_filename", cli.output_db_filename,
                  "The file that the downloaded binary database will be written to")
       ->required();
 
-  app.add_flag("--debug", cli_.debug,
+  app.add_flag("--debug", cli.debug,
                "Send verbose thread debug output to stderr. Turns off progress.");
-  app.add_flag("--progress,!--no-progress", cli_.progress,
+  app.add_flag("--progress,!--no-progress", cli.progress,
                "Show a progress meter on stderr. This is the default.");
 
-  app.add_flag("--resume", cli_.resume,
-               "Attempt to resume an earlier download. Not with --text-out.");
+  app.add_flag("--resume", cli.resume,
+               "Attempt to resume an earlier download. Not with --txt-out. And not with --force.");
 
-  app.add_flag("--text-out", cli_.text_out,
+  app.add_flag("--ntlm", cli.ntlm, "Download the NTLM format password hashes instead of SHA1.");
+
+  app.add_flag("--txt-out", cli.txt_out,
                "Output text format, rather than the default custom binary format.");
 
-  app.add_flag("--force", cli_.force, "Overwrite any existing file!");
+  app.add_flag("--force", cli.force, "Overwrite any existing file! Not with --resume.");
 
-  app.add_option("--parallel-max", cli_.parallel_max,
+  app.add_option("--parallel-max", cli.parallel_max,
                  "The maximum number of requests that will be started concurrently (default: 300)");
 
-  app.add_option("--limit", cli_.index_limit,
+  app.add_option("--limit", cli.index_limit,
                  "The maximum number (prefix) files that will be downloaded (default: 100 000 hex "
                  "or 1 048 576 dec)");
 }
@@ -60,8 +63,12 @@ int main(int argc, char* argv[]) {
   hibp::dnl::logger.debug = cli.debug;
 
   try {
-    if (cli.text_out && cli.resume) {
-      throw std::runtime_error("can't use `--resume` and `--text-out` together");
+    if (cli.txt_out && cli.resume) {
+      throw std::runtime_error("can't use `--resume` and `--txt-out` together");
+    }
+
+    if (cli.force && cli.resume) {
+      throw std::runtime_error("can't use `--resume` and `--force` together");
     }
 
     if (!cli.resume && !cli.force && std::filesystem::exists(cli.output_db_filename)) {
@@ -71,10 +78,14 @@ int main(int argc, char* argv[]) {
     }
 
     std::size_t start_index = 0;
-    auto        mode        = cli.text_out ? std::ios_base::out : std::ios_base::binary;
+    auto        mode        = cli.txt_out ? std::ios_base::out : std::ios_base::binary;
 
     if (cli.resume) {
-      start_index = hibp::dnl::get_last_prefix(cli.output_db_filename) + 1;
+      if (cli.ntlm) {
+        start_index = hibp::dnl::get_last_prefix<hibp::pawned_pw_ntlm>(cli.output_db_filename) + 1;
+      } else {
+        start_index = hibp::dnl::get_last_prefix<hibp::pawned_pw_sha1>(cli.output_db_filename) + 1;
+      }
 
       if (cli.index_limit <= start_index) {
         throw std::runtime_error(fmt::format("File '{}' contains {} records already, but you have "
@@ -91,14 +102,19 @@ int main(int argc, char* argv[]) {
                                            cli.output_db_filename,
                                            std::strerror(errno))); // NOLINT errno
     }
-    if (cli.text_out) {
+    if (cli.txt_out) {
       auto tw = hibp::dnl::text_writer(output_db_stream);
       hibp::dnl::run([&](const std::string& line) { tw.write(line); }, start_index);
 
     } else {
-      // use a larger 2.4MB output buffer, attempt to keep Windows/mingw happy
-      auto ffsw = flat_file::stream_writer<hibp::pawned_pw>(output_db_stream, 100'000);
-      hibp::dnl::run([&](const std::string& line) { ffsw.write(line); }, start_index);
+      // use a largegish output buffer ~240kB for efficient writes
+      if (cli.ntlm) {
+        auto ffsw = flat_file::stream_writer<hibp::pawned_pw_ntlm>(output_db_stream, 10'000);
+        hibp::dnl::run([&](const std::string& line) { ffsw.write(line); }, start_index);
+      } else {
+        auto ffsw = flat_file::stream_writer<hibp::pawned_pw_sha1>(output_db_stream, 10'000);
+        hibp::dnl::run([&](const std::string& line) { ffsw.write(line); }, start_index);
+      }
     }
 
   } catch (const std::exception& e) {

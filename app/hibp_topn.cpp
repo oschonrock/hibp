@@ -28,6 +28,7 @@ struct cli_config_t {
   std::string input_filename;
   bool        force           = false;
   bool        standard_output = false;
+  bool        ntlm            = false;
   std::size_t topn            = 50'000'000; // ~1GB in memory, about 5% of the DB
 };
 
@@ -46,17 +47,9 @@ void define_options(CLI::App& app, cli_config_t& cli) {
   app.add_option("-N,--topn", cli.topn,
                  fmt::format("Return the N most common password records (default: {})", cli.topn));
 
-  app.add_flag("-f,--force", cli.force, "Overwrite any existing output file!");
-}
+  app.add_flag("--ntlm", cli.ntlm, "Use ntlm hashes rather than sha1.");
 
-std::ifstream get_input_stream(const std::string& input_filename) {
-  auto input_stream = std::ifstream(input_filename);
-  if (!input_stream) {
-    throw std::runtime_error(fmt::format("Error opening '{}' for reading. Because: \"{}\".\n",
-                                         input_filename,
-                                         std::strerror(errno))); // NOLINT errno
-  }
-  return input_stream;
+  app.add_flag("-f,--force", cli.force, "Overwrite any existing output file!");
 }
 
 std::ofstream get_output_stream(const std::string& output_filename, bool force) {
@@ -74,6 +67,58 @@ std::ofstream get_output_stream(const std::string& output_filename, bool force) 
   return output_stream;
 }
 
+template <hibp::pw_type PwType>
+void build_topn(const cli_config_t& cli) {
+  std::ostream* output_stream      = &std::cout;
+  std::string   output_stream_name = "standard_output";
+  std::ofstream ofs;
+  if (!cli.standard_output) {
+    ofs                = get_output_stream(cli.output_filename, cli.force);
+    output_stream      = &ofs;
+    output_stream_name = cli.output_filename;
+  }
+
+  flat_file::database<PwType> input_db(cli.input_filename, (1U << 16U) / sizeof(PwType));
+
+  if (input_db.number_records() <= cli.topn) {
+    throw std::runtime_error(
+        fmt::format("size of input db ({}) <= topn ({}). Output would be identical. Aborting.",
+                    input_db.number_records(), cli.topn));
+  }
+  std::vector<PwType> memdb(cli.topn);
+
+  std::cerr << fmt::format("{:50}", "Read db from disk and topN sort by count desc ...");
+
+  using clk   = std::chrono::high_resolution_clock;
+  using fsecs = std::chrono::duration<double>;
+  auto start  = clk::now();
+
+  // TopN sort descending by count (par_unseq makes no sense, as disk bound and flat_file not
+  // thread safe)
+  std::partial_sort_copy(input_db.begin(), input_db.end(), memdb.begin(), memdb.end(),
+                         [](auto& a, auto& b) { return a.count > b.count; });
+
+  std::cerr << fmt::format("{:>8.3}\n", duration_cast<fsecs>(clk::now() - start));
+
+  std::cerr << fmt::format("{:50}", "Sort by hash ascending ...");
+  start = clk::now();
+  // default sort by hash ascending
+  std::sort(
+#if HIBP_USE_PSTL && __cpp_lib_parallel_algorithm
+      std::execution::par_unseq,
+#endif
+      memdb.begin(), memdb.end());
+  std::cerr << fmt::format("{:>8.3}\n", duration_cast<fsecs>(clk::now() - start));
+
+  start = clk::now();
+  std::cerr << fmt::format("{:50}", "Write TopN db to disk ...");
+  auto output_db = flat_file::stream_writer<PwType>(*output_stream);
+  for (const auto& pw: memdb) {
+    output_db.write(pw);
+  }
+  std::cerr << fmt::format("{:>8.3}\n", duration_cast<fsecs>(clk::now() - start));
+}
+
 int main(int argc, char* argv[]) {
   cli_config_t cli;
 
@@ -89,55 +134,11 @@ int main(int argc, char* argv[]) {
                                "both, and not neither.");
     }
 
-    std::ostream* output_stream      = &std::cout;
-    std::string   output_stream_name = "standard_output";
-    std::ofstream ofs;
-    if (!cli.standard_output) {
-      ofs                = get_output_stream(cli.output_filename, cli.force);
-      output_stream      = &ofs;
-      output_stream_name = cli.output_filename;
+    if (cli.ntlm) {
+      build_topn<hibp::pawned_pw_ntlm>(cli);
+    } else {
+      build_topn<hibp::pawned_pw_sha1>(cli);
     }
-
-    flat_file::database<hibp::pawned_pw> input_db(cli.input_filename,
-                                                  (1U << 16U) / sizeof(hibp::pawned_pw));
-
-    if (input_db.number_records() <= cli.topn) {
-      throw std::runtime_error(
-          fmt::format("size of input db ({}) <= topn ({}). Output would be identical. Aborting.",
-                      input_db.number_records(), cli.topn));
-    }
-    std::vector<hibp::pawned_pw> memdb(cli.topn);
-
-    std::cerr << fmt::format("{:50}", "Read db from disk and topN sort by count desc ...");
-
-    using clk   = std::chrono::high_resolution_clock;
-    using fsecs = std::chrono::duration<double>;
-    auto start  = clk::now();
-
-    // TopN sort descending by count (par_unseq makes no sense, as disk bound and flat_file not
-    // thread safe)
-    std::partial_sort_copy(input_db.begin(), input_db.end(), memdb.begin(), memdb.end(),
-                           [](auto& a, auto& b) { return a.count > b.count; });
-
-    std::cerr << fmt::format("{:>8.3}\n", duration_cast<fsecs>(clk::now() - start));
-
-    std::cerr << fmt::format("{:50}", "Sort by hash ascending ...");
-    start = clk::now();
-    // default sort by hash ascending
-    std::sort(
-#if HIBP_USE_PSTL && __cpp_lib_parallel_algorithm
-        std::execution::par_unseq,
-#endif
-        memdb.begin(), memdb.end());
-    std::cerr << fmt::format("{:>8.3}\n", duration_cast<fsecs>(clk::now() - start));
-
-    start = clk::now();
-    std::cerr << fmt::format("{:50}", "Write TopN db to disk ...");
-    auto output_db = flat_file::stream_writer<hibp::pawned_pw>(*output_stream);
-    for (const auto& pw: memdb) {
-      output_db.write(pw);
-    }
-    std::cerr << fmt::format("{:>8.3}\n", duration_cast<fsecs>(clk::now() - start));
 
   } catch (const std::exception& e) {
     std::cerr << fmt::format("Error: {}\n", e.what());
