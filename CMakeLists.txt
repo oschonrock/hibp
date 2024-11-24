@@ -170,6 +170,8 @@ if (NOT NOPCH AND NOT CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
   target_precompile_headers(hibp_download REUSE_FROM hibp_search)
 endif()
 
+# testing
+
 option(HIBP_TEST "Enable HIBP tests" OFF)
 if(HIBP_TEST)
   enable_testing()
@@ -179,3 +181,13 @@ else(HIBP_TEST)
 endif(HIBP_TEST)
 
 install(TARGETS hibp_download hibp_sort hibp_search hibp_convert hibp_server hibp_topn RUNTIME)
+
+
+add_executable(mock_api_server test/mock_api_server.cpp)
+target_compile_options(mock_api_server PRIVATE ${PROJECT_COMPILE_OPTIONS})
+if (MINGW)
+  target_link_libraries(mock_api_server PRIVATE fmt::fmt restinio gdi32 wsock32 ws2_32)
+else()
+  target_link_libraries(mock_api_server PRIVATE fmt::fmt restinio ${CMAKE_THREAD_LIBS_INIT})
+endif()
+
