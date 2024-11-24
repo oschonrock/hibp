@@ -10,3 +10,6 @@
 [submodule "ext/fmt"]
 	path = ext/fmt
 	url = https://github.com/fmtlib/fmt.git
+[submodule "ext/shunit2"]
+	path = ext/shunit2
+	url = https://github.com/kward/shunit2
