@@ -129,7 +129,7 @@ void process_curl_done_msg(CURLMsg* message, enq_msg_t& msg) {
   dl->buffer.clear(); // throw away anything that was returned
   logger.log(fmt::format("prefix: {}, curl result: '{}', http resp code: {}, after {} retries",
                          dl->prefix, curl_easy_strerror(curl_code), response_code,
-                         download::max_retries));
+                         dl->retries_left));
 
   curl_multi_add_handle(curl_multi_handle, easy_handle); // try again with same handle
 }
