@@ -100,32 +100,37 @@ void fill_download_queue() {
 void process_curl_done_msg(CURLMsg* message, enq_msg_t& msg) {
   CURL* easy_handle = message->easy_handle;
 
-  const auto result = message->data.result;
+  const auto curl_code = message->data.result;
 
   download* dl = nullptr;
   curl_easy_getinfo(easy_handle, CURLINFO_PRIVATE, &dl);
   curl_multi_remove_handle(curl_multi_handle, easy_handle);
 
-  if (result == CURLE_OK) {
+  long response_code = 0;
+  curl_easy_getinfo(easy_handle, CURLINFO_RESPONSE_CODE, &response_code);
+  if (curl_code == CURLE_OK && response_code == 200) {
     curl_easy_cleanup(easy_handle);
     dl->easy = nullptr; // prevent further attempts at cleanup
     auto nh  = download_slots.extract(dl->index);
-    logger.log(fmt::format("download {} complete. batching up into message", dl->prefix));
+    logger.log(fmt::format("download {} complete. http resp code {}. batching up into message",
+                           dl->prefix, response_code));
     msg.emplace_back(std::move(nh.mapped())); // batch up to avoid mutex too many times
     return;
   }
 
   if (dl->retries_left == 0) {
     // hard fail, will eventually terminate whole program
-    throw std::runtime_error(fmt::format("prefix '{}': returned result '{}' after {} retries",
-                                         dl->prefix, curl_easy_strerror(result),
-                                         download::max_retries));
+    throw std::runtime_error(fmt::format(
+        "prefix: {}, curl result: '{}', http resp code: {}, after {} retries", dl->prefix,
+        curl_easy_strerror(curl_code), response_code, download::max_retries));
   }
 
   dl->retries_left--;
   dl->buffer.clear(); // throw away anything that was returned
-  logger.log(fmt::format("prefix '{}': returned result '{}'. {} retries left", dl->prefix,
-                         curl_easy_strerror(result), dl->retries_left));
+  logger.log(fmt::format("prefix: {}, curl result: '{}', http resp code: {}, after {} retries",
+                         dl->prefix, curl_easy_strerror(curl_code), response_code,
+                         download::max_retries));
+
   curl_multi_add_handle(curl_multi_handle, easy_handle); // try again with same handle
 }
 
