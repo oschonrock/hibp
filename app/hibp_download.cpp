@@ -43,6 +43,9 @@ void define_options(CLI::App& app, hibp::dnl::cli_config_t& cli) {
   app.add_option("--limit", cli.index_limit,
                  "The maximum number (prefix) files that will be downloaded (default: 100 000 hex "
                  "or 1 048 576 dec)");
+
+  app.add_flag("--testing", cli.testing,
+               "Download from a local test server instead of public api.");
 }
 
 namespace hibp::dnl {
@@ -82,9 +85,13 @@ int main(int argc, char* argv[]) {
 
     if (cli.resume) {
       if (cli.ntlm) {
-        start_index = hibp::dnl::get_last_prefix<hibp::pawned_pw_ntlm>(cli.output_db_filename) + 1;
+        start_index =
+            hibp::dnl::get_last_prefix<hibp::pawned_pw_ntlm>(cli.output_db_filename, cli.testing) +
+            1;
       } else {
-        start_index = hibp::dnl::get_last_prefix<hibp::pawned_pw_sha1>(cli.output_db_filename) + 1;
+        start_index =
+            hibp::dnl::get_last_prefix<hibp::pawned_pw_sha1>(cli.output_db_filename, cli.testing) +
+            1;
       }
 
       if (cli.index_limit <= start_index) {
@@ -104,16 +111,16 @@ int main(int argc, char* argv[]) {
     }
     if (cli.txt_out) {
       auto tw = hibp::dnl::text_writer(output_db_stream);
-      hibp::dnl::run([&](const std::string& line) { tw.write(line); }, start_index);
+      hibp::dnl::run([&](const std::string& line) { tw.write(line); }, start_index, cli.testing);
 
     } else {
       // use a largegish output buffer ~240kB for efficient writes
       if (cli.ntlm) {
         auto ffsw = flat_file::stream_writer<hibp::pawned_pw_ntlm>(output_db_stream, 10'000);
-        hibp::dnl::run([&](const std::string& line) { ffsw.write(line); }, start_index);
+        hibp::dnl::run([&](const std::string& line) { ffsw.write(line); }, start_index, cli.testing);
       } else {
         auto ffsw = flat_file::stream_writer<hibp::pawned_pw_sha1>(output_db_stream, 10'000);
-        hibp::dnl::run([&](const std::string& line) { ffsw.write(line); }, start_index);
+        hibp::dnl::run([&](const std::string& line) { ffsw.write(line); }, start_index, cli.testing);
       }
     }
 

@@ -108,8 +108,9 @@ inline bool is_valid_hash(const std::string& hash) {
 }
 
 template <pw_type PwType>
-inline std::string url(const std::string& prefix_str) {
-  std::string url = fmt::format("https://api.pwnedpasswords.com/range/{}", prefix_str);
+inline std::string url(const std::string& prefix_str, bool testing) {
+  std::string server_path = testing ? "http://localhost:8090" : "api.pwnedpasswords.com/range";
+  std::string url         = fmt::format("{}/{}", server_path, prefix_str);
   if constexpr (std::is_same_v<PwType, pawned_pw_ntlm>) {
     url += "?mode=ntlm";
   }
@@ -117,15 +118,15 @@ inline std::string url(const std::string& prefix_str) {
 }
 
 template <pw_type PwType>
-inline std::string url(unsigned prefix) {
-  return url<PwType>(fmt::format("{:05X}", prefix));
+inline std::string url(unsigned prefix, bool testing) {
+  return url<PwType>(fmt::format("{:05X}", prefix), testing);
 }
 
 // runtime url selector
-inline std::string url(const std::string& prefix_str, bool ntlm) {
+inline std::string url(const std::string& prefix_str, bool ntlm, bool testing) {
   if (ntlm) {
-    return url<pawned_pw_ntlm>(prefix_str);
+    return url<pawned_pw_ntlm>(prefix_str, testing);
   }
-  return url<pawned_pw_sha1>(prefix_str);
+  return url<pawned_pw_sha1>(prefix_str, testing);
 }
 } // namespace hibp

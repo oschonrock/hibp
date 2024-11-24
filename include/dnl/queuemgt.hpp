@@ -23,6 +23,6 @@ private:
 // prefer use of std::function (ie stdlib type erasure) rather than templates to keep .hpp interface
 // clean
 using write_fn_t = std::function<void(const std::string&)>;
-void run(write_fn_t write_fn, std::size_t start_index_);
+void run(write_fn_t write_fn, std::size_t start_index_, bool testing);
 
 } // namespace hibp::dnl
