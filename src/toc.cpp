@@ -39,7 +39,7 @@ void build(const std::string& db_filename, unsigned bits) {
 
   auto last_pw_prefix = pw_to_prefix(db.back(), bits);
   if (last_pw_prefix + 1 < toc_entries) {
-    std::cerr << fmt::format("Warning: DB is partial, reduced size toc.\n");
+    std::cout << fmt::format("Warning: DB is partial, reduced size toc.\n");
     toc_entries = last_pw_prefix + 1;
   }
 
@@ -48,12 +48,12 @@ void build(const std::string& db_filename, unsigned bits) {
     throw std::runtime_error(fmt::format("Fatal: toc value type is too small for this db"));
   }
   const std::size_t toc_entry_size = db_size / toc_entries;
-  std::cerr << fmt::format("{:25s} {:15d} records\n", "db_size", db_size);
-  std::cerr << fmt::format("{:25s} {:15d}\n", "number bits in mask", bits);
-  std::cerr << fmt::format("{:25s} {:15d}\n", "number of toc entries", toc_entries);
-  std::cerr << fmt::format("{:25s} {:15d} records in db on average\n", "each toc_entry covers",
+  std::cout << fmt::format("{:25s} {:15d} records\n", "db_size", db_size);
+  std::cout << fmt::format("{:25s} {:15d}\n", "number bits in mask", bits);
+  std::cout << fmt::format("{:25s} {:15d}\n", "number of toc entries", toc_entries);
+  std::cout << fmt::format("{:25s} {:15d} records in db on average\n", "each toc_entry covers",
                            toc_entry_size);
-  std::cerr << fmt::format("building table of contents MK2..\n");
+  std::cout << fmt::format("building table of contents MK2..\n");
   toc<PwType>.reserve(toc_entries);
 
   unsigned last_pos = 0;
@@ -73,7 +73,7 @@ void build(const std::string& db_filename, unsigned bits) {
 
 template <pw_type PwType>
 void save(const std::string& toc_filename) {
-  std::cerr << fmt::format("saving table of contents: {}\n", toc_filename);
+  std::cout << fmt::format("saving table of contents: {}\n", toc_filename);
   auto toc_stream = std::ofstream(toc_filename, std::ios_base::binary);
   toc_stream.write(reinterpret_cast<char*>(toc<PwType>.data()), // NOLINT reincast
                    static_cast<std::streamsize>(sizeof(toc_entry) * toc<PwType>.size()));
@@ -81,7 +81,7 @@ void save(const std::string& toc_filename) {
 
 template <pw_type PwType>
 void load(const std::string& toc_filename) {
-  std::cerr << fmt::format("loading table of contents: {}\n", toc_filename);
+  std::cout << fmt::format("loading table of contents: {}\n", toc_filename);
   const auto toc_file_size = std::filesystem::file_size(toc_filename);
   auto       toc_stream    = std::ifstream(toc_filename, std::ios_base::binary);
   toc<PwType>              = std::vector<toc_entry>(toc_file_size / sizeof(toc_entry));
