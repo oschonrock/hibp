@@ -111,24 +111,28 @@ add_library(ntlm src/ntlm.cpp src/md4.c)
 target_compile_features(ntlm PRIVATE cxx_std_20)
 target_include_directories(ntlm PRIVATE include)
 
-add_executable(hibp_search app/hibp_search.cpp src/toc.cpp)
+add_executable(hibp_search app/hibp_search.cpp)
 set_target_properties(hibp_search PROPERTIES OUTPUT_NAME hibp-search)
 target_compile_features(hibp_search PRIVATE cxx_std_20)
 target_compile_options(hibp_search PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_search PRIVATE CLI11 sha1 ntlm hibp flat_file fmt::fmt)
+target_link_libraries(hibp_search PRIVATE CLI11 sha1 ntlm hibp toc flat_file fmt::fmt)
 
 find_package(Threads)
 
+add_library(toc src/toc.cpp)
+target_compile_features(toc PRIVATE cxx_std_20)
+target_include_directories(toc PRIVATE include)
+target_link_libraries(toc PRIVATE hibp flat_file fmt::fmt)
+
 add_executable(hibp_server app/hibp_server.cpp
   src/srv/server.cpp
-  src/toc.cpp
   src/toc.cpp)
 set_target_properties(hibp_server PROPERTIES OUTPUT_NAME hibp-server)
 target_compile_options(hibp_server PRIVATE ${PROJECT_COMPILE_OPTIONS})
 if (MINGW)
-  target_link_libraries(hibp_server PRIVATE CLI11 sha1 ntlm hibp flat_file fmt::fmt restinio gdi32 wsock32 ws2_32)
+  target_link_libraries(hibp_server PRIVATE CLI11 sha1 ntlm hibp toc flat_file fmt::fmt restinio gdi32 wsock32 ws2_32)
 else()
-  target_link_libraries(hibp_server PRIVATE CLI11 sha1 ntlm hibp flat_file fmt::fmt restinio ${CMAKE_THREAD_LIBS_INIT})
+  target_link_libraries(hibp_server PRIVATE CLI11 sha1 ntlm hibp toc flat_file fmt::fmt restinio ${CMAKE_THREAD_LIBS_INIT})
 endif()
 
 add_executable(hibp_sort app/hibp_sort.cpp)
