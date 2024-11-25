@@ -97,7 +97,8 @@ void build_topn(const cli_config_t& cli) {
   // thread safe)
   std::partial_sort_copy(input_db.begin(), input_db.end(), memdb.begin(), memdb.end(),
                          [](auto& a, auto& b) {
-                           if (a.count == b.count) return a > b; // fall back to hash for stability
+                           if (a.count == b.count)
+                             return a < b; // fall back to hash asc for stability
                            return a.count > b.count;
                          });
 
