@@ -142,7 +142,7 @@ testSearchPlainSha1Toc() {
     bits=16
     count=$($builddir/hibp-search --toc --toc-bits=$bits $tmpdir/hibp_topn.sha1.bin "${plain}" | grep '^found' | cut -d: -f2)
     assertEquals "count for plain pw '${plain}' of '${count}' was wrong" "${correct_count}" "${count}"
-    toc_size=$(ls -l $tmpdir/hibp_topn.sha1.bin.$bits.toc | cut -d' ' -f5)
+    toc_size=$(echo $(wc -c $tmpdir/hibp_topn.sha1.bin.$bits.toc) | cut -d' ' -f1)
     correct_toc_size=64
     assertEquals "toc size of ${toc_size} wrong" "${correct_toc_size}" "${toc_size}"
 }
@@ -152,7 +152,7 @@ testSearchPlainNtlmToc() {
     correct_count="913"
     count=$($builddir/hibp-search --toc --toc-bits=$bits --ntlm $tmpdir/hibp_topn.ntlm.bin "${plain}" | grep '^found' | cut -d: -f2)
     assertEquals "count for plain pw '${plain}' of '${count}' was wrong" "${correct_count}" "${count}"
-    toc_size=$(ls -l $tmpdir/hibp_topn.sha1.bin.$bits.toc | cut -d' ' -f5)
+    toc_size=$(echo $(wc -c $tmpdir/hibp_topn.ntlm.bin.$bits.toc) | cut -d' ' -f1)
     correct_toc_size=64
     assertEquals "toc size of ${toc_size} wrong" "${correct_toc_size}" "${toc_size}"
 }
