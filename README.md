@@ -133,7 +133,7 @@ using `libcurl` with `curl_multi` and 300 parallel requests
 (adjustable) on a single thread.  A second thread does the
 conversion to binary format and writing to disk.
 
-*Warning* this will (currently) take just under 12mins on a 400Mbit/s
+*Warning* this will (currently) take just around 6mins on a 1Gb/s
 connection and consume ~21GB of disk space during this time:
 - your network connection will be saturated with HTTP2 multiplexed requests
 - `top` in threads mode (key `H`) should show 2 `hibp-download` threads.
@@ -146,7 +146,7 @@ connection and consume ~21GB of disk space during this time:
 ```
 
 If any transfer fails, even after 5 retries, the programme will
-abort. In this case, you can try rerunnung with `--resume`.
+abort. In this case, you can try rerunning with `--resume`.
 
 For all options run `hibp-download --help`.
 
@@ -302,13 +302,13 @@ is enough for you.
 
 ## Other utilities
 
-`./build/gcc/release/hibp-topn`    : reduce a db to the N most common passwords (saves diskspace)
+`hibp-topn`    : reduce a db to the N most common passwords (saves diskspace)
 
-`./build/gcc/release/hibp-convert` : convert a text file into a binary file or vice-a-versa
+`hibp-convert` : convert a text file into a binary file or vice-a-versa
 
-`./build/gcc/release/hibp-sort`    : sort a binary file using external disk space (takes 3x space on disk)!
+`hibp-sort`    : sort a binary file using external disk space (takes 3x space on disk)!
 
-In each case, for all options run `program_name --help`.
+In each case, for all options run `program-name --help`.
 
 ## Under the hood
 
