@@ -39,6 +39,6 @@ add_custom_command(
   COMMENT "Run System Tests"
   POST_BUILD 
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-  COMMAND ./system_tests.sh ${CMAKE_CURRENT_BINARY_DIR}/..
+  COMMAND bash ./system_tests.sh ${CMAKE_CURRENT_BINARY_DIR}/..
 )
   
