@@ -8,7 +8,7 @@ one in future):
 
 ```bash
 pacman -S pactoys git unzip
-pacboy -S gcc ccache cmake ccmake ruby tbb curl libevent
+pacboy -S gcc ccache cmake ccmake ruby tbb curl libevent diffutils
 
 git clone https://github.com/oschonrock/hibp.git
 cd hibp
