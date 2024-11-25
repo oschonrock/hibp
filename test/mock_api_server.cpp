@@ -8,8 +8,6 @@
 
 namespace fs = std::filesystem;
 
-bool file_exists(const std::string& path) { return fs::exists(path) && fs::is_regular_file(path); }
-
 auto get_router(const fs::path& static_dir) {
   auto router = std::make_unique<restinio::router::express_router_t<>>();
 
@@ -24,7 +22,7 @@ auto get_router(const fs::path& static_dir) {
       file_path = static_dir / "sha1" / requested_path;
     }
 
-    if (file_exists(file_path)) {
+    if (fs::exists(file_path) && fs::is_regular_file(file_path)) {
       return req->create_response()
           .append_header(restinio::http_field::content_type, "text/plain; charset=utf-8")
           .set_body(restinio::sendfile(file_path))
