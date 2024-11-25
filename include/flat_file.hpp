@@ -7,8 +7,9 @@
 #if HIBP_USE_PSTL && __cpp_lib_parallel_algorithm
 #include <execution>
 #endif
-#include "fmt/format.h"
 #include <filesystem>
+#include <fmt/format.h>
+#include <fmt/std.h>
 #include <fstream>
 #include <functional>
 #include <ios>
@@ -90,7 +91,7 @@ class database {
   static_assert(std::is_standard_layout_v<ValueType>);
 
 public:
-  explicit database(std::string filename, std::size_t buf_size = 1)
+  explicit database(std::filesystem::path filename, std::size_t buf_size = 1)
       : filename_(std::move(filename)), dbfsize_(std::filesystem::file_size(filename_)),
         db_(filename_, std::ios::binary), buf_(buf_size) {
 
@@ -102,8 +103,8 @@ public:
     dbsize_ = dbfsize_ / sizeof(ValueType);
 
     if (!db_.is_open())
-      throw std::ios::failure("cannot open db: " + filename_ + ". because '" +
-                              std::strerror(errno) + "'"); // NOLINT errno
+      throw std::ios::failure(fmt::format("cannot open db: {}, because '{}'", filename_,
+                                          std::strerror(errno))); // NOLINT errno
 
     db_.exceptions(std::ios::badbit | std::ios::failbit); // throw on any future errors
   }
@@ -131,16 +132,16 @@ public:
 
   const ValueType& back() { return *std::prev(end()); }
 
-  std::string filename() const { return filename_; }
-  std::size_t filesize() const { return dbfsize_; }
-  std::size_t number_records() const { return dbsize_; }
+  std::filesystem::path filename() const { return filename_; }
+  std::size_t           filesize() const { return dbfsize_; }
+  std::size_t           number_records() const { return dbsize_; }
 
   template <typename Comp = std::less<>, typename Proj = std::identity>
   std::string disksort(Comp comp = {}, Proj proj = {},
                        std::size_t max_memory_usage = 1'000'000'000);
 
 private:
-  std::string            filename_;
+  std::filesystem::path  filename_;
   std::size_t            dbfsize_;
   std::size_t            dbsize_;
   std::ifstream          db_;
@@ -181,8 +182,8 @@ struct database<ValueType>::const_iterator {
   }
   // clang-format on
 
-  std::size_t pos() { return pos_; }
-  std::string filename() { return ffdb_->filename(); }
+  std::size_t           pos() { return pos_; }
+  std::filesystem::path filename() { return ffdb_->filename(); }
 
 private:
   database*   ffdb_ = nullptr;
@@ -224,7 +225,7 @@ std::vector<std::string> sort_into_chunks(typename database<ValueType>::const_it
   std::vector<std::string> chunk_filenames;
   chunk_filenames.reserve(number_of_chunks);
   for (std::size_t chunk = 0; chunk != number_of_chunks; ++chunk) {
-    std::string chunk_filename = first.filename() + fmt::format(".partial.{:04d}", chunk);
+    std::string chunk_filename = fmt::format("{}.partial.{:04d}", first.filename(), chunk);
     chunk_filenames.push_back(chunk_filename);
 
     std::size_t start = chunk * chunk_size;
@@ -309,7 +310,7 @@ std::string disksort_range(typename database<ValueType>::const_iterator first,
   std::vector<std::string> chunk_filenames =
       sort_into_chunks<ValueType>(first, last, comp, proj, max_memory_usage);
 
-  std::string sorted_filename = first.filename() + ".sorted";
+  std::string sorted_filename = fmt::format("{}.sorted", first.filename());
 
   if (chunk_filenames.size() == 1) {
     std::filesystem::rename(chunk_filenames[0], sorted_filename);
