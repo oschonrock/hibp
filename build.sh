@@ -11,7 +11,8 @@ TEST=
 BENCH=
 PURGE=
 CLEAN_FIRST=
-NOPCH="-DNOPCH=OFF" # override cmake cache
+NOPCH="-DNOPCH=OFF"      # override cmake cache
+TESTS=
 GENERATEONLY=
 VERBOSE=
 TARGETS=
@@ -32,6 +33,8 @@ USAGE=$(cat <<-END
 	 -p | --purge 		  completely wipe the selected build directory (deletes cmake config, implies --clean-first)
 	 --install                install after building
 	 --install-prefix         the prefix for install, defaults to /usr/local
+	 --run-tests              run all tests immediately after build  (is "sticky" in cmake cache)
+	 --skip-tests             skip running tests  (is "sticky" in cmake cache)
 	 -v | --verbose 	  get verbose compiler command lines
 	 -h | --help              show this info
 
@@ -44,7 +47,7 @@ then
     GETOPT='/usr/local/bin/getopt'
 fi
 
-options=$($GETOPT --options hvc:b:t:pg --long help,verbose,compiler:,buildtype:,targets:,purge,generate-only,install,install-prefix:,clean-first,nopch -- "$@")
+options=$($GETOPT --options hvc:b:t:pg --long help,verbose,compiler:,buildtype:,targets:,purge,generate-only,run-tests,skip-tests,install,install-prefix:,clean-first,nopch -- "$@")
 
 eval set -- "$options"
 while true; do
@@ -94,6 +97,12 @@ while true; do
 	--nopch)
 	    NOPCH="-DNOPCH=ON"
 	    ;;
+	--run-tests)
+	    TESTS="-DHIBP_TEST=ON"
+	    ;;
+	--skip-tests)
+	    TESTS="-DHIBP_TEST=OFF"
+	    ;;
 	--)
 	    shift
 	    break
@@ -123,7 +132,7 @@ else
     CACHE=""
 fi
 
-BUILD_OPTIONS="-DCMAKE_C_COMPILER=$C_COMPILER -DCMAKE_CXX_COMPILER=$CXX_COMPILER -DCMAKE_BUILD_TYPE=$BUILDTYPE $INSTALL_PREFIX"
+BUILD_OPTIONS="-DCMAKE_C_COMPILER=$C_COMPILER -DCMAKE_CXX_COMPILER=$CXX_COMPILER -DCMAKE_BUILD_TYPE=$BUILDTYPE $TESTS $INSTALL_PREFIX"
 
 if command -v mold > /dev/null 2>&1
 then
