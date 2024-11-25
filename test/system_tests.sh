@@ -139,39 +139,55 @@ testSearchHashNtlm() {
 testSearchPlainSha1Toc() {
     plain="truelove15"
     correct_count="1002"
-    bits=16
-    count=$($builddir/hibp-search --toc --toc-bits=$bits $tmpdir/hibp_topn.sha1.bin "${plain}" | grep '^found' | cut -d: -f2)
+    bits=18
+    count=$($builddir/hibp-search --toc --toc-bits=$bits $tmpdir/hibp_test.sha1.bin "${plain}" | grep '^found' | cut -d: -f2)
     assertEquals "count for plain pw '${plain}' of '${count}' was wrong" "${correct_count}" "${count}"
-    toc_size=$(echo $(wc -c $tmpdir/hibp_topn.sha1.bin.$bits.toc) | cut -d' ' -f1)
-    correct_toc_size=64
+    toc_size=$(echo $(wc -c $tmpdir/hibp_test.sha1.bin.$bits.toc) | cut -d' ' -f1)
+    correct_toc_size=256
     assertEquals "toc size of ${toc_size} wrong" "${correct_toc_size}" "${toc_size}"
 }
 
 testSearchPlainNtlmToc() {
     plain="19696969"
     correct_count="913"
-    count=$($builddir/hibp-search --toc --toc-bits=$bits --ntlm $tmpdir/hibp_topn.ntlm.bin "${plain}" | grep '^found' | cut -d: -f2)
+    bits=18
+    count=$($builddir/hibp-search --toc --toc-bits=$bits --ntlm $tmpdir/hibp_test.ntlm.bin "${plain}" | grep '^found' | cut -d: -f2)
     assertEquals "count for plain pw '${plain}' of '${count}' was wrong" "${correct_count}" "${count}"
-    toc_size=$(echo $(wc -c $tmpdir/hibp_topn.ntlm.bin.$bits.toc) | cut -d' ' -f1)
-    correct_toc_size=64
+    toc_size=$(echo $(wc -c $tmpdir/hibp_test.ntlm.bin.$bits.toc) | cut -d' ' -f1)
+    correct_toc_size=256
     assertEquals "toc size of ${toc_size} wrong" "${correct_toc_size}" "${toc_size}"
 }
 
 testSearchHashSha1Toc() {
     hash="00001131628B741FF755AAC0E7C66D26A7C72082"
     correct_count="1002"
-    bits=16
-    count=$($builddir/hibp-search --toc --toc-bits=$bits --hash $tmpdir/hibp_topn.sha1.bin "${hash}" | grep '^found' | cut -d: -f2)
+    bits=18
+    count=$($builddir/hibp-search --toc --toc-bits=$bits --hash $tmpdir/hibp_test.sha1.bin "${hash}" | grep '^found' | cut -d: -f2)
     assertEquals "count for plain pw '${plain}' of '${count}' was wrong" "${correct_count}" "${count}"
 }
 
 testSearchHashNtlmToc() {
     hash="0001256EA8F568DBEACE2E172FD939F7"
     correct_count="913"
-    bits=16
-    count=$($builddir/hibp-search --toc --toc-bits=$bits --ntlm --hash $tmpdir/hibp_topn.ntlm.bin "${hash}" | grep '^found' | cut -d: -f2)
+    bits=18
+    count=$($builddir/hibp-search --toc --toc-bits=$bits --ntlm --hash $tmpdir/hibp_test.ntlm.bin "${hash}" | grep '^found' | cut -d: -f2)
     assertEquals "count for plain pw '${plain}' of '${count}' was wrong" "${correct_count}" "${count}"
 }
+
+# ensure toc accuracy
+testTocCmpSha1() {
+    cmp $datadir/hibp_test.sha1.bin.18.toc $tmpdir/hibp_test.sha1.bin.18.toc >${stdoutF} 2>${stderrF}
+    rtrn=$?
+    th_assertTrueWithNoOutput ${rtrn} "${stdoutF}" "${stderrF}"
+}
+
+testTocCmpNtlm() {
+    cmp $datadir/hibp_test.ntlm.bin.18.toc $tmpdir/hibp_test.ntlm.bin.18.toc >${stdoutF} 2>${stderrF}
+    rtrn=$?
+    th_assertTrueWithNoOutput ${rtrn} "${stdoutF}" "${stderrF}"
+}
+
+
 
 
 . $projdir/ext/shunit2/shunit2
