@@ -96,7 +96,10 @@ void build_topn(const cli_config_t& cli) {
   // TopN sort descending by count (par_unseq makes no sense, as disk bound and flat_file not
   // thread safe)
   std::partial_sort_copy(input_db.begin(), input_db.end(), memdb.begin(), memdb.end(),
-                         [](auto& a, auto& b) { return a.count > b.count; });
+                         [](auto& a, auto& b) {
+                           if (a.count == b.count) return a > b; // fall back to hash for stability
+                           return a.count > b.count;
+                         });
 
   std::cout << fmt::format("{:>8.3}\n", duration_cast<fsecs>(clk::now() - start));
 
