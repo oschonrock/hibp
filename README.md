@@ -27,8 +27,8 @@ On a full 1Gbit/s connection this take *around 6 minutes*, as shown here under W
 
 [Download latest .deb and install](https://github.com/oschonrock/hibp/releases/latest)
 ```bash
-wget -q https://github.com/oschonrock/hibp/releases/download/v0.4.0/hibp_0.4.0-1_amd64.deb
-sudo apt install ./hibp_0.4.0-1_amd64.deb  # will install minimal dependencies (eg `libevent`)
+wget -q https://github.com/oschonrock/hibp/releases/download/v0.4.1/hibp_0.4.1-1_amd64.deb
+sudo apt install ./hibp_0.4.1-1_amd64.deb  # will install minimal dependencies (eg `libevent`)
 ```
 
 #### Usage
