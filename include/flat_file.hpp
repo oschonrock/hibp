@@ -161,7 +161,7 @@ struct database<ValueType>::const_iterator {
 
   // clang-format off
   reference operator*() const { return current(); }
-  pointer   operator->() const { current(); return &cur_; }
+  pointer   operator->() const { current(); return cur_; }
 
   bool operator==(const const_iterator& other) const { return ffdb_ == other.ffdb_ && pos_ == other.pos_; }
   
