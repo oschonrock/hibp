@@ -111,6 +111,12 @@ add_library(ntlm src/ntlm.cpp src/md4.c)
 target_compile_features(ntlm PRIVATE cxx_std_20)
 target_include_directories(ntlm PRIVATE include)
 
+add_library(toc src/toc.cpp)
+target_compile_features(toc PRIVATE cxx_std_20)
+target_include_directories(toc PRIVATE include)
+target_compile_options(toc PRIVATE -Wno-ignored-attributes) # non-sensical warning from gcc?
+target_link_libraries(toc PRIVATE hibp flat_file fmt::fmt)
+
 add_executable(hibp_search app/hibp_search.cpp)
 set_target_properties(hibp_search PROPERTIES OUTPUT_NAME hibp-search)
 target_compile_features(hibp_search PRIVATE cxx_std_20)
@@ -119,14 +125,7 @@ target_link_libraries(hibp_search PRIVATE CLI11 sha1 ntlm hibp toc flat_file fmt
 
 find_package(Threads)
 
-add_library(toc src/toc.cpp)
-target_compile_features(toc PRIVATE cxx_std_20)
-target_include_directories(toc PRIVATE include)
-target_link_libraries(toc PRIVATE hibp flat_file fmt::fmt)
-
-add_executable(hibp_server app/hibp_server.cpp
-  src/srv/server.cpp
-  src/toc.cpp)
+add_executable(hibp_server app/hibp_server.cpp src/srv/server.cpp)
 set_target_properties(hibp_server PROPERTIES OUTPUT_NAME hibp-server)
 target_compile_options(hibp_server PRIVATE ${PROJECT_COMPILE_OPTIONS})
 if (MINGW)
@@ -178,6 +177,17 @@ endif()
 
 option(HIBP_TEST "Enable HIBP tests" OFF)
 if(HIBP_TEST)
+  
+  add_executable(mock_api_server test/mock_api_server.cpp)
+  target_compile_options(mock_api_server PRIVATE ${PROJECT_COMPILE_OPTIONS})
+  if (MINGW)
+    target_link_libraries(mock_api_server PRIVATE fmt::fmt restinio gdi32 wsock32 ws2_32)
+  else()
+    target_link_libraries(mock_api_server PRIVATE fmt::fmt restinio ${CMAKE_THREAD_LIBS_INIT})
+  endif()
+
+  get_property(all_targets DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY BUILDSYSTEM_TARGETS)
+  
   enable_testing()
   add_subdirectory(test)
 else(HIBP_TEST)
@@ -186,12 +196,4 @@ endif(HIBP_TEST)
 
 install(TARGETS hibp_download hibp_sort hibp_search hibp_convert hibp_server hibp_topn RUNTIME)
 
-
-add_executable(mock_api_server test/mock_api_server.cpp)
-target_compile_options(mock_api_server PRIVATE ${PROJECT_COMPILE_OPTIONS})
-if (MINGW)
-  target_link_libraries(mock_api_server PRIVATE fmt::fmt restinio gdi32 wsock32 ws2_32)
-else()
-  target_link_libraries(mock_api_server PRIVATE fmt::fmt restinio ${CMAKE_THREAD_LIBS_INIT})
-endif()
 

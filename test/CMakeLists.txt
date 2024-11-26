@@ -16,15 +16,14 @@ function (add_unit_test UNIT_TEST)
     add_executable(${UNIT_TEST} ${UNIT_TEST}.cpp)
     target_compile_options(${UNIT_TEST} PRIVATE ${PROJECT_COMPILE_OPTIONS})
     target_compile_features(${UNIT_TEST} PRIVATE cxx_std_20)
-    target_link_libraries(${UNIT_TEST} PRIVATE gtest_main hibp flat_file toc)
+    target_link_libraries(${UNIT_TEST} PRIVATE gtest_main ${ARGN})
     gtest_discover_tests(${UNIT_TEST})
 endfunction()
 
-# very slow to compile in release mode
 add_unit_test(test_arrcmp)
-add_unit_test(test_search)
+add_unit_test(test_search hibp flat_file toc)
 
-add_custom_target(all_tests ALL DEPENDS ${UNIT_TESTS})
+add_custom_target(all_tests ALL DEPENDS ${all_targets} ${UNIT_TESTS})
 
 add_custom_command(
   TARGET all_tests

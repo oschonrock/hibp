@@ -11,6 +11,10 @@ builddir="$(realpath $1)"
 shift
 
 oneTimeSetUp() {
+    echo 
+    echo "Running system tests..."
+    echo 
+
     export tmpdir=$projdir/test/tmp
     export datadir=$projdir/test/data
     mkdir -p $tmpdir
