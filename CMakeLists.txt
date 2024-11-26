@@ -107,6 +107,7 @@ endif()
 
 add_library(ntlm src/ntlm.cpp src/md4.c)
 target_compile_features(ntlm PRIVATE cxx_std_20)
+target_compile_options(ntlm PRIVATE -Wno-deprecated-declarations) # warnings about <codecvt> on libc++
 target_include_directories(ntlm PRIVATE include)
 
 add_library(toc src/toc.cpp)
