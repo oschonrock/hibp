@@ -30,17 +30,16 @@ add_custom_target(all_tests ALL DEPENDS ${all_targets} ${UNIT_TESTS})
 
 add_custom_command(
   TARGET all_tests
-  COMMENT "Run Unit & Integation Tests"
   POST_BUILD 
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIGURATION> --output-on-failure # --verbose
-  )
+  USES_TERMINAL       
+)
 
 add_custom_command(
   TARGET all_tests
-  COMMENT "Run System Tests"
   POST_BUILD 
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   COMMAND bash ./system_tests.sh ${CMAKE_CURRENT_BINARY_DIR}/..
+  USES_TERMINAL       
 )
-  

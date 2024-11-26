@@ -29,21 +29,19 @@ else() # unix'ish
 endif()
 
 # LTO -- quite slow, enable if you think you benefit
-# set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
-# set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+option(HIBP_LTO "Enable link time optimisation" OFF)
+if(HIBP_LTO)
+  set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
+  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+endif()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
   # add the `local` paths common on FreeBSD
   include_directories(/usr/local/include)
   link_directories(/usr/local/lib)
-  message(WARNING "FreeBSD detected: skipping 'pre-compiled headers' compiling will be a bit slower.")
-  # ensure to link against the correct libstdc++
-  if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set(CMAKE_BUILD_RPATH /usr/local/lib/gcc13)
-  endif()
 endif()
 
-# consitently we go for static
+# consitently we go for static to reduce dependencies when distributing binaries
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW) # for restioni which has an option()
 set(BUILD_STATIC_LIBS ON)
 set(BUILD_SHARED_LIBS OFF)
@@ -93,11 +91,11 @@ set(RESTINIO_EXPLICIT_CPPSTD 20)
 set(RESTINIO_ASIO_SOURCE standalone)
 set(asio_INCLUDE_DIRS ../asio/include) # relative to ext/restinio/dev/restinio
 add_subdirectory(ext/restinio/dev/nodejs/llhttp EXCLUDE_FROM_ALL)
-# using our own direct submodule, restinio will use that also
+# using our own fmtlib which restinio will reuse
 # add_subdirectory(ext/restinio/dev/fmt)
 add_subdirectory(ext/restinio/dev/expected-lite EXCLUDE_FROM_ALL)
 add_subdirectory(ext/restinio/dev/restinio)
-# be more forgiving with errors
+# be more forgiving with errors for restinion
 if (NOT MSVC)
   if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_compile_options(restinio INTERFACE -Wno-shadow -Wno-sign-conversion -Wno-shorten-64-to-32 -Wno-extra-semi -Wno-conversion -Wno-dangling-reference)
@@ -163,9 +161,9 @@ target_link_libraries(hibp_download PRIVATE CLI11 curl event hibp flat_file fmt:
 option(NOPCH "Disable the use of precompiled headers" OFF)
 
 if (NOT NOPCH AND NOT CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
-  target_precompile_headers(CLI11 INTERFACE [["CLI/CLI.hpp"]]) # INTERFACE, because perpetuate to clients of this lib
-  target_precompile_headers(flat_file INTERFACE [["flat_file.hpp"]]) # INTERFACE, because perpetuate to clients of this lib
-  target_precompile_headers(restinio INTERFACE [["restinio/core.hpp"]]) # INTERFACE, because perpetuate to clients of this lib
+  target_precompile_headers(CLI11 INTERFACE [["CLI/CLI.hpp"]])
+  target_precompile_headers(flat_file INTERFACE [["flat_file.hpp"]])
+  target_precompile_headers(restinio INTERFACE [["restinio/core.hpp"]])
 
   target_precompile_headers(hibp_sort REUSE_FROM hibp_search)
   target_precompile_headers(hibp_convert REUSE_FROM hibp_search)
