@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fmt/format.h>
+#include <fmt/std.h>
 #include <fstream>
 #include <iostream>
 #include <limits>
@@ -31,15 +32,15 @@ unsigned pw_to_prefix(const PwType& pw, unsigned bits) {
 }
 
 template <pw_type PwType>
-void build(const std::string& db_filename, unsigned bits) {
+void build(const std::filesystem::path& db_path, unsigned bits) {
   // big buffer for sequential read
-  flat_file::database<PwType> db(db_filename, (1U << 16U) / sizeof(PwType));
+  flat_file::database<PwType> db(db_path, (1U << 16U) / sizeof(PwType));
 
   std::size_t toc_entries = 1UL << bits; // default = 1Mega entries (just like the files)
 
   auto last_pw_prefix = pw_to_prefix(db.back(), bits);
   if (last_pw_prefix + 1 < toc_entries) {
-    std::cerr << fmt::format("Warning: DB is partial, reduced size toc.\n");
+    std::cout << fmt::format("Warning: DB is partial, reduced size toc.\n");
     toc_entries = last_pw_prefix + 1;
   }
 
@@ -48,12 +49,12 @@ void build(const std::string& db_filename, unsigned bits) {
     throw std::runtime_error(fmt::format("Fatal: toc value type is too small for this db"));
   }
   const std::size_t toc_entry_size = db_size / toc_entries;
-  std::cerr << fmt::format("{:25s} {:15d} records\n", "db_size", db_size);
-  std::cerr << fmt::format("{:25s} {:15d}\n", "number bits in mask", bits);
-  std::cerr << fmt::format("{:25s} {:15d}\n", "number of toc entries", toc_entries);
-  std::cerr << fmt::format("{:25s} {:15d} records in db on average\n", "each toc_entry covers",
+  std::cout << fmt::format("{:25s} {:15d} records\n", "db_size", db_size);
+  std::cout << fmt::format("{:25s} {:15d}\n", "number bits in mask", bits);
+  std::cout << fmt::format("{:25s} {:15d}\n", "number of toc entries", toc_entries);
+  std::cout << fmt::format("{:25s} {:15d} records in db on average\n", "each toc_entry covers",
                            toc_entry_size);
-  std::cerr << fmt::format("building table of contents MK2..\n");
+  std::cout << fmt::format("building table of contents MK2..\n");
   toc<PwType>.reserve(toc_entries);
 
   unsigned last_pos = 0;
@@ -72,16 +73,16 @@ void build(const std::string& db_filename, unsigned bits) {
 }
 
 template <pw_type PwType>
-void save(const std::string& toc_filename) {
-  std::cerr << fmt::format("saving table of contents: {}\n", toc_filename);
+void save(const std::filesystem::path& toc_filename) {
+  std::cout << fmt::format("saving table of contents: {}\n", toc_filename);
   auto toc_stream = std::ofstream(toc_filename, std::ios_base::binary);
   toc_stream.write(reinterpret_cast<char*>(toc<PwType>.data()), // NOLINT reincast
                    static_cast<std::streamsize>(sizeof(toc_entry) * toc<PwType>.size()));
 }
 
 template <pw_type PwType>
-void load(const std::string& toc_filename) {
-  std::cerr << fmt::format("loading table of contents: {}\n", toc_filename);
+void load(const std::filesystem::path& toc_filename) {
+  std::cout << fmt::format("loading table of contents: {}\n", toc_filename);
   const auto toc_file_size = std::filesystem::file_size(toc_filename);
   auto       toc_stream    = std::ifstream(toc_filename, std::ios_base::binary);
   toc<PwType>              = std::vector<toc_entry>(toc_file_size / sizeof(toc_entry));
@@ -116,9 +117,9 @@ std::optional<PwType> search(flat_file::database<PwType>& db, const PwType& need
 // effectively the same as selecting one of the published files to download
 // but all in a single file and therefore much lower syscall i/o overhead
 template <pw_type PwType>
-void toc_build(const std::string& db_filename, unsigned bits) {
+void toc_build(const std::filesystem::path& db_filename, unsigned bits) {
 
-  const std::string toc_filename = fmt::format("{}.{}.toc", db_filename, bits);
+  const std::string toc_filename = fmt::format("{}.{}.toc", db_filename.string(), bits);
 
   if (!std::filesystem::exists(toc_filename) || (std::filesystem::last_write_time(toc_filename) <=
                                                  std::filesystem::last_write_time(db_filename))) {
@@ -141,7 +142,8 @@ std::optional<PwType> toc_search(flat_file::database<PwType>& db, const PwType& 
 
 // sha1
 
-template void toc_build<hibp::pawned_pw_sha1>(const std::string& db_filename, unsigned bits);
+template void toc_build<hibp::pawned_pw_sha1>(const std::filesystem::path& db_filename,
+                                              unsigned                     bits);
 
 template std::optional<hibp::pawned_pw_sha1>
 toc_search<hibp::pawned_pw_sha1>(flat_file::database<hibp::pawned_pw_sha1>& db,
@@ -149,7 +151,8 @@ toc_search<hibp::pawned_pw_sha1>(flat_file::database<hibp::pawned_pw_sha1>& db,
 
 // ntlm
 
-template void toc_build<hibp::pawned_pw_ntlm>(const std::string& db_filename, unsigned bits);
+template void toc_build<hibp::pawned_pw_ntlm>(const std::filesystem::path& db_filename,
+                                              unsigned                     bits);
 
 template std::optional<hibp::pawned_pw_ntlm>
 toc_search<hibp::pawned_pw_ntlm>(flat_file::database<hibp::pawned_pw_ntlm>& db,

@@ -17,7 +17,7 @@ namespace hibp::dnl {
 
 // utility function for --resume
 template <pw_type PwType>
-std::size_t get_last_prefix(const std::string& filename) {
+std::size_t get_last_prefix(const std::string& filename, bool testing) {
   auto filesize = std::filesystem::file_size(filename);
   if (auto tailsize = filesize % sizeof(PwType); tailsize != 0) {
     std::cerr << fmt::format("db_file '{}' size was not a multiple of {}, trimmed off {} bytes.\n",
@@ -35,7 +35,7 @@ std::size_t get_last_prefix(const std::string& filename) {
   const std::string prefix       = last_db_hash.substr(0, PwType::prefix_str_size);
   const std::string suffix = last_db_hash.substr(PwType::prefix_str_size, PwType::suffix_str_size);
 
-  const std::string filebody = curl_sync_get(url<PwType>(prefix));
+  const std::string filebody = curl_sync_get(url<PwType>(prefix, testing));
 
   auto pos_colon = filebody.find_last_of(':');
   if (pos_colon == std::string::npos || pos_colon < PwType::suffix_str_size) {
@@ -81,7 +81,9 @@ std::size_t get_last_prefix(const std::string& filename) {
   return last_prefix - 1;
 }
 
-template std::size_t get_last_prefix<pawned_pw_sha1>(const std::string& filename);
-template std::size_t get_last_prefix<pawned_pw_ntlm>(const std::string& filename);
+// explicit instantiations
+
+template std::size_t get_last_prefix<pawned_pw_sha1>(const std::string& filename, bool testing);
+template std::size_t get_last_prefix<pawned_pw_ntlm>(const std::string& filename, bool testing);
 
 } // namespace hibp::dnl

@@ -3,7 +3,7 @@
 #### Install Dependencies
 ```bash
 # as root
-pkg install getopt curl libevent onetbb cmake ccmake ccache git ruby ruby32-gems rubygem-rake
+pkg install bash getopt cmake ccmake ccache git ruby ruby32-gems rubygem-rake curl libevent onetbb 
 gem install Mxx_ru   # install ruby gem required for restinio dependency installation
 
 # as normal user
@@ -15,4 +15,3 @@ cd ext/restinio
 mxxruexternals            # install those restinio deps
 cd ../..
 ```
-

@@ -29,21 +29,19 @@ else() # unix'ish
 endif()
 
 # LTO -- quite slow, enable if you think you benefit
-# set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
-# set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+option(HIBP_LTO "Enable link time optimisation" OFF)
+if(HIBP_LTO)
+  set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
+  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+endif()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
   # add the `local` paths common on FreeBSD
   include_directories(/usr/local/include)
   link_directories(/usr/local/lib)
-  message(WARNING "FreeBSD detected: skipping 'pre-compiled headers' compiling will be a bit slower.")
-  # ensure to link against the correct libstdc++
-  if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set(CMAKE_BUILD_RPATH /usr/local/lib/gcc13)
-  endif()
 endif()
 
-# consitently we go for static
+# consitently we go for static to reduce dependencies when distributing binaries
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW) # for restioni which has an option()
 set(BUILD_STATIC_LIBS ON)
 set(BUILD_SHARED_LIBS OFF)
@@ -93,11 +91,11 @@ set(RESTINIO_EXPLICIT_CPPSTD 20)
 set(RESTINIO_ASIO_SOURCE standalone)
 set(asio_INCLUDE_DIRS ../asio/include) # relative to ext/restinio/dev/restinio
 add_subdirectory(ext/restinio/dev/nodejs/llhttp EXCLUDE_FROM_ALL)
-# using our own direct submodule, restinio will use that also
+# using our own fmtlib which restinio will reuse
 # add_subdirectory(ext/restinio/dev/fmt)
 add_subdirectory(ext/restinio/dev/expected-lite EXCLUDE_FROM_ALL)
 add_subdirectory(ext/restinio/dev/restinio)
-# be more forgiving with errors
+# be more forgiving with errors for restinion
 if (NOT MSVC)
   if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_compile_options(restinio INTERFACE -Wno-shadow -Wno-sign-conversion -Wno-shorten-64-to-32 -Wno-extra-semi -Wno-conversion -Wno-dangling-reference)
@@ -109,13 +107,20 @@ endif()
 
 add_library(ntlm src/ntlm.cpp src/md4.c)
 target_compile_features(ntlm PRIVATE cxx_std_20)
+target_compile_options(ntlm PRIVATE -Wno-deprecated-declarations) # warnings about <codecvt> on libc++
 target_include_directories(ntlm PRIVATE include)
 
-add_executable(hibp_search app/hibp_search.cpp src/toc.cpp)
+add_library(toc src/toc.cpp)
+target_compile_features(toc PRIVATE cxx_std_20)
+target_include_directories(toc PRIVATE include)
+target_compile_options(toc PRIVATE -Wno-ignored-attributes) # non-sensical warning from gcc?
+target_link_libraries(toc PRIVATE hibp flat_file fmt::fmt)
+
+add_executable(hibp_search app/hibp_search.cpp)
 set_target_properties(hibp_search PROPERTIES OUTPUT_NAME hibp-search)
 target_compile_features(hibp_search PRIVATE cxx_std_20)
 target_compile_options(hibp_search PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_search PRIVATE CLI11 sha1 ntlm hibp flat_file fmt::fmt)
+target_link_libraries(hibp_search PRIVATE CLI11 sha1 ntlm hibp toc flat_file fmt::fmt)
 
 add_executable(hibp_diff app/hibp_diff.cpp src/toc.cpp)
 set_target_properties(hibp_diff PROPERTIES OUTPUT_NAME hibp-diff)
@@ -125,16 +130,13 @@ target_link_libraries(hibp_diff PRIVATE CLI11 hibp flat_file fmt::fmt)
 
 find_package(Threads)
 
-add_executable(hibp_server app/hibp_server.cpp
-  src/srv/server.cpp
-  src/toc.cpp
-  src/toc.cpp)
+add_executable(hibp_server app/hibp_server.cpp src/srv/server.cpp)
 set_target_properties(hibp_server PROPERTIES OUTPUT_NAME hibp-server)
 target_compile_options(hibp_server PRIVATE ${PROJECT_COMPILE_OPTIONS})
 if (MINGW)
-  target_link_libraries(hibp_server PRIVATE CLI11 sha1 ntlm hibp flat_file fmt::fmt restinio gdi32 wsock32 ws2_32)
+  target_link_libraries(hibp_server PRIVATE CLI11 sha1 ntlm hibp toc flat_file fmt::fmt restinio gdi32 wsock32 ws2_32)
 else()
-  target_link_libraries(hibp_server PRIVATE CLI11 sha1 ntlm hibp flat_file fmt::fmt restinio ${CMAKE_THREAD_LIBS_INIT})
+  target_link_libraries(hibp_server PRIVATE CLI11 sha1 ntlm hibp toc flat_file fmt::fmt restinio ${CMAKE_THREAD_LIBS_INIT})
 endif()
 
 add_executable(hibp_sort app/hibp_sort.cpp)
@@ -166,9 +168,9 @@ target_link_libraries(hibp_download PRIVATE CLI11 curl event hibp flat_file fmt:
 option(NOPCH "Disable the use of precompiled headers" OFF)
 
 if (NOT NOPCH AND NOT CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
-  target_precompile_headers(CLI11 INTERFACE [["CLI/CLI.hpp"]]) # INTERFACE, because perpetuate to clients of this lib
-  target_precompile_headers(flat_file INTERFACE [["flat_file.hpp"]]) # INTERFACE, because perpetuate to clients of this lib
-  target_precompile_headers(restinio INTERFACE [["restinio/core.hpp"]]) # INTERFACE, because perpetuate to clients of this lib
+  target_precompile_headers(CLI11 INTERFACE [["CLI/CLI.hpp"]])
+  target_precompile_headers(flat_file INTERFACE [["flat_file.hpp"]])
+  target_precompile_headers(restinio INTERFACE [["restinio/core.hpp"]])
 
   target_precompile_headers(hibp_sort REUSE_FROM hibp_search)
   target_precompile_headers(hibp_convert REUSE_FROM hibp_search)
@@ -176,8 +178,21 @@ if (NOT NOPCH AND NOT CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
   target_precompile_headers(hibp_download REUSE_FROM hibp_search)
 endif()
 
+# testing
+
 option(HIBP_TEST "Enable HIBP tests" OFF)
 if(HIBP_TEST)
+  
+  add_executable(mock_api_server test/mock_api_server.cpp)
+  target_compile_options(mock_api_server PRIVATE ${PROJECT_COMPILE_OPTIONS})
+  if (MINGW)
+    target_link_libraries(mock_api_server PRIVATE fmt::fmt restinio gdi32 wsock32 ws2_32)
+  else()
+    target_link_libraries(mock_api_server PRIVATE fmt::fmt restinio ${CMAKE_THREAD_LIBS_INIT})
+  endif()
+
+  get_property(all_targets DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY BUILDSYSTEM_TARGETS)
+  
   enable_testing()
   add_subdirectory(test)
 else(HIBP_TEST)
@@ -185,3 +200,5 @@ else(HIBP_TEST)
 endif(HIBP_TEST)
 
 install(TARGETS hibp_download hibp_sort hibp_search hibp_convert hibp_server hibp_topn RUNTIME)
+
+

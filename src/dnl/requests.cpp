@@ -42,6 +42,8 @@ event_base* ebase;
 
 std::size_t next_index = 0x0UL;
 
+bool testing = false;
+
 // connects an event with a socketfd
 struct curl_context_t {
   struct event* event;
@@ -76,7 +78,7 @@ void add_download(std::size_t index) {
     throw std::runtime_error(fmt::format("unexpected condition: index {} already existed", index));
   }
   auto&             dl        = dl_iter->second;
-  const std::string chunk_url = hibp::url(dl->prefix, cli.ntlm);
+  const std::string chunk_url = hibp::url(dl->prefix, cli.ntlm, testing);
 
   CURL* easy = curl_easy_init();
   curl_easy_setopt(easy, CURLOPT_PIPEWAIT, 1L); // wait for multiplexing! key for perf
@@ -129,7 +131,7 @@ void process_curl_done_msg(CURLMsg* message, enq_msg_t& msg) {
   dl->buffer.clear(); // throw away anything that was returned
   logger.log(fmt::format("prefix: {}, curl result: '{}', http resp code: {}, after {} retries",
                          dl->prefix, curl_easy_strerror(curl_code), response_code,
-                         download::max_retries));
+                         dl->retries_left));
 
   curl_multi_add_handle(curl_multi_handle, easy_handle); // try again with same handle
 }
@@ -281,8 +283,9 @@ void init_curl_and_events() {
   curl_multi_setopt(req::curl_multi_handle, CURLMOPT_TIMERFUNCTION, req::start_timeout_curl_cb);
 }
 
-void run_event_loop(std::size_t start_index) {
+void run_event_loop(std::size_t start_index, bool testing_) {
   req::next_index = start_index;
+  req::testing = testing_;
   req::fill_download_queue();
   event_base_dispatch(req::ebase);
   logger.log("event_base_dispatch() completed");

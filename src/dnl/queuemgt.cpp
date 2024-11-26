@@ -201,8 +201,7 @@ void service_queue(write_fn_t& write_fn, std::size_t next_index) {
 }
 
 // main entry point for the download process
-void run(write_fn_t write_fn, std::size_t start_index_) {
-
+void run(write_fn_t write_fn, std::size_t start_index_, bool testing_) {
   std::exception_ptr requests_exception;
   std::exception_ptr queuemgt_exception;
 
@@ -215,7 +214,7 @@ void run(write_fn_t write_fn, std::size_t start_index_) {
 
   std::thread requests_thread([&]() {
     try {
-      run_event_loop(start_index_);
+      run_event_loop(start_index_, testing_);
     } catch (...) {
       logger.log("caught exception");
       requests_exception = std::current_exception();

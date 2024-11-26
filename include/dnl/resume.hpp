@@ -7,6 +7,6 @@
 namespace hibp::dnl {
 
 template <pw_type PwType>
-std::size_t get_last_prefix(const std::string& filename);
+std::size_t get_last_prefix(const std::string& filename, bool testing);
 
 } // namespace hibp::dnl

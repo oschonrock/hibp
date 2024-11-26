@@ -27,8 +27,8 @@ On a full 1Gbit/s connection this take *around 6 minutes*, as shown here under W
 
 [Download latest .deb and install](https://github.com/oschonrock/hibp/releases/latest)
 ```bash
-wget -q https://github.com/oschonrock/hibp/releases/download/v0.3.0/hibp_0.3.0-1_amd64.deb
-sudo apt install ./hibp_0.3.0-1_amd64.deb  # will install minimal dependencies (eg `libevent`)
+wget -q https://github.com/oschonrock/hibp/releases/download/v0.4.1/hibp_0.4.1-1_amd64.deb
+sudo apt install ./hibp_0.4.1-1_amd64.deb  # will install minimal dependencies (eg `libevent`)
 ```
 
 #### Usage
@@ -70,7 +70,7 @@ To remove the package:
 sudo apt remove hibp
 ```
 
-## Design: High peformance with a small memory, disk and CPU footprint
+## Design: High performance with a small memory, disk and CPU footprint
 
 These utilities are designed to have a very modest resource
 footprint. By default, they use a binary format to store and search
@@ -133,7 +133,7 @@ using `libcurl` with `curl_multi` and 300 parallel requests
 (adjustable) on a single thread.  A second thread does the
 conversion to binary format and writing to disk.
 
-*Warning* this will (currently) take just under 12mins on a 400Mbit/s
+*Warning* this will (currently) take just around 6mins on a 1Gb/s
 connection and consume ~21GB of disk space during this time:
 - your network connection will be saturated with HTTP2 multiplexed requests
 - `top` in threads mode (key `H`) should show 2 `hibp-download` threads.
@@ -146,7 +146,7 @@ connection and consume ~21GB of disk space during this time:
 ```
 
 If any transfer fails, even after 5 retries, the programme will
-abort. In this case, you can try rerunnung with `--resume`.
+abort. In this case, you can try rerunning with `--resume`.
 
 For all options run `hibp-download --help`.
 
@@ -172,7 +172,7 @@ with `--toc`
 ### NT Hash (AKA NTLM)
 
 The compromised password database is also available using the NTLM
-hash, rather than sha1. This might be useful if analysing local
+hash, rather than sha1. This may be useful if auditing local
 Windows server authetication systems.
 
 ```bash
@@ -302,13 +302,41 @@ is enough for you.
 
 ## Other utilities
 
-`./build/gcc/release/hibp-topn`    : reduce a db to the N most common passwords (saves diskspace)
+`hibp-topn`    : reduce a db to the N most common passwords (saves diskspace)
 
-`./build/gcc/release/hibp-convert` : convert a text file into a binary file or vice-a-versa
+`hibp-convert` : convert a text file into a binary file or vice-a-versa
 
-`./build/gcc/release/hibp-sort`    : sort a binary file using external disk space (takes 3x space on disk)!
+`hibp-sort`    : sort a binary file using external disk space (Warning: takes 3x space on disk)
 
-In each case, for all options run `program_name --help`.
+In each case, for all options run `program-name --help`.
+
+## What is `./build.sh`?
+
+It's just a convenience wrapper around `cmake`, mainly to select
+`cmake` `-D` options with less typing. See `./build.sh --help` for options.
+
+You can use `./build.sh --verbose` to see how `./build.sh` is invoking
+`cmake` (as well as making `cmake` verbose).
+
+## Running tests
+
+There is a significant set of unit, integration and system tests -
+although not 100% coverage at this point.
+
+You can run them with one of these options:
+- from the `./build.sh` convenience script with `--run-tests`
+- by using `ccmake` to set `HIBP_TEST=ON` 
+- by passing `-DHIBP_TEST=ON` to cmake directly
+
+## Why are you using http (no TLS)?
+
+The main intention is for this be a local server, binding to
+`localhost` only, and thats the default behaviour. There is no request
+logging, so `http` is a secure and simple architecture. 
+
+Of course, if you want to server to other devices as well, you
+**should definitely** either *use a reverse proxy* in front of
+hibp-server, or modify `app/hibp-server.cpp` and *recompile with TLS support*.
 
 ## Under the hood
 
@@ -322,8 +350,10 @@ These utilities are written in C++ and centre around a `flat_file` class to mode
   makes agressive use of your CPU's vector instructions
 - libtbb is used for local sorting in `hibp-sort` and
 	`hibp-topn`. Note that for the parallelism (ie PSTL using libtbb)
-	you currently have to compile from source, but this only has a small
-	effect on `hibp-sort` and `hibp-topn`.
+	you currently have to compile from source, but this only has a
+	small effect on `hibp-sort` and `hibp-topn`. And due to
+	portability annoyances and a bug in libstd++, this is disabled by
+	default, and you need to turn `HIBP_WITH_PSTL=ON` to use it.
 
 ## Future plans
 
@@ -335,4 +365,4 @@ These utilities are written in C++ and centre around a `flat_file` class to mode
 
 - Consider adding a php/pyhton/javascript extension so that queries
   can be trivially made from within those scripting environments
-  without going through an http server
+	  without going through an http server

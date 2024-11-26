@@ -27,6 +27,7 @@ struct cli_config_t {
   bool        ntlm         = false;
   bool        txt_out      = false;
   bool        force        = false;
+  bool        testing      = false;
   std::size_t index_limit  = 0x100000;
   std::size_t parallel_max = 300;
 };

@@ -9,7 +9,7 @@
 namespace hibp {
 
 template <pw_type PwType>
-void toc_build(const std::string& db_filename, unsigned bits);
+void toc_build(const std::filesystem::path& db_filename, unsigned bits);
 
 template <pw_type PwType>
 std::optional<PwType> toc_search(flat_file::database<PwType>& db, const PwType& needle,

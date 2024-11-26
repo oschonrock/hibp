@@ -25,7 +25,7 @@ mkdir -p $NEW_PACKAGE_DIR/DEBIAN/
 egrep -v '^Depends:' $PROJECT_DIR/DEBIAN/control > $NEW_PACKAGE_DIR/DEBIAN/control
 
 git pull &&
-    ./build.sh -c gcc -b release --purge --nopch --install --install-prefix=$NEW_PACKAGE_DIR/usr/local &&
+    ./build.sh -c gcc -b release --purge --nopch --run-tests --install --install-prefix=$NEW_PACKAGE_DIR/usr/local &&
     cd $NEW_PACKAGE_DIR &&
     mkdir debian &&
     touch debian/control && # needs to present temporarily

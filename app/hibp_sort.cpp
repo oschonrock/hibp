@@ -43,8 +43,12 @@ std::string sort_db(const cli_config_t& cli) {
   std::string sorted_filename;
   if (cli.sort_by_count) {
     std::cerr << "Sorting by count descending\n";
-    sorted_filename =
-        db.disksort([](auto& a, auto& b) { return a.count > b.count; }, {}, max_mem_bytes);
+    sorted_filename = db.disksort(
+        [](auto& a, auto& b) {
+          if (a.count == b.count) return a < b; // fall back to hash asc for stability
+          return a.count > b.count;
+        },
+        {}, max_mem_bytes);
   } else {
     sorted_filename = db.disksort({}, {}, max_mem_bytes);
   }

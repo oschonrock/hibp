@@ -87,7 +87,7 @@ void build_topn(const cli_config_t& cli) {
   }
   std::vector<PwType> memdb(cli.topn);
 
-  std::cerr << fmt::format("{:50}", "Read db from disk and topN sort by count desc ...");
+  std::cout << fmt::format("{:50}", "Read db from disk and topN sort by count desc ...");
 
   using clk   = std::chrono::high_resolution_clock;
   using fsecs = std::chrono::duration<double>;
@@ -96,11 +96,15 @@ void build_topn(const cli_config_t& cli) {
   // TopN sort descending by count (par_unseq makes no sense, as disk bound and flat_file not
   // thread safe)
   std::partial_sort_copy(input_db.begin(), input_db.end(), memdb.begin(), memdb.end(),
-                         [](auto& a, auto& b) { return a.count > b.count; });
+                         [](auto& a, auto& b) {
+                           if (a.count == b.count)
+                             return a < b; // fall back to hash asc for stability
+                           return a.count > b.count;
+                         });
 
-  std::cerr << fmt::format("{:>8.3}\n", duration_cast<fsecs>(clk::now() - start));
+  std::cout << fmt::format("{:>8.3}\n", duration_cast<fsecs>(clk::now() - start));
 
-  std::cerr << fmt::format("{:50}", "Sort by hash ascending ...");
+  std::cout << fmt::format("{:50}", "Sort by hash ascending ...");
   start = clk::now();
   // default sort by hash ascending
   std::sort(
@@ -108,15 +112,15 @@ void build_topn(const cli_config_t& cli) {
       std::execution::par_unseq,
 #endif
       memdb.begin(), memdb.end());
-  std::cerr << fmt::format("{:>8.3}\n", duration_cast<fsecs>(clk::now() - start));
+  std::cout << fmt::format("{:>8.3}\n", duration_cast<fsecs>(clk::now() - start));
 
   start = clk::now();
-  std::cerr << fmt::format("{:50}", "Write TopN db to disk ...");
+  std::cout << fmt::format("{:50}", "Write TopN db to disk ...");
   auto output_db = flat_file::stream_writer<PwType>(*output_stream);
   for (const auto& pw: memdb) {
     output_db.write(pw);
   }
-  std::cerr << fmt::format("{:>8.3}\n", duration_cast<fsecs>(clk::now() - start));
+  std::cout << fmt::format("{:>8.3}\n", duration_cast<fsecs>(clk::now() - start));
 }
 
 int main(int argc, char* argv[]) {
