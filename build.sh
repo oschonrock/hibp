@@ -21,6 +21,8 @@ INSTALL_PREFIX=
 
 USAGE=$(cat <<-END
 
+	Convenience script around `cmake` invocation
+
 	Usage: $(basename $0) options
 
 	Options:
@@ -42,8 +44,7 @@ END
 )
 
 GETOPT=getopt
-if command -v /usr/local/bin/getopt > /dev/null 2>&1
-then
+if command -v /usr/local/bin/getopt > /dev/null 2>&1; then
     GETOPT='/usr/local/bin/getopt'
 fi
 
@@ -115,8 +116,7 @@ cd "$(realpath $(dirname $0))"
 
 BUILD_DIR=$BUILDROOT/$COMPILER/$BUILDTYPE
 
-if [[ "$COMPILER" =~ ^clang ]]
-then
+if [[ "$COMPILER" =~ ^clang ]]; then
     C_COMPILER=$COMPILER
     CXX_COMPILER=${COMPILER/clang/clang++}
 else
@@ -124,21 +124,16 @@ else
     CXX_COMPILER=${COMPILER/gcc/g++}
 fi
 
-if command -v ccache > /dev/null 2>&1
-then
+if command -v ccache > /dev/null 2>&1; then
     CACHE="-DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache"
 else
-    echo -e '\033[0;31m'"Consider installing \`ccache\` for extra speed!"'\033[0m' 1>&2
     CACHE=""
 fi
 
 BUILD_OPTIONS="-DCMAKE_C_COMPILER=$C_COMPILER -DCMAKE_CXX_COMPILER=$CXX_COMPILER -DCMAKE_BUILD_TYPE=$BUILDTYPE $TESTS $INSTALL_PREFIX"
 
-if command -v mold > /dev/null 2>&1
-then
+if command -v mold > /dev/null 2>&1; then
     BUILD_OPTIONS="$BUILD_OPTIONS -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=mold -DCMAKE_SHARED_LINKER_FLAGS=-fuse-ld=mold"
-else
-    echo -e '\033[0;31m'"Consider installing the \`mold\` linker for extra speed!"'\033[0m' 1>&2
 fi
 
 [[ -n $PURGE && -d $BUILD_DIR ]] && rm -rf $BUILD_DIR
@@ -157,8 +152,7 @@ BUILD_CMD="$CMAKE --build $BUILD_DIR $CLEAN_FIRST $TARGETS -- $VERBOSE"
 $BUILD_CMD
 BUILD_RET=$?
 
-if [[ BUILD_RET -eq 0 && -n $INSTALL ]]
-then
+if [[ BUILD_RET -eq 0 && -n $INSTALL ]]; then
     cmake --install $BUILD_DIR
 else
     exit $BUILD_RET
