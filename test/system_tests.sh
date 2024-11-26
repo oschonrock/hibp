@@ -50,35 +50,60 @@ th_assertTrueWithNoOutput() {
     assertFalse 'unexpected output to STDOUT' "[ -s '${th_stdout_}' ]"
     assertFalse 'unexpected output to STDERR' "[ -s '${th_stderr_}' ]"
 
+    [ -s "${th_stdout_}" ] && cat "${th_stdout_}" 
+    [ -s "${th_stderr_}" ] && cat "${th_stderr_}" 1>&2
+
     unset th_return_ th_stdout_ th_stderr_
 }
 
-# download
+# local download
 
-testDownloadSha1() {
+testLocalDownloadSha1() {
     $builddir/hibp-download --testing $tmpdir/hibp_test.sha1.bin --limit 256 --no-progress >${stdoutF} 2>${stderrF}
     rtrn=$?
     th_assertTrueWithNoOutput ${rtrn} "${stdoutF}" "${stderrF}"
 }
 
-testDownloadNtlm() {
+testLocalDownloadNtlm() {
     $builddir/hibp-download --testing $tmpdir/hibp_test.ntlm.bin --ntlm --limit 256 --no-progress >${stdoutF} 2>${stderrF}
     rtrn=$?
     th_assertTrueWithNoOutput ${rtrn} "${stdoutF}" "${stderrF}"
 }
 
-# check download
+# check local download
 
-testDownloadCmpSha1() {
+testLocalDownloadCmpSha1() {
     cmp $datadir/hibp_test.sha1.bin $tmpdir/hibp_test.sha1.bin >${stdoutF} 2>${stderrF}
     rtrn=$?
     th_assertTrueWithNoOutput ${rtrn} "${stdoutF}" "${stderrF}"
 }
 
-testDownloadCmpNtlm() {
+testLocalDownloadCmpNtlm() {
     cmp $datadir/hibp_test.ntlm.bin $tmpdir/hibp_test.ntlm.bin >${stdoutF} 2>${stderrF}
     rtrn=$?
     th_assertTrueWithNoOutput ${rtrn} "${stdoutF}" "${stderrF}"
+}
+
+# live download
+
+testDownloadSha1() {
+    $builddir/hibp-download --limit 10 --no-progress $tmpdir/hibp_live.sha1.bin >${stdoutF} 2>${stderrF}
+    rtrn=$?
+    th_assertTrueWithNoOutput ${rtrn} "${stdoutF}" "${stderrF}"
+
+    bin_size=$(echo $(wc -c $tmpdir/hibp_live.sha1.bin) | cut -d' ' -f1)
+    min_size=232968
+    assertTrue "size of hibp-download --limit 10 = ${bin_size}. Too small, expected at least ${min_size}." "[ $bin_size -ge  $min_size ]"
+}
+
+testDownloadNtlm() {
+    $builddir/hibp-download --ntlm --limit 10 --no-progress $tmpdir/hibp_live.ntlm.bin >${stdoutF} 2>${stderrF}
+    rtrn=$?
+    th_assertTrueWithNoOutput ${rtrn} "${stdoutF}" "${stderrF}"
+
+    bin_size=$(echo $(wc -c $tmpdir/hibp_live.ntlm.bin) | cut -d' ' -f1)
+    min_size=180180
+    assertTrue "size of hibp-download --limit 10 = ${bin_size}. Too small, expected at least ${min_size}." "[ $bin_size -ge  $min_size ]"
 }
 
 # make topn
