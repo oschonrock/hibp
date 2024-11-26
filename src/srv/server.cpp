@@ -150,18 +150,18 @@ void run_server() {
     using request_handler_t = restinio::router::express_router_t<>;
   };
 
-  std::cerr << fmt::format("Serving from {0}:{1}\n"
+  std::cout << fmt::format("Serving from {0}:{1}\n"
                            "Make a request to any of:\n"
                            "http://{0}:{1}/check/plain/password123  [using {2} db]\n",
                            cli.bind_address, cli.port,
                            !cli.sha1_db_filename.empty() ? "sha1" : "ntlm");
 
   if (!cli.sha1_db_filename.empty()) {
-    std::cerr << fmt::format("http://{0}:{1}/check/sha1/CBFDAC6008F9CAB4083784CBD1874F76618D2A97\n",
+    std::cout << fmt::format("http://{0}:{1}/check/sha1/CBFDAC6008F9CAB4083784CBD1874F76618D2A97\n",
                              cli.bind_address, cli.port);
   }
   if (!cli.ntlm_db_filename.empty()) {
-    std::cerr << fmt::format("http://{0}:{1}/check/ntlm/A9FDFA038C4B75EBC76DC855DD74F0DA\n",
+    std::cout << fmt::format("http://{0}:{1}/check/ntlm/A9FDFA038C4B75EBC76DC855DD74F0DA\n",
                              cli.bind_address, cli.port);
   }
 
