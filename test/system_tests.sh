@@ -25,6 +25,8 @@ oneTimeSetUp() {
 
     $builddir/mock_api_server $datadir &
     export mock_server_pid=$!
+    $builddir/hibp-server --ntlm-db=$datadir/hibp_test.ntlm.bin --sha1-db=$datadir/hibp_test.sha1.bin 1>/dev/null &
+    export hibp_server_pid=$!
     
     export avoidDoubleTearDownExecution="true"
 }
@@ -33,6 +35,7 @@ oneTimeTearDown() {
     if [[ "${avoidDoubleTearDownExecution}" == "true" ]]
     then   
 	kill $mock_server_pid
+	kill $hibp_server_pid
 	rm -rf $tmpdir/*
 	unset -v avoidDoubleTearDownExecution
     fi
@@ -191,7 +194,61 @@ testTocCmpNtlm() {
     th_assertTrueWithNoOutput ${rtrn} "${stdoutF}" "${stderrF}"
 }
 
+testServerPlain() {
+    plain="truelove15"
+    correct_count="1002"
+    count=$(curl -s http://localhost:8082/check/plain/${plain})
+    assertEquals "count for plain pw '${plain}' of '${count}' was wrong" "${correct_count}" "${count}"
 
+    plain="password123"
+    correct_count="-1"
+    count=$(curl -s http://localhost:8082/check/plain/${plain})
+    assertEquals "count for plain pw '${plain}' of '${count}' was wrong" "${correct_count}" "${count}"
+}
+
+testServerSha1() {
+    sha1="00001131628B741FF755AAC0E7C66D26A7C72082"
+    correct_count="1002"
+    count=$(curl -s http://localhost:8082/check/sha1/${sha1})
+    assertEquals "count for sha1 pw '${sha1}' of '${count}' was wrong" "${correct_count}" "${count}"
+
+    sha1="00001131628B741FF755AAC0E7C66D26A7C72083"
+    correct_count="-1"
+    count=$(curl -s http://localhost:8082/check/sha1/${sha1})
+    assertEquals "count for sha1 pw '${sha1}' of '${count}' was wrong" "${correct_count}" "${count}"
+
+    sha1="00001131628B741FF755AAC0E7C66D26A7C7208"
+    correct_count="Invalid hash provided. Check type of hash."
+    count=$(curl -s http://localhost:8082/check/sha1/${sha1})
+    assertEquals "count for sha1 pw '${sha1}' of '${count}' was wrong" "${correct_count}" "${count}"
+
+    sha1="00001131628B741FF755AAC0E7C66D26A7C7208G"
+    correct_count="Invalid hash provided. Check type of hash."
+    count=$(curl -s http://localhost:8082/check/sha1/${sha1})
+    assertEquals "count for sha1 pw '${sha1}' of '${count}' was wrong" "${correct_count}" "${count}"
+}
+
+testServerNtlm() {
+    ntlm="0001256EA8F568DBEACE2E172FD939F7"
+    correct_count="913"
+    count=$(curl -s http://localhost:8082/check/ntlm/${ntlm})
+    assertEquals "count for ntlm pw '${ntlm}' of '${count}' was wrong" "${correct_count}" "${count}"
+
+    ntlm="0001256EA8F568DBEACE2E172FD939F8"
+    correct_count="-1"
+    count=$(curl -s http://localhost:8082/check/ntlm/${ntlm})
+    assertEquals "count for ntlm pw '${ntlm}' of '${count}' was wrong" "${correct_count}" "${count}"
+
+    ntlm="0001256EA8F568DBEACE2E172FD939F"
+    correct_count="Invalid hash provided. Check type of hash."
+    count=$(curl -s http://localhost:8082/check/ntlm/${ntlm})
+    assertEquals "count for ntlm pw '${ntlm}' of '${count}' was wrong" "${correct_count}" "${count}"
+
+    ntlm="0001256EA8F568DBEACE2E172FD939F-"
+    correct_count="Invalid hash provided. Check type of hash."
+    count=$(curl -s http://localhost:8082/check/ntlm/${ntlm})
+    assertEquals "count for ntlm pw '${ntlm}' of '${count}' was wrong" "${correct_count}" "${count}"
+}
 
 
 . $projdir/ext/shunit2/shunit2
