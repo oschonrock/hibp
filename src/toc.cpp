@@ -22,15 +22,16 @@ namespace hibp {
 
 namespace details {
 
-using toc_entry = unsigned; // limited to 4Billion pws. will throw when too big
+using toc_entry = std::uint32_t; // limited to 4Billion pws. will throw when too big
 
 // one instance per type of pw
 template <pw_type PwType>
 std::vector<toc_entry> toc;
 
 template <pw_type PwType>
-unsigned pw_to_prefix(const PwType& pw, unsigned bits) {
-  return arrcmp::impl::bytearray_cast<unsigned>(pw.hash.data()) >> (sizeof(toc_entry) * 8 - bits);
+std::uint32_t pw_to_prefix(const PwType& pw, unsigned bits) {
+  return arrcmp::impl::bytearray_cast<std::uint32_t>(pw.hash.data()) >>
+         (sizeof(toc_entry) * 8 - bits);
 }
 
 template <pw_type PwType>
@@ -60,8 +61,8 @@ void build(const std::filesystem::path& db_path, unsigned bits) {
                            std::ceil(std::log2(toc_entry_size)));
   toc<PwType>.reserve(toc_entries);
 
-  unsigned last_pos = 0;
-  for (unsigned prefix = 0; prefix != toc_entries; prefix++) {
+  std::uint32_t last_pos = 0;
+  for (std::uint32_t prefix = 0; prefix != toc_entries; prefix++) {
     auto found_iter = std::find_if(db.begin() + last_pos, db.end(), [=](const PwType& pw) {
       return pw_to_prefix(pw, bits) == prefix;
     });
@@ -75,8 +76,7 @@ void build(const std::filesystem::path& db_path, unsigned bits) {
     if (prefix % 1000 == 0) {
       std::cout << fmt::format("{:25s} {:13.1f}%\r", "Building table of contents",
                                prefix * 100 / static_cast<double>(toc_entries))
-                << std::flush;  // stop cursor flickering
-      
+                << std::flush; // stop cursor flickering
     }
   }
   std::cout << "\n";
@@ -102,7 +102,7 @@ void load(const std::filesystem::path& toc_filename) {
 
 template <pw_type PwType>
 std::optional<PwType> search(flat_file::database<PwType>& db, const PwType& needle, unsigned bits) {
-  const unsigned pw_prefix = pw_to_prefix(needle, bits);
+  const std::uint32_t pw_prefix = pw_to_prefix(needle, bits);
 
   if (pw_prefix >= toc<PwType>.size()) {
     return {}; // must be partial db & toc, and therefore "not found"
