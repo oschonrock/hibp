@@ -13,6 +13,7 @@
 #include <iostream>
 #include <limits>
 #include <optional>
+#include <ostream>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -71,9 +72,11 @@ void build(const std::filesystem::path& db_path, unsigned bits) {
     }
     last_pos = static_cast<toc_entry>(found_iter - db.begin());
     toc<PwType>.push_back(last_pos);
-    if (prefix % 50 == 0) {
+    if (prefix % 1000 == 0) {
       std::cout << fmt::format("{:25s} {:13.1f}%\r", "Building table of contents",
-                               prefix * 100 / static_cast<double>(toc_entries));
+                               prefix * 100 / static_cast<double>(toc_entries))
+                << std::flush;  // stop cursor flickering
+      
     }
   }
   std::cout << "\n";

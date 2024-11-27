@@ -13,7 +13,8 @@ Here is `hibp-download` running on a 400Mbit/s connection, averaging
 ~48MB/s which is very close to the theorectical maximum. At this
 network speed, a download of the entire HIBP database, including
 prefixing and joining the over 1 million files, converting to our
-binary format and writing to disk, takes *under 12 minutes*.
+binary format and writing to disk, takes *under 12 minutes* (the
+official downloader takes over an hour on the same connection).
 
 ![](https://github.com/oschonrock/hibp/blob/main/media/download.gif)
 
