@@ -32,7 +32,7 @@ void run_diff(const std::filesystem::path& old_path, const std::filesystem::path
       }
       break;
     }
-    if (diff_iter_new == db_new.end()) {
+    if (diff_iter_new == db_new.end()) { // protect against deref of end()
       throw std::runtime_error("NEW was shorter");
     }
     // fine to dereference both

@@ -19,8 +19,7 @@ protected:
     oldw.write("0000000000000000000000000000000000000010:10"s);
     oldw.write("0000000000000000000000000000000000000020:20"s);
     oldw.write("0000000000000000000000000000000000000030:30"s);
-    oldw.flush();
-    old_stream.flush();
+    oldw.flush(true);
   }
 
   std::filesystem::path testtmpdir;
@@ -44,8 +43,7 @@ TEST_F(DiffTestSha1, diffI0) {
   neww.write("0000000000000000000000000000000000000010:10"s);
   neww.write("0000000000000000000000000000000000000020:20"s);
   neww.write("0000000000000000000000000000000000000030:30"s);
-  neww.flush();
-  new_stream.flush();
+  neww.flush(true);
 
   std::stringstream diff;
   hibp::diffutils::run_diff<hibp::pawned_pw_sha1>(old_path, new_path, diff);
@@ -61,8 +59,7 @@ TEST_F(DiffTestSha1, diffI1) {
 
   neww.write("0000000000000000000000000000000000000020:20"s);
   neww.write("0000000000000000000000000000000000000030:30"s);
-  neww.flush();
-  new_stream.flush();
+  neww.flush(true);
 
   std::stringstream diff;
   hibp::diffutils::run_diff<hibp::pawned_pw_sha1>(old_path, new_path, diff);
@@ -78,8 +75,7 @@ TEST_F(DiffTestSha1, diffI2) {
   neww.write("0000000000000000000000000000000000000025:25"s);
 
   neww.write("0000000000000000000000000000000000000030:30"s);
-  neww.flush();
-  new_stream.flush();
+  neww.flush(true);
 
   std::stringstream diff;
   hibp::diffutils::run_diff<hibp::pawned_pw_sha1>(old_path, new_path, diff);
@@ -94,8 +90,7 @@ TEST_F(DiffTestSha1, diffI3) {
   neww.write("0000000000000000000000000000000000000030:30"s);
 
   neww.write("0000000000000000000000000000000000000035:35"s);
-  neww.flush();
-  new_stream.flush();
+  neww.flush(true);
 
   std::stringstream diff;
   hibp::diffutils::run_diff<hibp::pawned_pw_sha1>(old_path, new_path, diff);
@@ -108,8 +103,7 @@ TEST_F(DiffTestSha1, diffU0) {
   neww.write("0000000000000000000000000000000000000010:11"s);
   neww.write("0000000000000000000000000000000000000020:20"s);
   neww.write("0000000000000000000000000000000000000030:30"s);
-  neww.flush();
-  new_stream.flush();
+  neww.flush(true);
 
   std::stringstream diff;
   hibp::diffutils::run_diff<hibp::pawned_pw_sha1>(old_path, new_path, diff);
@@ -122,8 +116,7 @@ TEST_F(DiffTestSha1, diffU1) {
   neww.write("0000000000000000000000000000000000000010:10"s);
   neww.write("0000000000000000000000000000000000000020:21"s);
   neww.write("0000000000000000000000000000000000000030:30"s);
-  neww.flush();
-  new_stream.flush();
+  neww.flush(true);
 
   std::stringstream diff;
   hibp::diffutils::run_diff<hibp::pawned_pw_sha1>(old_path, new_path, diff);
@@ -136,8 +129,7 @@ TEST_F(DiffTestSha1, diffU2) {
   neww.write("0000000000000000000000000000000000000010:10"s);
   neww.write("0000000000000000000000000000000000000020:20"s);
   neww.write("0000000000000000000000000000000000000030:31"s);
-  neww.flush();
-  new_stream.flush();
+  neww.flush(true);
 
   std::stringstream diff;
   hibp::diffutils::run_diff<hibp::pawned_pw_sha1>(old_path, new_path, diff);
@@ -147,11 +139,9 @@ TEST_F(DiffTestSha1, diffU2) {
 
 TEST_F(DiffTestSha1, diffNewShort0) {
   using namespace std::string_literals;
-
   neww.write("0000000000000000000000000000000000000020:20"s);
   neww.write("0000000000000000000000000000000000000030:30"s);
-  neww.flush();
-  new_stream.flush();
+  neww.flush(true);
 
   std::stringstream diff;
   EXPECT_THROW(hibp::diffutils::run_diff<hibp::pawned_pw_sha1>(old_path, new_path, diff), std::runtime_error);
@@ -159,10 +149,8 @@ TEST_F(DiffTestSha1, diffNewShort0) {
 TEST_F(DiffTestSha1, diffNewShort1) {
   using namespace std::string_literals;
   neww.write("0000000000000000000000000000000000000010:10"s);
-
   neww.write("0000000000000000000000000000000000000030:30"s);
-  neww.flush();
-  new_stream.flush();
+  neww.flush(true);
 
   std::stringstream diff;
   EXPECT_THROW(hibp::diffutils::run_diff<hibp::pawned_pw_sha1>(old_path, new_path, diff), std::runtime_error);
@@ -171,9 +159,7 @@ TEST_F(DiffTestSha1, diffNewShort2) {
   using namespace std::string_literals;
   neww.write("0000000000000000000000000000000000000010:10"s);
   neww.write("0000000000000000000000000000000000000020:20"s);
-  
-  neww.flush();
-  new_stream.flush();
+  neww.flush(true);
 
   std::stringstream diff;
   EXPECT_THROW(hibp::diffutils::run_diff<hibp::pawned_pw_sha1>(old_path, new_path, diff), std::runtime_error);
@@ -185,8 +171,7 @@ TEST_F(DiffTestSha1, diffOldReplaced0) {
   neww.write("0000000000000000000000000000000000000015:10"s);
   neww.write("0000000000000000000000000000000000000020:20"s);
   neww.write("0000000000000000000000000000000000000030:30"s);
-  neww.flush();
-  new_stream.flush();
+  neww.flush(true);
 
   std::stringstream diff;
   EXPECT_THROW(hibp::diffutils::run_diff<hibp::pawned_pw_sha1>(old_path, new_path, diff), std::runtime_error);
@@ -196,8 +181,7 @@ TEST_F(DiffTestSha1, diffOldReplaced1) {
   neww.write("0000000000000000000000000000000000000010:10"s);
   neww.write("0000000000000000000000000000000000000025:20"s);
   neww.write("0000000000000000000000000000000000000030:30"s);
-  neww.flush();
-  new_stream.flush();
+  neww.flush(true);
 
   std::stringstream diff;
   EXPECT_THROW(hibp::diffutils::run_diff<hibp::pawned_pw_sha1>(old_path, new_path, diff), std::runtime_error);
@@ -208,8 +192,7 @@ TEST_F(DiffTestSha1, diffOldReplaced2) {
   neww.write("0000000000000000000000000000000000000020:20"s);
   neww.write("0000000000000000000000000000000000000035:30"s);
   
-  neww.flush();
-  new_stream.flush();
+  neww.flush(true);
 
   std::stringstream diff;
   EXPECT_THROW(hibp::diffutils::run_diff<hibp::pawned_pw_sha1>(old_path, new_path, diff), std::runtime_error);

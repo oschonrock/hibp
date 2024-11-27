@@ -45,16 +45,21 @@ public:
   }
 
   void write(const ValueType& value) {
-    if (buf_pos_ == buf_.size()) flush();
+    if (buf_pos_ == buf_.size()) {
+      flush();
+    }
     std::memcpy(&buf_[buf_pos_], &value, sizeof(ValueType));
     ++buf_pos_;
   }
 
-  void flush() {
+  void flush(bool flush_stream = false) {
     if (buf_pos_ != 0) {
       db_.write(reinterpret_cast<char*>(buf_.data()), // NOLINT reincast
                 static_cast<std::streamsize>(sizeof(ValueType) * buf_pos_));
       buf_pos_ = 0;
+      if (flush_stream) {
+        db_.flush();
+      }
     }
   }
 
