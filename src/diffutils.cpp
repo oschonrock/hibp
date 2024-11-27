@@ -9,6 +9,21 @@
 
 namespace hibp::diffutils {
 
+enum class hunk_type { update = 0, insert };
+constexpr auto hunk_type_char = "UI";
+
+template <hibp::pw_type PwType>
+struct hunk {
+
+  hunk_type type;
+  unsigned  pos;
+  PwType    pw;
+
+  friend std::ostream& operator<<(std::ostream& os, const hunk& h) {
+    return os << fmt::format("{}:{:08X}:{}\n", hunk_type_char[h.type], h.pos, h.pw.to_string());
+  }
+};
+
 template <hibp::pw_type PwType>
 void run_diff(const std::filesystem::path& old_path, const std::filesystem::path& new_path,
               std::ostream& diff) {
