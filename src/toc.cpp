@@ -3,6 +3,7 @@
 #include "flat_file.hpp"
 #include "hibp.hpp"
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdlib>
 #include <filesystem>
@@ -54,7 +55,8 @@ void build(const std::filesystem::path& db_path, unsigned bits) {
   std::cout << fmt::format("{:25s} {:15d}\n", "number of toc entries", toc_entries);
   std::cout << fmt::format("{:25s} {:15d} records in db on average\n", "each toc_entry covers",
                            toc_entry_size);
-  std::cout << fmt::format("building table of contents MK2..\n");
+  std::cout << fmt::format("{:25s} {:15.0f} per query\n", "max disk reads",
+                           std::ceil(std::log2(toc_entry_size)));
   toc<PwType>.reserve(toc_entries);
 
   unsigned last_pos = 0;
@@ -69,7 +71,12 @@ void build(const std::filesystem::path& db_path, unsigned bits) {
     }
     last_pos = static_cast<toc_entry>(found_iter - db.begin());
     toc<PwType>.push_back(last_pos);
+    if (prefix % 50 == 0) {
+      std::cout << fmt::format("{:25s} {:13.1f}%\r", "Building table of contents",
+                               prefix * 100 / static_cast<double>(toc_entries));
+    }
   }
+  std::cout << "\n";
 }
 
 template <pw_type PwType>
