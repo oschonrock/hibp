@@ -114,9 +114,12 @@ public:
 
   const ValueType& get_record(std::size_t pos) {
     if (!(pos >= buf_start_ && pos < buf_end_)) { // NOLINT can be simplified
-      db_.seekg(static_cast<std::streamoff>(pos * sizeof(ValueType)));
-
       const std::size_t nrecs = std::min(buf_.size(), dbsize_ - pos);
+      if (nrecs == 0) {
+        throw std::runtime_error(
+            "flat_file:get_record cannot return data, are you dereferencing db.end()?");
+      }
+      db_.seekg(static_cast<std::streamoff>(pos * sizeof(ValueType)));
 
       db_.read(reinterpret_cast<char*>(buf_.data()), // NOLINT reinterpret_cast
                static_cast<std::streamsize>(sizeof(ValueType) * nrecs));
