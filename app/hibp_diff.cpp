@@ -1,14 +1,11 @@
-#include "flat_file.hpp"
 #include "hibp.hpp"
 #include "diffutils.hpp"
 #include <CLI/CLI.hpp>
-#include <algorithm>
 #include <cstdlib>
 #include <exception>
 #include <fmt/chrono.h> // IWYU pragma: keep
 #include <fmt/format.h>
 #include <iostream>
-#include <stdexcept>
 #include <string>
 
 struct cli_config_t {
