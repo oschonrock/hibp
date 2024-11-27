@@ -6,21 +6,21 @@
 #include <fmt/format.h>
 #include <iostream>
 #include <stdexcept>
+#include <type_traits>
 
 namespace hibp::diffutils {
 
-enum class hunk_type { update = 0, insert };
-constexpr auto hunk_type_char = "UI";
+enum class hunk_type : char { update = 'U', insert = 'I' };
 
 template <hibp::pw_type PwType>
 struct hunk {
-
   hunk_type type;
   unsigned  pos;
   PwType    pw;
 
   friend std::ostream& operator<<(std::ostream& os, const hunk& h) {
-    return os << fmt::format("{}:{:08X}:{}\n", hunk_type_char[h.type], h.pos, h.pw.to_string());
+    return os << fmt::format("{}:{:08X}:{}", static_cast<std::underlying_type_t<hunk_type>>(h.type),
+                             h.pos, h.pw.to_string());
   }
 };
 
@@ -41,8 +41,10 @@ void run_diff(const std::filesystem::path& old_path, const std::filesystem::path
       // OLD was shorter..
       // copy rest of new into diff as inserts
       while (diff_iter_new != db_new.end()) {
-        diff << fmt::format("I:{:08X}:{}\n", diff_iter_old - db_old.begin(),
-                            diff_iter_new->to_string());
+        hunk h{hunk_type::insert, static_cast<unsigned>(diff_iter_old - db_old.begin()),
+               *diff_iter_new};
+        diff << h << '\n';
+
         ++diff_iter_new;
       }
       break;
@@ -59,8 +61,9 @@ void run_diff(const std::filesystem::path& old_path, const std::filesystem::path
     // fine to dereference std::next(new)
     if (std::next(diff_iter_new) != db_new.end() &&
         deep_equals(*diff_iter_old, *std::next(diff_iter_new))) {
-      diff << fmt::format("I:{:08X}:{}\n", diff_iter_old - db_old.begin(),
-                          diff_iter_new->to_string());
+      hunk h{hunk_type::insert, static_cast<unsigned>(diff_iter_old - db_old.begin()),
+             *diff_iter_new};
+      diff << h << '\n';
       old_begin = diff_iter_old;
       new_begin = diff_iter_new + 1;
       continue;
@@ -68,8 +71,9 @@ void run_diff(const std::filesystem::path& old_path, const std::filesystem::path
     if (*diff_iter_old != *diff_iter_new) { // comparing hash only
       throw std::runtime_error("Replacement implies deletion");
     }
-    diff << fmt::format("U:{:08X}:{}\n", diff_iter_old - db_old.begin(),
-                        diff_iter_new->to_string());
+    hunk h{hunk_type::update, static_cast<unsigned>(diff_iter_old - db_old.begin()),
+           *diff_iter_new};
+    diff << h << '\n';
     old_begin = diff_iter_old + 1;
     new_begin = diff_iter_new + 1;
   }
