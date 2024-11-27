@@ -1,4 +1,11 @@
-### Ubuntu 24.04
+### Recent Linux systems from the last 5 years
+
+Explcitly tested on:
+Debian 11 & 12, Ubuntu 20.04LTS, 22.04LTS & 24.04LTS.
+
+On rpm system, the package names may vary slightly. The only runtime
+dependencies are libcurl and libevent (plus libtbb if you compile with
+`-DHIBP_WITH_PSTL`. 
 
 #### Install Dependencies
 ```bash
