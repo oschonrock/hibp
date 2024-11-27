@@ -116,6 +116,11 @@ target_include_directories(toc PRIVATE include)
 target_compile_options(toc PRIVATE -Wno-ignored-attributes) # non-sensical warning from gcc?
 target_link_libraries(toc PRIVATE hibp flat_file fmt::fmt)
 
+add_library(diffutils src/diffutils.cpp)
+target_compile_features(diffutils PRIVATE cxx_std_20)
+target_include_directories(diffutils PRIVATE include)
+target_link_libraries(diffutils PRIVATE hibp flat_file fmt::fmt)
+
 add_executable(hibp_search app/hibp_search.cpp)
 set_target_properties(hibp_search PROPERTIES OUTPUT_NAME hibp-search)
 target_compile_features(hibp_search PRIVATE cxx_std_20)
@@ -126,7 +131,7 @@ add_executable(hibp_diff app/hibp_diff.cpp src/toc.cpp)
 set_target_properties(hibp_diff PROPERTIES OUTPUT_NAME hibp-diff)
 target_compile_features(hibp_diff PRIVATE cxx_std_20)
 target_compile_options(hibp_diff PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_diff PRIVATE CLI11 hibp flat_file fmt::fmt)
+target_link_libraries(hibp_diff PRIVATE CLI11 hibp flat_file diffutils fmt::fmt)
 
 find_package(Threads)
 
