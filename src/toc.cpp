@@ -61,7 +61,7 @@ void build(const std::filesystem::path& db_path, unsigned bits) {
                            std::ceil(std::log2(toc_entry_size)));
   toc<PwType>.reserve(toc_entries);
 
-  std::uint32_t last_pos = 0;
+  toc_entry last_pos = 0;
   for (std::uint32_t prefix = 0; prefix != toc_entries; prefix++) {
     auto found_iter = std::find_if(db.begin() + last_pos, db.end(), [=](const PwType& pw) {
       return pw_to_prefix(pw, bits) == prefix;
@@ -71,7 +71,7 @@ void build(const std::filesystem::path& db_path, unsigned bits) {
                                            "corrupt data. Cannot build table of contents",
                                            prefix));
     }
-    last_pos = static_cast<toc_entry>(found_iter - db.begin());
+    last_pos = static_cast<toc_entry>(found_iter - db.begin()); // range checked above
     toc<PwType>.push_back(last_pos);
     if (prefix % 1000 == 0) {
       std::cout << fmt::format("{:25s} {:13.1f}%\r", "Building table of contents",
