@@ -144,3 +144,73 @@ TEST_F(DiffTestSha1, diffU2) {
 
   EXPECT_EQ("U:00000002:0000000000000000000000000000000000000030:31\n", diff.str());
 }
+
+TEST_F(DiffTestSha1, diffNewShort0) {
+  using namespace std::string_literals;
+
+  neww.write("0000000000000000000000000000000000000020:20"s);
+  neww.write("0000000000000000000000000000000000000030:30"s);
+  neww.flush();
+  new_stream.flush();
+
+  std::stringstream diff;
+  EXPECT_THROW(hibp::diffutils::run_diff<hibp::pawned_pw_sha1>(old_path, new_path, diff), std::runtime_error);
+}
+TEST_F(DiffTestSha1, diffNewShort1) {
+  using namespace std::string_literals;
+  neww.write("0000000000000000000000000000000000000010:10"s);
+
+  neww.write("0000000000000000000000000000000000000030:30"s);
+  neww.flush();
+  new_stream.flush();
+
+  std::stringstream diff;
+  EXPECT_THROW(hibp::diffutils::run_diff<hibp::pawned_pw_sha1>(old_path, new_path, diff), std::runtime_error);
+}
+TEST_F(DiffTestSha1, diffNewShort2) {
+  using namespace std::string_literals;
+  neww.write("0000000000000000000000000000000000000010:10"s);
+  neww.write("0000000000000000000000000000000000000020:20"s);
+  
+  neww.flush();
+  new_stream.flush();
+
+  std::stringstream diff;
+  EXPECT_THROW(hibp::diffutils::run_diff<hibp::pawned_pw_sha1>(old_path, new_path, diff), std::runtime_error);
+}
+
+TEST_F(DiffTestSha1, diffOldReplaced0) {
+  using namespace std::string_literals;
+
+  neww.write("0000000000000000000000000000000000000015:10"s);
+  neww.write("0000000000000000000000000000000000000020:20"s);
+  neww.write("0000000000000000000000000000000000000030:30"s);
+  neww.flush();
+  new_stream.flush();
+
+  std::stringstream diff;
+  EXPECT_THROW(hibp::diffutils::run_diff<hibp::pawned_pw_sha1>(old_path, new_path, diff), std::runtime_error);
+}
+TEST_F(DiffTestSha1, diffOldReplaced1) {
+  using namespace std::string_literals;
+  neww.write("0000000000000000000000000000000000000010:10"s);
+  neww.write("0000000000000000000000000000000000000025:20"s);
+  neww.write("0000000000000000000000000000000000000030:30"s);
+  neww.flush();
+  new_stream.flush();
+
+  std::stringstream diff;
+  EXPECT_THROW(hibp::diffutils::run_diff<hibp::pawned_pw_sha1>(old_path, new_path, diff), std::runtime_error);
+}
+TEST_F(DiffTestSha1, diffOldReplaced2) {
+  using namespace std::string_literals;
+  neww.write("0000000000000000000000000000000000000010:10"s);
+  neww.write("0000000000000000000000000000000000000020:20"s);
+  neww.write("0000000000000000000000000000000000000035:30"s);
+  
+  neww.flush();
+  new_stream.flush();
+
+  std::stringstream diff;
+  EXPECT_THROW(hibp::diffutils::run_diff<hibp::pawned_pw_sha1>(old_path, new_path, diff), std::runtime_error);
+}
