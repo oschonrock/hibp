@@ -43,7 +43,7 @@ void run_diff(const std::filesystem::path& old_path, const std::filesystem::path
     }
     // fine to dereference std::next(new)
     if (std::next(diff_iter_new) != db_new.end() &&
-        deep_equals(*diff_iter_old, *(diff_iter_new + 1))) {
+        deep_equals(*diff_iter_old, *std::next(diff_iter_new))) {
       diff << fmt::format("I:{:08X}:{}\n", diff_iter_old - db_old.begin(),
                           diff_iter_new->to_string());
       old_begin = diff_iter_old;
