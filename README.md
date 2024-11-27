@@ -174,7 +174,7 @@ with `--toc`
 
 The compromised password database is also available using the NTLM
 hash, rather than sha1. This may be useful if auditing local
-Windows server authetication systems.
+Windows server authentication systems.
 
 ```bash
 ./build/gcc/release/hibp-download --ntlm hibp_all.ntlm.bin
@@ -195,7 +195,7 @@ follows.  This is a simple "REST" server using the "restinio" library.
 The server process consumes <5MB of resident memory.
 
 ```bash
-./build/gcc/release/hibp-server hibp_all.bin
+./build/gcc/release/hibp-server hibp_all.sha1.bin
 curl http://localhost:8082/check/plain/password
 
 # output should be:
@@ -335,9 +335,9 @@ The main intention is for this be a local server, binding to
 `localhost` only, and thats the default behaviour. There is no request
 logging, so `http` is a secure and simple architecture. 
 
-Of course, if you want to server to other devices as well, you
-**should definitely** either *use a reverse proxy* in front of
-hibp-server, or modify `app/hibp-server.cpp` and *recompile with TLS support*.
+Of course, if you want to serve beyond localhost, you **should
+definitely** either *use a reverse proxy* in front of hibp-server, or
+modify `app/hibp-server.cpp` and *recompile with TLS support*.
 
 ## Under the hood
 
