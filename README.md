@@ -264,7 +264,11 @@ of contents" features, which builds an index into the "chapters" of
 the database and then holds this index in memory.
 
 This only consumes an additional 4MB of RAM by default, but maintains
-excellent performance even without any OS level disk caching.
+excellent performance even without any OS level disk caching, by
+eliminating 2/3rds of the disk reads for each query (by default, but
+tunable):
+
+![](https://github.com/oschonrock/hibp/blob/main/media/toc.png)
 
 `--toc` is available on the `hibp-search` test utility, and the `hibp-server`. 
 

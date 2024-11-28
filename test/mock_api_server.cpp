@@ -15,7 +15,7 @@ auto get_router(const fs::path& static_dir) {
     fs::path requested_path(params["file"]);
 
     const auto qp = restinio::parse_query(req->header().query());
-    fs::path file_path;
+    fs::path   file_path;
     if (qp.has("mode") && qp["mode"] == "ntlm") {
       file_path = static_dir / "ntlm" / requested_path;
     } else {

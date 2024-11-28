@@ -187,7 +187,6 @@ endif()
 
 option(HIBP_TEST "Enable HIBP tests" OFF)
 if(HIBP_TEST)
-  
   add_executable(mock_api_server test/mock_api_server.cpp)
   target_compile_options(mock_api_server PRIVATE ${PROJECT_COMPILE_OPTIONS})
   if (MINGW)
