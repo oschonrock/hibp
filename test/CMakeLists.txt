@@ -10,9 +10,9 @@ FetchContent_Declare(
 )
 # For Windows: Prevent overriding the parent project's compiler/linker settings
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+set(INSTALL_GTEST OFF CACHE BOOL "Disable installing GTEST")
 FetchContent_MakeAvailable(googletest)
 
-set(INSTALL_GEST OFF)
 include(GoogleTest)
 
 include_directories(${CMAKE_SOURCE_DIR}/include)

@@ -1,5 +1,6 @@
 #include "hibp.hpp"
 #include <cstdlib>
+#include <filesystem>
 
 namespace hibp::diffutils {
 
