@@ -9,7 +9,7 @@
 #endif
 #include <filesystem>
 #include <fmt/format.h>
-#include <fmt/std.h>
+#include <fmt/std.h>  // IWYU pragma: keep
 #include <fstream>
 #include <functional>
 #include <ios>

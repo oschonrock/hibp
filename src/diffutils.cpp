@@ -3,6 +3,7 @@
 #include "hibp.hpp"
 #include <algorithm>
 #include <cstdlib>
+#include <filesystem>
 #include <fmt/chrono.h> // IWYU pragma: keep
 #include <fmt/format.h>
 #include <iostream>
@@ -42,7 +43,7 @@ void run_diff(const std::filesystem::path& old_path, const std::filesystem::path
       // OLD was shorter..
       // copy rest of new into diff as inserts
       while (diff_iter_new != db_new.end()) {
-        hunk h{hunk_type::insert, static_cast<unsigned>(diff_iter_old - db_old.begin()),
+        const hunk h{hunk_type::insert, static_cast<unsigned>(diff_iter_old - db_old.begin()),
                *diff_iter_new};
         diff << h << '\n';
 
@@ -62,7 +63,7 @@ void run_diff(const std::filesystem::path& old_path, const std::filesystem::path
     // fine to dereference std::next(new)
     if (std::next(diff_iter_new) != db_new.end() &&
         deep_equals(*diff_iter_old, *std::next(diff_iter_new))) {
-      hunk h{hunk_type::insert, static_cast<unsigned>(diff_iter_old - db_old.begin()),
+      const hunk h{hunk_type::insert, static_cast<unsigned>(diff_iter_old - db_old.begin()),
              *diff_iter_new};
       diff << h << '\n';
       old_begin = diff_iter_old;
@@ -72,7 +73,7 @@ void run_diff(const std::filesystem::path& old_path, const std::filesystem::path
     if (*diff_iter_old != *diff_iter_new) { // comparing hash only
       throw std::runtime_error("Replacement implies deletion");
     }
-    hunk h{hunk_type::update, static_cast<unsigned>(diff_iter_old - db_old.begin()),
+    const hunk h{hunk_type::update, static_cast<unsigned>(diff_iter_old - db_old.begin()),
            *diff_iter_new};
     diff << h << '\n';
     old_begin = diff_iter_old + 1;

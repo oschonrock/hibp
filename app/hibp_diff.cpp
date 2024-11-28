@@ -3,8 +3,6 @@
 #include <CLI/CLI.hpp>
 #include <cstdlib>
 #include <exception>
-#include <fmt/chrono.h> // IWYU pragma: keep
-#include <fmt/format.h>
 #include <iostream>
 #include <string>
 

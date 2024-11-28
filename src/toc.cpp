@@ -5,10 +5,11 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <fmt/format.h>
-#include <fmt/std.h>
+#include <fmt/std.h>  // IWYU pragma: keep
 #include <fstream>
 #include <iostream>
 #include <limits>
