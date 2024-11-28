@@ -176,6 +176,10 @@ void service_queue(write_fn_t& write_fn, std::size_t next_index) {
       }
       qmgt::msg_queue.pop();
     }
+    if (qmgt::finished_dls && qmgt::msg_queue.empty() && qmgt::process_queue.empty()) {
+      break;
+    }
+    
     lk.unlock(); // free up other thread to pass us more messages
 
     // now do the work in the process queue
@@ -193,7 +197,6 @@ void service_queue(write_fn_t& write_fn, std::size_t next_index) {
       qmgt::files_processed++;
     }
     qmgt::print_progress();
-    if (qmgt::finished_dls && qmgt::msg_queue.empty()) break;
   }
   if (cli.progress) {
     std::cerr << "\n"; // clear line after progress if being shown, bit nasty
