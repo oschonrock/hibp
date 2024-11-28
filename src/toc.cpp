@@ -57,8 +57,8 @@ void build(const std::filesystem::path& db_path, unsigned bits) {
   std::cout << fmt::format("{:30s} {:15.0f} per query\n", "Max disk reads without ToC",
                            std::ceil(std::log2(db_size)));
   std::cout << fmt::format("{:30s} {:15d}\n", "Number of bits in ToC prefix", bits);
-  std::cout << fmt::format("{:30s} {:15d} ({}MB consumed)\n", "Number of ToC entries", toc_entries,
-                           toc_entries * sizeof(toc_entry) >> 20U);
+  std::cout << fmt::format("{:30s} {:15d} ({:.1f}MB consumed)\n", "Number of ToC entries", toc_entries,
+                           static_cast<double>(toc_entries * sizeof(toc_entry)) / pow(2, 20));
   std::cout << fmt::format("{:30s} {:15d} records in db (avg)\n", "Each ToC entry covers",
                            toc_entry_size);
   std::cout << fmt::format("{:30s} {:15.0f} per query\n", "Max disk reads with ToC",

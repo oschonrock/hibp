@@ -42,7 +42,8 @@ void define_options(CLI::App& app, hibp::srv::cli_config_t& cli) {
 
   app.add_option("--toc-bits", cli.toc_bits,
                  fmt::format("Specify how may bits to use for table of content mask. default {}",
-                             cli.toc_bits));
+                             cli.toc_bits))
+      ->check(CLI::Range(15, 25));
 }
 
 namespace hibp::srv {
