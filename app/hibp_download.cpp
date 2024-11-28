@@ -117,10 +117,12 @@ int main(int argc, char* argv[]) {
       // use a largegish output buffer ~240kB for efficient writes
       if (cli.ntlm) {
         auto ffsw = flat_file::stream_writer<hibp::pawned_pw_ntlm>(output_db_stream, 10'000);
-        hibp::dnl::run([&](const std::string& line) { ffsw.write(line); }, start_index, cli.testing);
+        hibp::dnl::run([&](const std::string& line) { ffsw.write(line); }, start_index,
+                       cli.testing);
       } else {
         auto ffsw = flat_file::stream_writer<hibp::pawned_pw_sha1>(output_db_stream, 10'000);
-        hibp::dnl::run([&](const std::string& line) { ffsw.write(line); }, start_index, cli.testing);
+        hibp::dnl::run([&](const std::string& line) { ffsw.write(line); }, start_index,
+                       cli.testing);
       }
     }
 

@@ -285,7 +285,7 @@ void init_curl_and_events() {
 
 void run_event_loop(std::size_t start_index, bool testing_) {
   req::next_index = start_index;
-  req::testing = testing_;
+  req::testing    = testing_;
   req::fill_download_queue();
   event_base_dispatch(req::ebase);
   logger.log("event_base_dispatch() completed");
