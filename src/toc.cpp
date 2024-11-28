@@ -49,15 +49,18 @@ void build(const std::filesystem::path& db_path, unsigned bits) {
 
   const std::size_t db_size = db.number_records();
   if (db_size > std::numeric_limits<toc_entry>::max()) {
-    throw std::runtime_error(fmt::format("Fatal: toc value type is too small for this db"));
+    throw std::runtime_error(fmt::format("Fatal: ToC value type is too small for this db"));
   }
   const std::size_t toc_entry_size = db_size / toc_entries;
-  std::cout << fmt::format("{:25s} {:15d} records\n", "db_size", db_size);
-  std::cout << fmt::format("{:25s} {:15d}\n", "number bits in mask", bits);
-  std::cout << fmt::format("{:25s} {:15d}\n", "number of toc entries", toc_entries);
-  std::cout << fmt::format("{:25s} {:15d} records in db on average\n", "each toc_entry covers",
+  std::cout << fmt::format("{:30s} {:15d} records\n", "DB size", db_size);
+  std::cout << fmt::format("{:30s} {:15.0f} per query\n", "Max disk reads without ToC",
+                           std::ceil(std::log2(db_size)));
+  std::cout << fmt::format("{:30s} {:15d}\n", "Number of bits in ToC prefix", bits);
+  std::cout << fmt::format("{:30s} {:15d} ({}MB consumed)\n", "Number of ToC entries", toc_entries,
+                           toc_entries * sizeof(toc_entry) >> 20U);
+  std::cout << fmt::format("{:30s} {:15d} records in db (avg)\n", "Each ToC entry covers",
                            toc_entry_size);
-  std::cout << fmt::format("{:25s} {:15.0f} per query\n", "max disk reads",
+  std::cout << fmt::format("{:30s} {:15.0f} per query\n", "Max disk reads with ToC",
                            std::ceil(std::log2(toc_entry_size)));
   toc<PwType>.reserve(toc_entries);
 
@@ -74,9 +77,9 @@ void build(const std::filesystem::path& db_path, unsigned bits) {
     last_pos = static_cast<toc_entry>(found_iter - db.begin()); // range checked above
     toc<PwType>.push_back(last_pos);
     if (prefix % 1000 == 0) {
-      std::cout << fmt::format("{:25s} {:13.1f}%\r", "Building table of contents",
+      std::cout << fmt::format("{:30s} {:14.1f}%\r", "Building table of contents",
                                prefix * 100 / static_cast<double>(toc_entries))
-                << std::flush; // stop cursor flickering
+                << std::flush;
     }
   }
   std::cout << "\n";
