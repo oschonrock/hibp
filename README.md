@@ -13,7 +13,8 @@ Here is `hibp-download` running on a 400Mbit/s connection, averaging
 ~48MB/s which is very close to the theorectical maximum. At this
 network speed, a download of the entire HIBP database, including
 prefixing and joining the over 1 million files, converting to our
-binary format and writing to disk, takes *under 12 minutes*.
+binary format and writing to disk, takes *under 12 minutes* (the
+official downloader takes over an hour on the same connection).
 
 ![](https://github.com/oschonrock/hibp/blob/main/media/download.gif)
 
@@ -26,6 +27,11 @@ On a full 1Gbit/s connection this take *around 6 minutes*, as shown here under W
 #### Install
 
 [Download latest .deb and install](https://github.com/oschonrock/hibp/releases/latest)
+
+These .deb releases are compatible with recent'ish debian derived
+distrubutions on amd64 platforms. They are explicitly tested on:
+Debian 11 & 12, Ubuntu 20.04LTS, 22.04LTS & 24.04LTS.
+
 ```bash
 wget -q https://github.com/oschonrock/hibp/releases/download/v0.4.1/hibp_0.4.1-1_amd64.deb
 sudo apt install ./hibp_0.4.1-1_amd64.deb  # will install minimal dependencies (eg `libevent`)
@@ -173,7 +179,7 @@ with `--toc`
 
 The compromised password database is also available using the NTLM
 hash, rather than sha1. This may be useful if auditing local
-Windows server authetication systems.
+Windows server authentication systems.
 
 ```bash
 ./build/gcc/release/hibp-download --ntlm hibp_all.ntlm.bin
@@ -194,7 +200,7 @@ follows.  This is a simple "REST" server using the "restinio" library.
 The server process consumes <5MB of resident memory.
 
 ```bash
-./build/gcc/release/hibp-server hibp_all.bin
+./build/gcc/release/hibp-server hibp_all.sha1.bin
 curl http://localhost:8082/check/plain/password
 
 # output should be:
@@ -338,9 +344,9 @@ The main intention is for this be a local server, binding to
 `localhost` only, and thats the default behaviour. There is no request
 logging, so `http` is a secure and simple architecture. 
 
-Of course, if you want to server to other devices as well, you
-**should definitely** either *use a reverse proxy* in front of
-hibp-server, or modify `app/hibp-server.cpp` and *recompile with TLS support*.
+Of course, if you want to serve beyond localhost, you **should
+definitely** either *use a reverse proxy* in front of hibp-server, or
+modify `app/hibp-server.cpp` and *recompile with TLS support*.
 
 ## Under the hood
 
