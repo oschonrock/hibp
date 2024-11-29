@@ -112,6 +112,8 @@ while true; do
     shift
 done
 
+[[ -n "$1" ]] && echo "unexpected argument '$1'" && exit 1
+
 cd "$(realpath $(dirname $0))"
 
 BUILD_DIR=$BUILDROOT/$COMPILER/$BUILDTYPE
