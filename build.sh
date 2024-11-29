@@ -112,7 +112,7 @@ while true; do
     shift
 done
 
-[[ -n "$1" ]] && echo "unexpected argument '$1'" && exit 1
+[[ $# -gt 0 ]] && echo "unexpected argument '$1'" && exit 1
 
 cd "$(realpath $(dirname $0))"
 
