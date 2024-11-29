@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <string>
+#include <stop_token>
 
 namespace hibp::dnl {
 

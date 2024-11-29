@@ -15,6 +15,10 @@ else() # unix'ish
     # -ftime-trace # for compile time reporting
     -Wmissing-noreturn -Wconversion -Wsign-conversion -Wno-ignored-attributes)
 
+  if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+    list(APPEND PROJECT_COMPILE_OPTIONS -fexperimental-library)
+  endif()
+    
   # sanatizers
   if(CMAKE_BUILD_TYPE STREQUAL "debug")
     if (NOT MINGW) # sanitizers are not working under mingw
