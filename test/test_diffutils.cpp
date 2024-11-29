@@ -4,6 +4,7 @@
 #include "gtest/gtest.h"
 #include <filesystem>
 #include <fstream>
+#include <ios>
 #include <sstream>
 
 template <hibp::pw_type PwType>
@@ -12,8 +13,9 @@ protected:
   DiffTest()
       : testtmpdir{std::filesystem::canonical(std::filesystem::current_path() /
                                               "../../../../test/tmp")},
-        old_path{testtmpdir / "old.sha1.bin"}, old_stream{old_path}, oldw{old_stream},
-        new_path{testtmpdir / "new.sha1.bin"}, new_stream{new_path}, neww{new_stream} {
+        old_path{testtmpdir / "old.sha1.bin"}, old_stream{old_path, std::ios_base::binary},
+        oldw{old_stream}, new_path{testtmpdir / "new.sha1.bin"},
+        new_stream{new_path, std::ios_base::binary}, neww{new_stream} {
 
     using namespace std::string_literals;
     oldw.write("0000000000000000000000000000000000000010:10"s);
