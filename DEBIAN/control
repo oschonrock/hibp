@@ -1,5 +1,5 @@
 Package: hibp
-Version: 0.4.1
+Version: 0.4.2
 Architecture: amd64
 Maintainer: Oliver Schönrock <oliver@schonrocks.com>
 Description: High performance downloader, query tool, server and utilities for the
@@ -7,4 +7,4 @@ Description: High performance downloader, query tool, server and utilities for t
   database is somewhat challenging to use locally because of its sheer size.
   These utiliities make it easy and fast to deal with the large data volume
   while being very effiicent on disk and memory resouces.
-Depends: libc6 (>= 2.16), libcurl4 (>= 7.16.3), libevent-2.1-7 (>= 2.1.8-stable), libgcc-s1 (>= 3.0), libstdc++6 (>= 9)
+Depends: libc6 (>= 2.29), libcurl4 (>= 7.16.3), libevent-2.1-7 (>= 2.1.8-stable), libgcc-s1 (>= 3.0), libstdc++6 (>= 9)
