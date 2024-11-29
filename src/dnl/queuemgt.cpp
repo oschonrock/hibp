@@ -1,6 +1,7 @@
 #include "dnl/queuemgt.hpp"
 #include "dnl/requests.hpp"
 #include "dnl/shared.hpp"
+#include <stop_token>
 #if __has_include(<bits/chrono.h>)
 #include <bits/chrono.h>
 #endif
@@ -72,10 +73,10 @@ std::priority_queue<std::unique_ptr<download>, std::vector<std::unique_ptr<downl
                     decltype(process_queue_compare)>
     process_queue(process_queue_compare);
 
-std::mutex              msgmutex;
-std::queue<enq_msg_t>   msg_queue;
-std::condition_variable msg_cv;
-bool                    finished_dls = false;
+std::mutex                  msgmutex;
+std::queue<enq_msg_t>       msg_queue;
+std::condition_variable_any msg_cv; // _any for stop_token
+bool                        finished_dls = false;
 
 std::size_t files_processed = 0UL;
 std::size_t bytes_processed = 0UL;
@@ -161,11 +162,16 @@ void finished_downloads() {
   qmgt::msg_cv.notify_one();
 }
 
-void service_queue(write_fn_t& write_fn, std::size_t next_index) {
+void service_queue(write_fn_t& write_fn, std::size_t next_index, std::stop_token stoken) { // NOLINT stoken
 
   while (true) {
     std::unique_lock lk(qmgt::msgmutex);
-    qmgt::msg_cv.wait(lk, [] { return !qmgt::msg_queue.empty() || qmgt::finished_dls; });
+    qmgt::msg_cv.wait(lk, stoken, [&] { return !qmgt::msg_queue.empty() || qmgt::finished_dls; });
+
+    if (stoken.stop_requested()) {
+      logger.log("stop request received: bailing out");
+      break;
+    }
 
     // bring messages over into process_queue
     while (!qmgt::msg_queue.empty()) {
@@ -177,9 +183,9 @@ void service_queue(write_fn_t& write_fn, std::size_t next_index) {
       qmgt::msg_queue.pop();
     }
     if (qmgt::finished_dls && qmgt::msg_queue.empty() && qmgt::process_queue.empty()) {
-      break;
+      break; // normal finish
     }
-    
+
     lk.unlock(); // free up other thread to pass us more messages
 
     // now do the work in the process queue
@@ -212,30 +218,38 @@ void run(write_fn_t write_fn, std::size_t start_index_, bool testing_) {
   qmgt::start_index = start_index_;     // for progress
   init_curl_and_events();
 
-  auto que_thr_id      = std::this_thread::get_id();
-  thrnames[que_thr_id] = "queuemgt";
+  std::thread::id que_thr_id;
+  std::thread::id req_thr_id;
+  {
+    std::stop_source que_stop_source;
+    std::stop_source req_stop_source;
 
-  std::thread requests_thread([&]() {
-    try {
-      run_event_loop(start_index_, testing_);
-    } catch (...) {
-      logger.log("caught exception");
-      requests_exception = std::current_exception();
-      finished_downloads(); // try to unblock queuemgt thread
-    }
-  });
+    std::jthread requests_thread([&]() {
+      try {
+        run_event_loop(start_index_, testing_, req_stop_source.get_token());
+      } catch (...) {
+        requests_exception = std::current_exception();
+        logger.log("exception caught: requesting stop of queuemgt thread via stop_token");
+        que_stop_source.request_stop();
+      }
+    });
 
-  auto req_thr_id      = requests_thread.get_id();
-  thrnames[req_thr_id] = "requests";
+    req_thr_id           = requests_thread.get_id();
+    thrnames[req_thr_id] = "requests";
 
-  try {
-    service_queue(write_fn, start_index_);
-  } catch (...) {
-    logger.log("caught exception");
-    queuemgt_exception = std::current_exception();
-  }
+    std::jthread queuemgt_thread([&]() {
+      try {
+        service_queue(write_fn, start_index_, que_stop_source.get_token());
+      } catch (...) {
+        queuemgt_exception = std::current_exception();
+        logger.log("exception caught: requesting stop of requests thread via stop_token");
+        req_stop_source.request_stop();
+      }
+    });
+    que_thr_id           = queuemgt_thread.get_id();
+    thrnames[que_thr_id] = "queuemgt";
 
-  requests_thread.join();
+  } // wait here until threads join
 
   // use temps to avoid short cct eval
   const bool ex_requests = qmgt::handle_exception(requests_exception, req_thr_id);

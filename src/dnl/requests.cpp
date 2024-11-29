@@ -3,6 +3,7 @@
 #include "hibp.hpp"
 #include <algorithm>
 #include <fmt/format.h>
+#include <stop_token>
 #if __has_include(<bits/types/struct_timeval.h>)
 #include <bits/types/struct_timeval.h>
 #elif __has_include(<sys/_timeval.h>)
@@ -38,7 +39,8 @@ std::unordered_map<std::size_t, std::unique_ptr<download>> download_slots;
 CURLM* curl_multi_handle;
 event* timeout;
 
-event_base* ebase;
+event_base*     ebase;
+std::stop_token stoken;
 
 std::size_t next_index = 0x0UL;
 
@@ -140,6 +142,11 @@ void process_curl_messages() {
   CURLMsg* message = nullptr;
   int      pending = 0;
 
+  if (stoken.stop_requested()) {
+    logger.log("stop request received: bailing out");
+    throw std::runtime_error("stop requested by queuemgt thread");
+  }
+  
   enq_msg_t msg;
   while ((message = curl_multi_info_read(curl_multi_handle, &pending)) != nullptr) {
     switch (message->msg) {
@@ -283,10 +290,11 @@ void init_curl_and_events() {
   curl_multi_setopt(req::curl_multi_handle, CURLMOPT_TIMERFUNCTION, req::start_timeout_curl_cb);
 }
 
-void run_event_loop(std::size_t start_index, bool testing_) {
+void run_event_loop(std::size_t start_index, bool testing_, std::stop_token stoken) {
   req::next_index = start_index;
   req::testing    = testing_;
   req::fill_download_queue();
+  req::stoken = std::move(stoken);
   event_base_dispatch(req::ebase);
   logger.log("event_base_dispatch() completed");
   finished_downloads();
@@ -305,7 +313,7 @@ void shutdown_curl_and_events() {
 }
 
 void curl_and_event_cleanup() {
-  event_base_loopbreak(req::ebase); // not sure if required, but to be safe
+  event_base_loopbreak(req::ebase);
 
   for (auto& dl_item: req::download_slots) {
     auto& dl = dl_item.second;
