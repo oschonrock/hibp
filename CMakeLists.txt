@@ -131,6 +131,12 @@ target_compile_features(hibp_search PRIVATE cxx_std_20)
 target_compile_options(hibp_search PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_search PRIVATE CLI11 sha1 ntlm hibp toc flat_file fmt::fmt)
 
+add_executable(hibp_dupes app/hibp_dupes.cpp)
+set_target_properties(hibp_dupes PROPERTIES OUTPUT_NAME hibp-dupes)
+target_compile_features(hibp_dupes PRIVATE cxx_std_20)
+target_compile_options(hibp_dupes PRIVATE ${PROJECT_COMPILE_OPTIONS})
+target_link_libraries(hibp_dupes PRIVATE CLI11 sha1 hibp flat_file fmt::fmt)
+
 add_executable(hibp_diff app/hibp_diff.cpp src/toc.cpp)
 set_target_properties(hibp_diff PROPERTIES OUTPUT_NAME hibp-diff)
 target_compile_features(hibp_diff PRIVATE cxx_std_20)
