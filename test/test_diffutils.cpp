@@ -18,7 +18,6 @@ protected:
         oldw{old_stream}, new_path{testtmpdir / "new.sha1.bin"},
         new_stream{new_path, std::ios_base::binary}, neww{new_stream} {
 
-    using namespace std::string_literals;
     oldw.write(PwType{"0000000000000000000000000000000000000010:10"});
     oldw.write(PwType{"0000000000000000000000000000000000000020:20"});
     oldw.write(PwType{"0000000000000000000000000000000000000030:30"});
@@ -44,7 +43,6 @@ using DiffTestSha1 = DiffTest<hibp::pawned_pw_sha1>;
 using DiffTestNtlm = DiffTest<hibp::pawned_pw_ntlm>;
 
 TEST_F(DiffTestSha1, diffI0) {
-  using namespace std::string_literals;
   write("0000000000000000000000000000000000000005:5");
 
   write("0000000000000000000000000000000000000010:10");
@@ -59,7 +57,6 @@ TEST_F(DiffTestSha1, diffI0) {
 }
 
 TEST_F(DiffTestSha1, diffI1) {
-  using namespace std::string_literals;
   write("0000000000000000000000000000000000000010:10");
 
   write("0000000000000000000000000000000000000015:15");
@@ -75,7 +72,6 @@ TEST_F(DiffTestSha1, diffI1) {
 }
 
 TEST_F(DiffTestSha1, diffI2) {
-  using namespace std::string_literals;
   write("0000000000000000000000000000000000000010:10");
   write("0000000000000000000000000000000000000020:20");
 
@@ -91,7 +87,6 @@ TEST_F(DiffTestSha1, diffI2) {
 }
 
 TEST_F(DiffTestSha1, diffI3) {
-  using namespace std::string_literals;
   write("0000000000000000000000000000000000000010:10");
   write("0000000000000000000000000000000000000020:20");
   write("0000000000000000000000000000000000000030:30");
@@ -106,7 +101,6 @@ TEST_F(DiffTestSha1, diffI3) {
 }
 
 TEST_F(DiffTestSha1, diffU0) {
-  using namespace std::string_literals;
   write("0000000000000000000000000000000000000010:11");
   write("0000000000000000000000000000000000000020:20");
   write("0000000000000000000000000000000000000030:30");
@@ -119,7 +113,6 @@ TEST_F(DiffTestSha1, diffU0) {
 }
 
 TEST_F(DiffTestSha1, diffU1) {
-  using namespace std::string_literals;
   write("0000000000000000000000000000000000000010:10");
   write("0000000000000000000000000000000000000020:21");
   write("0000000000000000000000000000000000000030:30");
@@ -132,7 +125,6 @@ TEST_F(DiffTestSha1, diffU1) {
 }
 
 TEST_F(DiffTestSha1, diffU2) {
-  using namespace std::string_literals;
   write("0000000000000000000000000000000000000010:10");
   write("0000000000000000000000000000000000000020:20");
   write("0000000000000000000000000000000000000030:31");
@@ -145,7 +137,6 @@ TEST_F(DiffTestSha1, diffU2) {
 }
 
 TEST_F(DiffTestSha1, diffNewShort0) {
-  using namespace std::string_literals;
   write("0000000000000000000000000000000000000020:20");
   write("0000000000000000000000000000000000000030:30");
   flush();
@@ -155,7 +146,6 @@ TEST_F(DiffTestSha1, diffNewShort0) {
                std::runtime_error);
 }
 TEST_F(DiffTestSha1, diffNewShort1) {
-  using namespace std::string_literals;
   write("0000000000000000000000000000000000000010:10");
   write("0000000000000000000000000000000000000030:30");
   flush();
@@ -165,7 +155,6 @@ TEST_F(DiffTestSha1, diffNewShort1) {
                std::runtime_error);
 }
 TEST_F(DiffTestSha1, diffNewShort2) {
-  using namespace std::string_literals;
   write("0000000000000000000000000000000000000010:10");
   write("0000000000000000000000000000000000000020:20");
   flush();
@@ -176,7 +165,6 @@ TEST_F(DiffTestSha1, diffNewShort2) {
 }
 
 TEST_F(DiffTestSha1, diffOldReplaced0) {
-  using namespace std::string_literals;
 
   write("0000000000000000000000000000000000000015:10");
   write("0000000000000000000000000000000000000020:20");
@@ -188,7 +176,6 @@ TEST_F(DiffTestSha1, diffOldReplaced0) {
                std::runtime_error);
 }
 TEST_F(DiffTestSha1, diffOldReplaced1) {
-  using namespace std::string_literals;
   write("0000000000000000000000000000000000000010:10");
   write("0000000000000000000000000000000000000025:20");
   write("0000000000000000000000000000000000000030:30");
@@ -199,7 +186,6 @@ TEST_F(DiffTestSha1, diffOldReplaced1) {
                std::runtime_error);
 }
 TEST_F(DiffTestSha1, diffOldReplaced2) {
-  using namespace std::string_literals;
   write("0000000000000000000000000000000000000010:10");
   write("0000000000000000000000000000000000000020:20");
   write("0000000000000000000000000000000000000035:30");
@@ -212,7 +198,6 @@ TEST_F(DiffTestSha1, diffOldReplaced2) {
 }
 
 TEST_F(DiffTestSha1, diffAppend2) {
-  using namespace std::string_literals;
   write("0000000000000000000000000000000000000010:10");
   write("0000000000000000000000000000000000000020:20");
   write("0000000000000000000000000000000000000030:30");
@@ -229,7 +214,6 @@ TEST_F(DiffTestSha1, diffAppend2) {
 }
 
 TEST_F(DiffTestSha1, diffCombo1) {
-  using namespace std::string_literals;
   write("0000000000000000000000000000000000000005:5");
   write("0000000000000000000000000000000000000010:10");
   write("0000000000000000000000000000000000000020:25");
