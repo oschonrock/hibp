@@ -60,18 +60,26 @@ struct pawned_pw {
     }
 
     count          = -1;
-    auto count_idx = hash.size() * 2 + 1;
+    auto count_idx = hash_str_size + 1;
     if (text.size() > count_idx) {
       std::from_chars(text.c_str() + count_idx, text.c_str() + text.size(), count);
     }
   }
 
   std::strong_ordering operator<=>(const pawned_pw& rhs) const {
-    return arrcmp::array_compare(hash, rhs.hash, arrcmp::three_way{});
+    if constexpr (HashSize == 8) { // alignment problems => fallback
+      return hash <=> rhs.hash;
+    } else {
+      return arrcmp::array_compare(hash, rhs.hash, arrcmp::three_way{});
+    }
   }
 
   bool operator==(const pawned_pw& rhs) const {
-    return arrcmp::array_compare(hash, rhs.hash, arrcmp::equal{});
+    if constexpr (HashSize == 8) { // alignment problems => fallback
+      return hash == rhs.hash;
+    } else {
+      return arrcmp::array_compare(hash, rhs.hash, arrcmp::equal{});
+    }
   }
 
   [[nodiscard]] std::string to_string() const {
