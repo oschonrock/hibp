@@ -25,7 +25,9 @@ oneTimeSetUp() {
 
     $builddir/mock_api_server $datadir &
     export mock_server_pid=$!
-    $builddir/hibp-server --ntlm-db=$datadir/hibp_test.ntlm.bin --sha1-db=$datadir/hibp_test.sha1.bin 1>/dev/null &
+    $builddir/hibp-server  --sha1-db=$datadir/hibp_test.sha1.bin \
+			   --ntlm-db=$datadir/hibp_test.ntlm.bin \
+			   --sha1t64-db=$datadir/hibp_test.sha1t64.bin 1>/dev/null &
     export hibp_server_pid=$!
     
     export avoidDoubleTearDownExecution="true"
