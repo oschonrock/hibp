@@ -310,6 +310,36 @@ hibp-server --sha1-db=hibp_topn.sha1.bin --ntlm-db=hibp_topn.ntlm.bin --toc
 You can now remove the really big files, if the top 50million entries
 is enough for you.
 
+### Saving further diskspace: sha1t64 
+
+We can also store the sha1 database with the hashes truncated to
+64bits, AKA sha1t64. `hibp-download`, `hibp-search`, `hibp-server` and
+`hibp-topn` support this format.
+
+There are no "hash collisions", at 64bit truncated, in the current
+dataset and the probability of a random password hitting a 64bit "hash
+collision", when actually its sha1 was different is about 1/10^10, so
+basically negligible.
+
+**Diskspace is reduced by half** (12 bytes per record), and concurrent
+performance is improved by 40-50%.
+
+```bash
+hibp-download --sha1t64 hibp_all.sha1t64.bin
+```
+and then search
+```bash
+hibp-search --sha1t64 hibp_all.sha1t64.bin password
+```
+or maybe "by hash" rather than plaintext password? 
+```bash
+hibp-search --sha1t64 hibp_all.sha1t64.bin --hash 00001131628B741F
+```
+or run a server
+```bash
+hibp-server --sha1t64-db hibp_all.sha1t64.bin 
+```
+
 ## Other utilities
 
 `hibp-topn`    : reduce a db to the N most common passwords (saves diskspace)

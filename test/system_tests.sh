@@ -282,6 +282,8 @@ testServerPlain() {
     assertEquals "count for plain pw '${plain}' of '${count}' was wrong" "${correct_count}" "${count}"
 }
 
+# server
+
 testServerSha1() {
     sha1="00001131628B741FF755AAC0E7C66D26A7C72082"
     correct_count="1002"
