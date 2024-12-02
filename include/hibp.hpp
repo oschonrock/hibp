@@ -95,11 +95,13 @@ struct pawned_pw {
   std::int32_t                    count = -1; // important to be definitive about size
 };
 
-using pawned_pw_sha1 = pawned_pw<20>;
-using pawned_pw_ntlm = pawned_pw<16>;
+using pawned_pw_sha1    = pawned_pw<20>;
+using pawned_pw_ntlm    = pawned_pw<16>;
+using pawned_pw_sha1t64 = pawned_pw<8>;
 
 template <typename T>
-concept pw_type = std::is_same_v<T, pawned_pw_sha1> || std::is_same_v<T, pawned_pw_ntlm>;
+concept pw_type = std::is_same_v<T, pawned_pw_sha1> || std::is_same_v<T, pawned_pw_ntlm> ||
+                  std::is_same_v<T, pawned_pw_sha1t64>;
 
 template <pw_type PwType>
 inline bool is_valid_hash(const std::string& hash) {
