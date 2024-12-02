@@ -70,10 +70,11 @@ auto handle_plain_search(flat_file::database<PwType>& sha1_db, std::string plain
   }
 
   PwType needle;
-  if constexpr (std::is_same_v<PwType, pawned_pw_sha1>) {
-    needle = PwType{SHA1{}(plain_password)};
-  } else {
+  if constexpr (std::is_same_v<PwType, pawned_pw_ntlm>) {
     needle.hash = ntlm(plain_password);
+  } else {
+    // note that sha1t64 can also be constructed from sha1 text hash
+    needle = PwType{SHA1{}(plain_password)};
   }
   return search_and_respond<PwType>(sha1_db, needle, req);
 }
@@ -122,7 +123,11 @@ auto get_router(const std::string& sha1_db_filename, const std::string& ntlm_db_
         if (ntlm_db) {
           return handle_plain_search(*ntlm_db, password, req);
         }
-        return fail_missing_db_for_format(req, "--sha1-db or --sha1-db", "/check/plain");
+        if (sha1t64_db) {
+          return handle_plain_search(*sha1t64_db, password, req);
+        }
+        return fail_missing_db_for_format(req, "--sha1-db, --sha1t64-db or --ntlm-db",
+                                          "/check/plain");
       }
       if (params["format"] == "sha1") {
         if (!sha1_db) return fail_missing_db_for_format(req, "--sha1-db", "/check/sha1");
@@ -166,7 +171,9 @@ void run_server() {
                            "Make a request to any of:\n"
                            "http://{0}:{1}/check/plain/password123  [using {2} db]\n",
                            cli.bind_address, cli.port,
-                           !cli.sha1_db_filename.empty() ? "sha1" : "ntlm");
+                           !cli.sha1_db_filename.empty()
+                               ? "sha1"
+                               : (!cli.sha1t64_db_filename.empty() ? "sha1t64" : "ntlm"));
 
   if (!cli.sha1_db_filename.empty()) {
     std::cout << fmt::format("http://{0}:{1}/check/sha1/CBFDAC6008F9CAB4083784CBD1874F76618D2A97\n",
@@ -175,6 +182,10 @@ void run_server() {
   if (!cli.ntlm_db_filename.empty()) {
     std::cout << fmt::format("http://{0}:{1}/check/ntlm/A9FDFA038C4B75EBC76DC855DD74F0DA\n",
                              cli.bind_address, cli.port);
+  }
+  if (!cli.sha1t64_db_filename.empty()) {
+    std::cout << fmt::format("http://{0}:{1}/check/sha1t64/00001131628B741F\n", cli.bind_address,
+                             cli.port);
   }
 
   auto settings = restinio::on_thread_pool<my_server_traits>(cli.threads)
