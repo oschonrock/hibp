@@ -29,6 +29,7 @@ struct cli_config_t {
   bool        force           = false;
   bool        standard_output = false;
   bool        ntlm            = false;
+  bool        sha1t64         = false;
   std::size_t topn            = 50'000'000; // ~1GB in memory, about 5% of the DB
 };
 
@@ -48,6 +49,8 @@ void define_options(CLI::App& app, cli_config_t& cli) {
                  fmt::format("Return the N most common password records (default: {})", cli.topn));
 
   app.add_flag("--ntlm", cli.ntlm, "Use ntlm hashes rather than sha1.");
+
+  app.add_flag("--sha1t64", cli.sha1t64, "Use sha1 hashes truncated to 64bits rather than full sha1.");
 
   app.add_flag("-f,--force", cli.force, "Overwrite any existing output file!");
 }
@@ -138,8 +141,14 @@ int main(int argc, char* argv[]) {
                                "both, and not neither.");
     }
 
+    if (cli.ntlm && cli.sha1t64) {
+      throw std::runtime_error("Please don't use --ntlm and --sha1t64 together.");
+    }
+
     if (cli.ntlm) {
       build_topn<hibp::pawned_pw_ntlm>(cli);
+    } else if (cli.sha1t64) {
+      build_topn<hibp::pawned_pw_sha1t64>(cli);
     } else {
       build_topn<hibp::pawned_pw_sha1>(cli);
     }

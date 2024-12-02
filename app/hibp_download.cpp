@@ -32,6 +32,10 @@ void define_options(CLI::App& app, hibp::dnl::cli_config_t& cli) {
 
   app.add_flag("--ntlm", cli.ntlm, "Download the NTLM format password hashes instead of SHA1.");
 
+  app.add_flag("--sha1t64", cli.sha1t64,
+               "Download the sha1 format password hashes, but truncate them to 64bits in binary "
+               "output format.");
+
   app.add_flag("--txt-out", cli.txt_out,
                "Output text format, rather than the default custom binary format.");
 
@@ -53,8 +57,42 @@ thread_logger logger;
 cli_config_t  cli;
 } // namespace hibp::dnl
 
-int main(int argc, char* argv[]) {
+template <hibp::pw_type PwType>
+void launch(std::ofstream& output_db_stream, const hibp::dnl::cli_config_t& cli,
+            std::size_t start_index) {
+  // use a largegish output buffer ~240kB for efficient writes
+  // keep stream instance alive here
+  auto ffsw = flat_file::stream_writer<PwType>(output_db_stream, 10'000);
+  hibp::dnl::run([&](const std::string& line) { ffsw.write(PwType{line}); }, start_index,
+                 cli.testing);
+}
 
+template <hibp::pw_type PwType>
+std::size_t get_start_index(const hibp::dnl::cli_config_t& cli) {
+  return hibp::dnl::get_last_prefix<PwType>(cli.output_db_filename, cli.testing) + 1;
+}
+
+void check_options(const hibp::dnl::cli_config_t& cli) {
+  if (cli.txt_out && cli.resume) {
+    throw std::runtime_error("can't use `--resume` and `--txt-out` together");
+  }
+
+  if (cli.force && cli.resume) {
+    throw std::runtime_error("can't use `--resume` and `--force` together");
+  }
+
+  if (cli.ntlm && cli.sha1t64) {
+    throw std::runtime_error("can't use `--ntlm` and `--sha1t64` together");
+  }
+
+  if (!cli.resume && !cli.force && std::filesystem::exists(cli.output_db_filename)) {
+    throw std::runtime_error(fmt::format("File '{}' exists. Use `--force` to overwrite, or "
+                                         "`--resume` to resume a previous download.",
+                                         cli.output_db_filename));
+  }
+}
+
+int main(int argc, char* argv[]) {
   using hibp::dnl::cli;
 
   CLI::App app;
@@ -66,32 +104,18 @@ int main(int argc, char* argv[]) {
   hibp::dnl::logger.debug = cli.debug;
 
   try {
-    if (cli.txt_out && cli.resume) {
-      throw std::runtime_error("can't use `--resume` and `--txt-out` together");
-    }
-
-    if (cli.force && cli.resume) {
-      throw std::runtime_error("can't use `--resume` and `--force` together");
-    }
-
-    if (!cli.resume && !cli.force && std::filesystem::exists(cli.output_db_filename)) {
-      throw std::runtime_error(fmt::format("File '{}' exists. Use `--force` to overwrite, or "
-                                           "`--resume` to resume a previous download.",
-                                           cli.output_db_filename));
-    }
-
+    check_options(cli);
+    
     std::size_t start_index = 0;
     auto        mode        = cli.txt_out ? std::ios_base::out : std::ios_base::binary;
 
     if (cli.resume) {
       if (cli.ntlm) {
-        start_index =
-            hibp::dnl::get_last_prefix<hibp::pawned_pw_ntlm>(cli.output_db_filename, cli.testing) +
-            1;
+        start_index = get_start_index<hibp::pawned_pw_ntlm>(cli);
+      } else if (cli.sha1t64) {
+        start_index = get_start_index<hibp::pawned_pw_sha1t64>(cli);
       } else {
-        start_index =
-            hibp::dnl::get_last_prefix<hibp::pawned_pw_sha1>(cli.output_db_filename, cli.testing) +
-            1;
+        start_index = get_start_index<hibp::pawned_pw_sha1>(cli);
       }
 
       if (cli.index_limit <= start_index) {
@@ -114,15 +138,12 @@ int main(int argc, char* argv[]) {
       hibp::dnl::run([&](const std::string& line) { tw.write(line); }, start_index, cli.testing);
 
     } else {
-      // use a largegish output buffer ~240kB for efficient writes
       if (cli.ntlm) {
-        auto ffsw = flat_file::stream_writer<hibp::pawned_pw_ntlm>(output_db_stream, 10'000);
-        hibp::dnl::run([&](const std::string& line) { ffsw.write(line); }, start_index,
-                       cli.testing);
+        launch<hibp::pawned_pw_ntlm>(output_db_stream, cli, start_index);
+      } else if (cli.sha1t64) {
+        launch<hibp::pawned_pw_sha1t64>(output_db_stream, cli, start_index);
       } else {
-        auto ffsw = flat_file::stream_writer<hibp::pawned_pw_sha1>(output_db_stream, 10'000);
-        hibp::dnl::run([&](const std::string& line) { ffsw.write(line); }, start_index,
-                       cli.testing);
+        launch<hibp::pawned_pw_sha1>(output_db_stream, cli, start_index);
       }
     }
 

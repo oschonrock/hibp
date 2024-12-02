@@ -172,4 +172,12 @@ template std::optional<hibp::pawned_pw_ntlm>
 toc_search<hibp::pawned_pw_ntlm>(flat_file::database<hibp::pawned_pw_ntlm>& db,
                                  const hibp::pawned_pw_ntlm& needle, unsigned bits);
 
+// sha1t64
+template void toc_build<hibp::pawned_pw_sha1t64>(const std::filesystem::path& db_filename,
+                                              unsigned                     bits);
+
+template std::optional<hibp::pawned_pw_sha1t64>
+toc_search<hibp::pawned_pw_sha1t64>(flat_file::database<hibp::pawned_pw_sha1t64>& db,
+                                 const hibp::pawned_pw_sha1t64& needle, unsigned bits);
+
 } // namespace hibp

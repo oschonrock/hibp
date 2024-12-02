@@ -23,6 +23,7 @@ struct cli_config_t {
   bool        toc      = false;
   bool        hash     = false;
   bool        ntlm     = false;
+  bool        sha1t64  = false;
   unsigned    toc_bits = 20; // 1Mega chapters
 };
 
@@ -40,6 +41,10 @@ void define_options(CLI::App& app, cli_config_t& cli) {
                "Provide a hash on command line, instead of a plaintex password.");
 
   app.add_flag("--ntlm", cli.ntlm, "Use ntlm hashes rather than sha1.");
+
+  app.add_flag("--sha1t64", cli.sha1t64,
+               "Download the sha1 format password hashes, but truncate them to 64bits in binary "
+               "output format.");
 
   app.add_flag("--toc", cli.toc,
                "Use a bit mask oriented table of contents for extra performance.");
@@ -64,7 +69,7 @@ void run_search(const cli_config_t& cli) {
       if (!hibp::is_valid_hash<PwType>(cli.plain_text_password)) {
         throw std::runtime_error("Not a valid ntlm hash.");
       }
-      needle = {cli.plain_text_password};
+      needle = PwType{cli.plain_text_password};
     } else {
       needle.hash = hibp::ntlm(cli.plain_text_password);
     }
@@ -73,9 +78,10 @@ void run_search(const cli_config_t& cli) {
       if (!hibp::is_valid_hash<PwType>(cli.plain_text_password)) {
         throw std::runtime_error("Not a valid sha1 hash.");
       }
-      needle = {cli.plain_text_password};
+      needle = PwType{cli.plain_text_password};
     } else {
-      needle = {SHA1{}(cli.plain_text_password)};
+      // note that sha1t64 can also be constructed from sha1 text hash
+      needle = PwType{SHA1{}(cli.plain_text_password)};
     }
   }
 
@@ -109,6 +115,8 @@ int main(int argc, char* argv[]) {
   try {
     if (cli.ntlm) {
       run_search<hibp::pawned_pw_ntlm>(cli);
+    } else if (cli.sha1t64) {
+      run_search<hibp::pawned_pw_sha1t64>(cli);
     } else {
       run_search<hibp::pawned_pw_sha1>(cli);
     }

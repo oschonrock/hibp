@@ -85,5 +85,6 @@ std::size_t get_last_prefix(const std::string& filename, bool testing) {
 
 template std::size_t get_last_prefix<pawned_pw_sha1>(const std::string& filename, bool testing);
 template std::size_t get_last_prefix<pawned_pw_ntlm>(const std::string& filename, bool testing);
+template std::size_t get_last_prefix<pawned_pw_sha1t64>(const std::string& filename, bool testing);
 
 } // namespace hibp::dnl

@@ -25,6 +25,7 @@ struct cli_config_t {
   bool        progress     = true;
   bool        resume       = false;
   bool        ntlm         = false;
+  bool        sha1t64      = false;
   bool        txt_out      = false;
   bool        force        = false;
   bool        testing      = false;
