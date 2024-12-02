@@ -16,8 +16,10 @@ void run_search(bool toc, unsigned toc_bits = 0) { // NOLINT complexity
 
   if constexpr (std::is_same_v<PwType, hibp::pawned_pw_sha1>) {
     db_path = testdatadir / "hibp_test.sha1.bin";
-  } else {
+  } else if constexpr (std::is_same_v<PwType, hibp::pawned_pw_ntlm>) {
     db_path = testdatadir / "hibp_test.ntlm.bin";
+  } else if constexpr (std::is_same_v<PwType, hibp::pawned_pw_sha1t64>) {
+    db_path = testdatadir / "hibp_test.sha1t64.bin";
   }
 
   if (toc) {
@@ -61,10 +63,18 @@ TEST(hibp_integration, search_ntlm) { // NOLINT
   run_search<hibp::pawned_pw_ntlm>(false);
 }
 
+TEST(hibp_integration, search_sha1t64) { // NOLINT
+  run_search<hibp::pawned_pw_sha1t64>(false);
+}
+
 TEST(hibp_integration, toc_search_sha1) { // NOLINT
   run_search<hibp::pawned_pw_sha1>(true, 18);
 }
 
 TEST(hibp_integration, toc_search_ntlm) { // NOLINT
   run_search<hibp::pawned_pw_ntlm>(true, 18);
+}
+
+TEST(hibp_integration, toc_search_sha1t64) { // NOLINT
+  run_search<hibp::pawned_pw_sha1t64>(true, 18);
 }

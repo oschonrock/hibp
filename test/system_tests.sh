@@ -70,6 +70,12 @@ testLocalDownloadNtlm() {
     th_assertTrueWithNoOutput ${rtrn} "${stdoutF}" "${stderrF}"
 }
 
+testLocalDownloadSha1t64() {
+    $builddir/hibp-download --testing $tmpdir/hibp_test.sha1t64.bin --sha1t64 --limit 256 --no-progress >${stdoutF} 2>${stderrF}
+    rtrn=$?
+    th_assertTrueWithNoOutput ${rtrn} "${stdoutF}" "${stderrF}"
+}
+
 # check local download
 
 testLocalDownloadCmpSha1() {
@@ -80,6 +86,12 @@ testLocalDownloadCmpSha1() {
 
 testLocalDownloadCmpNtlm() {
     cmp $datadir/hibp_test.ntlm.bin $tmpdir/hibp_test.ntlm.bin >${stdoutF} 2>${stderrF}
+    rtrn=$?
+    th_assertTrueWithNoOutput ${rtrn} "${stdoutF}" "${stderrF}"
+}
+
+testLocalDownloadCmpSha1t64() {
+    cmp $datadir/hibp_test.sha1t64.bin $tmpdir/hibp_test.sha1t64.bin >${stdoutF} 2>${stderrF}
     rtrn=$?
     th_assertTrueWithNoOutput ${rtrn} "${stdoutF}" "${stderrF}"
 }
@@ -106,6 +118,16 @@ testDownloadNtlm() {
     assertTrue "size of hibp-download --limit 10 = ${bin_size}. Too small, expected at least ${min_size}." "[ $bin_size -ge  $min_size ]"
 }
 
+testDownloadSha1t64() {
+    $builddir/hibp-download --sha1t64 --limit 10 --no-progress $tmpdir/hibp_live.sha1t64.bin >${stdoutF} 2>${stderrF}
+    rtrn=$?
+    th_assertTrueWithNoOutput ${rtrn} "${stdoutF}" "${stderrF}"
+
+    bin_size=$(echo $(wc -c $tmpdir/hibp_live.sha1t64.bin) | cut -d' ' -f1)
+    min_size=116484
+    assertTrue "size of hibp-download --limit 10 = ${bin_size}. Too small, expected at least ${min_size}." "[ $bin_size -ge  $min_size ]"
+}
+
 # make topn
 
 testTopnSha1() {
@@ -122,6 +144,13 @@ testTopnNtlm() {
     th_assertTrueWithNoOutput ${rtrn} "${stdoutF}" "${stderrF}"
 }
 
+testTopnSha1t64() {
+    :> ${stdoutF} 
+    $builddir/hibp-topn --sha1t64 $datadir/hibp_test.sha1t64.bin -o $tmpdir/hibp_topn.sha1t64.bin --topn 10000 1>/dev/null  2>${stderrF}
+    rtrn=$?
+    th_assertTrueWithNoOutput ${rtrn} "${stdoutF}" "${stderrF}"
+}
+
 # check topn
 
 testTopnCmpSha1() {
@@ -132,6 +161,12 @@ testTopnCmpSha1() {
 
 testTopnCmpNtlm() {
     cmp $datadir/hibp_topn.ntlm.bin $tmpdir/hibp_topn.ntlm.bin >${stdoutF} 2>${stderrF}
+    rtrn=$?
+    th_assertTrueWithNoOutput ${rtrn} "${stdoutF}" "${stderrF}"
+}
+
+testTopnCmpSha1t64() {
+    cmp $datadir/hibp_topn.sha1t64.bin $tmpdir/hibp_topn.sha1t64.bin >${stdoutF} 2>${stderrF}
     rtrn=$?
     th_assertTrueWithNoOutput ${rtrn} "${stdoutF}" "${stderrF}"
 }
@@ -152,6 +187,13 @@ testSearchPlainNtlm() {
     assertEquals "count for plain pw '${plain}' of '${count}' was wrong" "${correct_count}" "${count}"
 }
 
+testSearchPlainSha1t64() {
+    plain="truelove15"
+    correct_count="1002"
+    count=$($builddir/hibp-search --sha1t64 $tmpdir/hibp_topn.sha1t64.bin "${plain}" | grep '^found' | cut -d: -f2)
+    assertEquals "count for plain pw '${plain}' of '${count}' was wrong" "${correct_count}" "${count}"
+}
+
 testSearchHashSha1() {
     hash="00001131628B741FF755AAC0E7C66D26A7C72082"
     correct_count="1002"
@@ -163,6 +205,13 @@ testSearchHashNtlm() {
     hash="0001256EA8F568DBEACE2E172FD939F7"
     correct_count="913"
     count=$($builddir/hibp-search --ntlm --hash $tmpdir/hibp_topn.ntlm.bin "${hash}" | grep '^found' | cut -d: -f2)
+    assertEquals "count for hash pw '${hash}' of '${count}' was wrong" "${correct_count}" "${count}"
+}
+
+testSearchHashSha1t64() {
+    hash="00001131628B741F" #F755AAC0E7C66D26A7C72082"
+    correct_count="1002"
+    count=$($builddir/hibp-search --sha1t64 --hash $tmpdir/hibp_topn.sha1t64.bin "${hash}" | grep '^found' | cut -d: -f2)
     assertEquals "count for hash pw '${hash}' of '${count}' was wrong" "${correct_count}" "${count}"
 }
 
@@ -273,6 +322,28 @@ testServerNtlm() {
     correct_count="Invalid hash provided. Check type of hash."
     count=$(curl -s http://localhost:8082/check/ntlm/${ntlm})
     assertEquals "count for ntlm pw '${ntlm}' of '${count}' was wrong" "${correct_count}" "${count}"
+}
+
+testServerSha1t64() {
+    sha1t64="00001131628B741F"
+    correct_count="1002"
+    count=$(curl -s http://localhost:8082/check/sha1t64/${sha1t64})
+    assertEquals "count for sha1t64 pw '${sha1t64}' of '${count}' was wrong" "${correct_count}" "${count}"
+
+    sha1t64="00001131628B741E"
+    correct_count="-1"
+    count=$(curl -s http://localhost:8082/check/sha1t64/${sha1t64})
+    assertEquals "count for sha1t64 pw '${sha1t64}' of '${count}' was wrong" "${correct_count}" "${count}"
+
+    sha1t64="00001131628B741"
+    correct_count="Invalid hash provided. Check type of hash."
+    count=$(curl -s http://localhost:8082/check/sha1t64/${sha1t64})
+    assertEquals "count for sha1t64 pw '${sha1t64}' of '${count}' was wrong" "${correct_count}" "${count}"
+
+    sha1t64="00001131628B741FG"
+    correct_count="Invalid hash provided. Check type of hash."
+    count=$(curl -s http://localhost:8082/check/sha1t64/${sha1t64})
+    assertEquals "count for sha1t64 pw '${sha1t64}' of '${count}' was wrong" "${correct_count}" "${count}"
 }
 
 
