@@ -61,6 +61,12 @@ struct pawned_pw {
 
     count          = -1;
     auto count_idx = hash_str_size + 1;
+    if constexpr (HashSize == 8) { // special case for sha1t64
+      // is this a sha1 hash? 
+      if (text.size() > hash_str_size && text[hash_str_size] != ':' && text.size() >= 20UL * 2) {
+        count_idx = 20UL * 2 + 1; // skip foward to the count at end of sha1 hash
+      }
+    }
     if (text.size() > count_idx) {
       std::from_chars(text.c_str() + count_idx, text.c_str() + text.size(), count);
     }
