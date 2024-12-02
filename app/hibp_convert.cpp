@@ -86,7 +86,7 @@ void txt_to_bin(std::istream& input_stream, std::ostream& output_stream, std::si
 
   std::size_t count = 0;
   for (std::string line; std::getline(input_stream, line) && count != limit; count++) {
-    writer.write(line);
+    writer.write(PwType{line});
   }
 }
 

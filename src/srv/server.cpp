@@ -71,7 +71,7 @@ auto handle_plain_search(flat_file::database<PwType>& sha1_db, std::string plain
 
   PwType needle;
   if constexpr (std::is_same_v<PwType, pawned_pw_sha1>) {
-    needle = {SHA1{}(plain_password)};
+    needle = PwType{SHA1{}(plain_password)};
   } else {
     needle.hash = ntlm(plain_password);
   }

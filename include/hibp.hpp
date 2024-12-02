@@ -51,8 +51,8 @@ struct pawned_pw {
 
   pawned_pw() = default;
 
-  pawned_pw(const std::string& text) { // NOLINT implicit
-    assert(text.length() >= hash.size() * 2);
+  explicit pawned_pw(const std::string& text) {
+    assert(text.length() >= hash_str_size);
     std::size_t i = 0;
     for (auto& b: hash) {
       b = detail::make_byte(&text[2 * i]);
