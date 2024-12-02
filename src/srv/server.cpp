@@ -88,7 +88,8 @@ auto handle_hash_search(flat_file::database<PwType>& db, const std::string& pass
   return search_and_respond<PwType>(db, needle, req);
 }
 
-auto get_router(const std::string& sha1_db_filename, const std::string& ntlm_db_filename) {
+auto get_router(const std::string& sha1_db_filename, const std::string& ntlm_db_filename,
+                const std::string& sha1t64_db_filename) {
   auto router = std::make_unique<restinio::router::express_router_t<>>();
   router->http_get(R"(/check/:format/:password)", [&](auto req, auto params) {
     try {
@@ -104,6 +105,13 @@ auto get_router(const std::string& sha1_db_filename, const std::string& ntlm_db_
           ntlm_db_filename.empty()
               ? std::unique_ptr<ntlm_db_t>{}
               : std::make_unique<ntlm_db_t>(ntlm_db_filename, 4096 / sizeof(hibp::pawned_pw_ntlm));
+
+      using sha1t64_db_t = flat_file::database<pawned_pw_sha1t64>;
+      thread_local auto sha1t64_db =
+          sha1t64_db_filename.empty()
+              ? std::unique_ptr<sha1t64_db_t>{}
+              : std::make_unique<sha1t64_db_t>(sha1t64_db_filename,
+                                               4096 / sizeof(hibp::pawned_pw_sha1t64));
 
       const std::string password{params["password"]};
 
@@ -123,6 +131,10 @@ auto get_router(const std::string& sha1_db_filename, const std::string& ntlm_db_
       if (params["format"] == "ntlm") {
         if (!ntlm_db) return fail_missing_db_for_format(req, "--ntlm-db", "/check/ntlm");
         return handle_hash_search(*ntlm_db, password, req);
+      }
+      if (params["format"] == "sha1t64") {
+        if (!sha1t64_db) return fail_missing_db_for_format(req, "--sha1t64-db", "/check/sha1t64");
+        return handle_hash_search(*sha1t64_db, password, req);
       }
       return req->create_response(restinio::status_not_found())
           .set_body("Bad format specified.")
@@ -168,7 +180,8 @@ void run_server() {
   auto settings = restinio::on_thread_pool<my_server_traits>(cli.threads)
                       .address(cli.bind_address)
                       .port(cli.port)
-                      .request_handler(get_router(cli.sha1_db_filename, cli.ntlm_db_filename));
+                      .request_handler(get_router(cli.sha1_db_filename, cli.ntlm_db_filename,
+                                                  cli.sha1t64_db_filename));
 
   restinio::run(std::move(settings));
 }

@@ -20,6 +20,10 @@ void define_options(CLI::App& app, hibp::srv::cli_config_t& cli) {
                  "The file that contains the binary database of ntlm hashes you downloaded. "
                  "Used for /check/ntlm/... requests.");
 
+  app.add_option("--sha1t64-db", cli.sha1t64_db_filename,
+                 "The file that contains the binary database of sha1t64 hashes you downloaded. "
+                 "Used for /check/sha1t64/... requests.");
+
   app.add_option(
       "--bind-address", cli.bind_address,
       fmt::format("The IP4 address the server will bind to. (default: {})", cli.bind_address));
@@ -50,6 +54,27 @@ namespace hibp::srv {
 cli_config_t cli;
 } // namespace hibp::srv
 
+template <hibp::pw_type PwType>
+void prep_db(const std::string& db_filename, bool toc, unsigned toc_bits) {
+  auto test_db = flat_file::database<PwType>{db_filename};
+  if (toc) {
+    hibp::toc_build<PwType>(db_filename, toc_bits);
+  }
+}
+
+// test db files open OK, before starting server, and build their tocs
+void prep_databases(const hibp::srv::cli_config_t& cli) {
+  if (!cli.sha1_db_filename.empty()) {
+    prep_db<hibp::pawned_pw_sha1>(cli.sha1_db_filename, cli.toc, cli.toc_bits);
+  }
+  if (!cli.ntlm_db_filename.empty()) {
+    prep_db<hibp::pawned_pw_ntlm>(cli.ntlm_db_filename, cli.toc, cli.toc_bits);
+  }
+  if (!cli.sha1t64_db_filename.empty()) {
+    prep_db<hibp::pawned_pw_sha1t64>(cli.sha1t64_db_filename, cli.toc, cli.toc_bits);
+  }
+}
+
 int main(int argc, char* argv[]) {
   using hibp::srv::cli;
 
@@ -58,26 +83,11 @@ int main(int argc, char* argv[]) {
   CLI11_PARSE(app, argc, argv);
 
   try {
-    if (cli.sha1_db_filename.empty() && cli.ntlm_db_filename.empty()) {
-      throw std::runtime_error("You must provide either --sha1-db or --ntlm-db");
+    if (cli.sha1_db_filename.empty() && cli.ntlm_db_filename.empty() && cli.sha1t64_db_filename.empty()) {
+      throw std::runtime_error("You must one of --sha1-db, --ntlm-db or --sha1t64-db");
     }
-
-    // test db files open OK, before starting server
-
-    if (!cli.sha1_db_filename.empty()) {
-      auto test_db = flat_file::database<hibp::pawned_pw_sha1>{cli.sha1_db_filename};
-      if (cli.toc) {
-        hibp::toc_build<hibp::pawned_pw_sha1>(cli.sha1_db_filename, cli.toc_bits);
-      }
-    }
-
-    if (!cli.ntlm_db_filename.empty()) {
-      auto test_db = flat_file::database<hibp::pawned_pw_ntlm>{cli.ntlm_db_filename};
-      if (cli.toc) {
-        hibp::toc_build<hibp::pawned_pw_ntlm>(cli.ntlm_db_filename, cli.toc_bits);
-      }
-    }
-
+    prep_databases(cli);
+    
     hibp::srv::run_server();
   } catch (const std::exception& e) {
     std::cerr << "something went wrong: " << e.what() << "\n";
