@@ -33,8 +33,8 @@ distrubutions on amd64 platforms. They are explicitly tested on:
 Debian 11 & 12, Ubuntu 20.04LTS, 22.04LTS & 24.04LTS.
 
 ```bash
-wget -q https://github.com/oschonrock/hibp/releases/download/v0.4.2/hibp_0.4.2-1_amd64.deb
-sudo apt install ./hibp_0.4.2-1_amd64.deb  # will install minimal dependencies (eg `libevent`)
+wget -q https://github.com/oschonrock/hibp/releases/download/v0.5.0/hibp_0.5.0-1_amd64.deb
+sudo apt install ./hibp_0.5.0-1_amd64.deb  # will install minimal dependencies (eg `libevent`)
 ```
 
 #### Usage
