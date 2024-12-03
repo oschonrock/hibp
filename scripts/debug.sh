@@ -9,3 +9,9 @@ sudo gdb --ex 'break queuemgt.cpp:167' -ex continue -ex 'info threads' ./build/g
 
 echo "killing $pid"
 kill $pid
+
+exit
+
+# attaching to running process in windows (mingw)
+gdb /home/oliver/hibp/build/gcc/debug/hibp-download
+gdb /home/oliver/hibp/build/gcc/debug/hibp-download $(ps -W | egrep "hibp-download" | awk "{print $4}")
