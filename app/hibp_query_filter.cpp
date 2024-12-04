@@ -63,28 +63,16 @@ std::ofstream get_output_stream(const std::string& output_filename, bool force) 
   return output_stream;
 }
 
-void check_options(const cli_config_t& cli) {}
+// void check_options(const cli_config_t& cli) {}
 
 void query(const cli_config_t& cli) {
 
   std::cout << fmt::format("using database: {}\n", cli.db_filename);
   uint64_t hexval = 0;
   if (cli.hash) {
-    throw std::runtime_error("not implemented");
-    // const char* hashhex = argv[optind + 1];
-    // if (strlen(hashhex) != 16) {
-    //   throw std::runtime_error(fmt::format("bad hex. length is %zu, 16 hexadecimal characters
-    //   expected.\n", strlen(hashhex)));
-    // }
-    // uint64_t x1 = hex_to_u32_nocheck((const uint8_t*)hashhex);
-    // uint64_t x2 = hex_to_u32_nocheck((const uint8_t*)hashhex + 4);
-    // uint64_t x3 = hex_to_u32_nocheck((const uint8_t*)hashhex + 8);
-    // uint64_t x4 = hex_to_u32_nocheck((const uint8_t*)hashhex + 12);
-    // if ((x1 | x2 | x3 | x4) > 0xFFFF) {
-    //   std::cout << fmt::format("bad hex value  %s \n", hashhex);
-    //   return EXIT_FAILURE;
-    // }
-    // hexval = (x1 << 48) | (x2 << 32) | (x3 << 16) | x4;
+    hibp::pawned_pw_sha1t64 pw{cli.plain_text_password};
+    std::cout << pw << "\n";
+    hexval = arrcmp::impl::bytearray_cast<std::uint64_t>(pw.hash.data());
   } else {
     std::cout << fmt::format("We are going to hash your input.\n");
     hibp::pawned_pw_sha1t64 pw{SHA1{}(cli.plain_text_password)};
@@ -106,17 +94,17 @@ void query(const cli_config_t& cli) {
   bool xor8    = false;
   bool bin16   = false;
   bool bloom12 = false;
-  if (fread(&cookie, sizeof(cookie), 1, fp) != 1) std::cout << fmt::format("failed read.\n");
+  // if (fread(&cookie, sizeof(cookie), 1, fp) != 1) std::cout << fmt::format("failed read.\n");
+  // if (cookie != 1234569) {
+  //   if (cookie == 1234570) {
+  //     bin16 = true;
+  //   } else {
+  //     throw std::runtime_error(
+  //         fmt::format("Not a filter file. Cookie found: %llu.\n", (long long unsigned
+  //         int)cookie));
+  //   }
+  // }
   if (fread(&seed, sizeof(seed), 1, fp) != 1) std::cout << fmt::format("failed read.\n");
-  // should be a switch/case.
-  if (cookie != 1234569) {
-    if (cookie == 1234570) {
-      bin16 = true;
-    } else {
-      throw std::runtime_error(
-          fmt::format("Not a filter file. Cookie found: %llu.\n", (long long unsigned int)cookie));
-    }
-  }
   size_t          length = 0;
   binary_fuse8_t  binfilter;
   binary_fuse16_t binfilter16;
@@ -125,13 +113,13 @@ void query(const cli_config_t& cli) {
     bool isok        = true;
     binfilter16.Seed = seed;
     isok &= fread(&binfilter16.SegmentLength, sizeof(binfilter16.SegmentLength), 1, fp);
-    isok &= fread(&binfilter16.SegmentLengthMask, sizeof(binfilter16.SegmentLengthMask), 1, fp);
+    // isok &= fread(&binfilter16.SegmentLengthMask, sizeof(binfilter16.SegmentLengthMask), 1, fp);
     isok &= fread(&binfilter16.SegmentCount, sizeof(binfilter16.SegmentCount), 1, fp);
     isok &= fread(&binfilter16.SegmentCountLength, sizeof(binfilter16.SegmentCountLength), 1, fp);
     isok &= fread(&binfilter16.ArrayLength, sizeof(binfilter16.ArrayLength), 1, fp);
     if (!isok) std::cout << fmt::format("failed read.\n");
-    length = sizeof(cookie) + sizeof(binfilter16.Seed) + sizeof(binfilter16.SegmentLength) +
-             sizeof(binfilter16.SegmentLengthMask) + sizeof(binfilter16.SegmentCount) +
+    length = /* sizeof(cookie) + */ sizeof(binfilter16.Seed) + sizeof(binfilter16.SegmentLength) +
+             /* sizeof(binfilter16.SegmentLengthMask) +*/ sizeof(binfilter16.SegmentCount) +
              sizeof(binfilter16.SegmentCountLength) + sizeof(binfilter16.ArrayLength) +
              sizeof(uint16_t) * binfilter16.ArrayLength;
   } else {
@@ -139,13 +127,15 @@ void query(const cli_config_t& cli) {
     bool isok      = true;
     binfilter.Seed = seed;
     isok &= fread(&binfilter.SegmentLength, sizeof(binfilter.SegmentLength), 1, fp);
-    isok &= fread(&binfilter.SegmentLengthMask, sizeof(binfilter.SegmentLengthMask), 1, fp);
+    binfilter.SegmentLengthMask = binfilter.SegmentLength - 1;
+    // isok &= fread(&binfilter.SegmentLengthMask, sizeof(binfilter.SegmentLengthMask), 1, fp);
     isok &= fread(&binfilter.SegmentCount, sizeof(binfilter.SegmentCount), 1, fp);
     isok &= fread(&binfilter.SegmentCountLength, sizeof(binfilter.SegmentCountLength), 1, fp);
     isok &= fread(&binfilter.ArrayLength, sizeof(binfilter.ArrayLength), 1, fp);
     if (!isok) std::cout << fmt::format("failed read.\n");
-    length = sizeof(cookie) + sizeof(binfilter.Seed) + sizeof(binfilter.SegmentLength) +
-             sizeof(binfilter.SegmentLengthMask) + sizeof(binfilter.SegmentCount) +
+    std::cout << fmt::format("binfilter.ArrayLength = {}\n", binfilter.ArrayLength);
+    length = /* sizeof(cookie) + */ sizeof(binfilter.Seed) + sizeof(binfilter.SegmentLength) +
+             /* sizeof(binfilter.SegmentLengthMask) + */ sizeof(binfilter.SegmentCount) +
              sizeof(binfilter.SegmentCountLength) + sizeof(binfilter.ArrayLength) +
              sizeof(uint8_t) * binfilter.ArrayLength;
   }
@@ -167,8 +157,8 @@ void query(const cli_config_t& cli) {
   }
   if (bin16) {
     binfilter16.Fingerprints = reinterpret_cast<uint16_t*>(
-        addr + sizeof(cookie) + sizeof(binfilter16.Seed) + sizeof(binfilter16.SegmentLength) +
-        sizeof(binfilter16.SegmentLengthMask) + sizeof(binfilter16.SegmentCount) +
+        addr + /* sizeof(cookie) */ +sizeof(binfilter16.Seed) + sizeof(binfilter16.SegmentLength) +
+        /* sizeof(binfilter16.SegmentLengthMask) */ +sizeof(binfilter16.SegmentCount) +
         sizeof(binfilter16.SegmentCountLength) + sizeof(binfilter16.ArrayLength));
     if (binary_fuse16_contain(hexval, &binfilter16)) {
       std::cout << fmt::format("Probably in the set.\n");
@@ -176,10 +166,15 @@ void query(const cli_config_t& cli) {
       std::cout << fmt::format("Surely not in the set.\n");
     }
   } else {
-    binfilter.Fingerprints = addr + sizeof(cookie) + sizeof(binfilter.Seed) +
-                             sizeof(binfilter.SegmentLength) + sizeof(binfilter.SegmentLengthMask) +
-                             sizeof(binfilter.SegmentCount) + sizeof(binfilter.SegmentCountLength) +
-                             sizeof(binfilter.ArrayLength);
+    binfilter.Fingerprints =
+        addr + /* sizeof(cookie) */ +sizeof(binfilter.Seed) + sizeof(binfilter.SegmentLength) +
+        /* sizeof(binfilter.SegmentLengthMask) */ +sizeof(binfilter.SegmentCount) +
+        sizeof(binfilter.SegmentCountLength) + sizeof(binfilter.ArrayLength);
+    std::cout << fmt::format("binfilter.Seed = {}\n", binfilter.Seed);
+    std::cout << fmt::format("binfilter.SegmentLength = {}\n", binfilter.SegmentLength);
+    std::cout << fmt::format("binfilter.SegmentCount = {}\n", binfilter.SegmentCount);
+    std::cout << fmt::format("binfilter.SegmentCountLength = {}\n", binfilter.SegmentCountLength);
+    std::cout << fmt::format("binfilter.ArrayLength = {}\n", binfilter.ArrayLength);
     if (binary_fuse8_contain(hexval, &binfilter)) {
       std::cout << fmt::format("Probably in the set.\n");
     } else {
@@ -203,7 +198,7 @@ int main(int argc, char* argv[]) {
   CLI11_PARSE(app, argc, argv);
 
   try {
-    check_options(cli);
+    // check_options(cli);
 
     query(cli);
 

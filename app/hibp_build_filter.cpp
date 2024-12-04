@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <exception>
+#include <fcntl.h>
 #include <filesystem>
 #include <fmt/format.h>
 #include <fstream>
@@ -16,6 +17,7 @@
 #include <ostream>
 #include <stdexcept>
 #include <string>
+#include <sys/mman.h>
 
 struct cli_config_t {
   std::string output_filename;
@@ -67,7 +69,9 @@ std::ofstream get_output_stream(const std::string& output_filename, bool force) 
   return output_stream;
 }
 
-void check_options(const cli_config_t& cli) {}
+// void check_options(const cli_config_t& cli) {
+
+// }
 
 void build(const cli_config_t& cli) {
   std::istream* input_stream = &std::cin;
@@ -126,40 +130,73 @@ void build(const cli_config_t& cli) {
                              static_cast<double>(matches) * 100.0 / static_cast<double>(volume));
   }
 
-  std::cout << fmt::format("filter will occupy {} bytes\n",
-                           binary_fuse8_serialization_bytes(&filter));
+  size_t filtersize = binary_fuse8_serialization_bytes(&filter);
+  std::cout << fmt::format("filter will occupy {} bytes\n", filtersize, filtersize);
 
-  FILE* write_ptr;
-  write_ptr = fopen(cli.output_filename.c_str(), "wb");
-  if (write_ptr == NULL) {
-    throw std::runtime_error(
-        fmt::format("Cannot write to the output file {}.", cli.output_filename));
-  }
-  uint64_t cookie      = 1234569;
-  bool     isok        = true;
-  size_t   total_bytes = sizeof(cookie) + sizeof(filter.Seed) + sizeof(filter.SegmentLength) +
-                       sizeof(filter.SegmentLengthMask) + sizeof(filter.SegmentCount) +
-                       sizeof(filter.SegmentCountLength) + sizeof(filter.ArrayLength) +
-                       sizeof(uint8_t) * filter.ArrayLength;
-
-  isok &= fwrite(&cookie, sizeof(cookie), 1, write_ptr);
-  isok &= fwrite(&filter.Seed, sizeof(filter.Seed), 1, write_ptr);
-  isok &= fwrite(&filter.SegmentLength, sizeof(filter.SegmentLength), 1, write_ptr);
-  isok &= fwrite(&filter.SegmentLengthMask, sizeof(filter.SegmentLengthMask), 1, write_ptr);
-  isok &= fwrite(&filter.SegmentCount, sizeof(filter.SegmentCount), 1, write_ptr);
-  isok &= fwrite(&filter.SegmentCountLength, sizeof(filter.SegmentCountLength), 1, write_ptr);
-  isok &= fwrite(&filter.ArrayLength, sizeof(filter.ArrayLength), 1, write_ptr);
-  isok &= fwrite(filter.Fingerprints, sizeof(uint8_t) * filter.ArrayLength, 1, write_ptr);
-  isok &= (fclose(write_ptr) == 0);
-  if (isok) {
-    std::cout << fmt::format("filter data saved to {}. Total bytes = {}. \n",
-                             cli.output_filename.c_str(), total_bytes);
-  } else {
-    throw std::runtime_error(
-        fmt::format("failed to write filter data to {}.\n", cli.output_filename));
+  int fd = open(cli.output_filename.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0666);
+  if (fd == -1) {
+    perror("open");
+    exit(1);
   }
 
+  if (ftruncate(fd, filtersize) == -1) {
+    perror("ftruncate");
+    close(fd);
+    exit(1);
+  }
+
+  void* map = mmap(NULL, filtersize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+  if (map == MAP_FAILED) {
+    perror("mmap");
+    close(fd);
+    exit(1);
+  }
+
+  binary_fuse8_serialize(&filter, (char*)map);
+  // Synchronize changes to the file
+  if (msync(map, filtersize, MS_SYNC) == -1) {
+    perror("msync");
+  }
+
+  // Unmap the memory and close the file
+  if (munmap(map, filtersize) == -1) {
+    perror("munmap");
+  }
+
+  close(fd);
+  printf("File unmapped and closed.\n");
   binary_fuse8_free(&filter);
+
+  // FILE* write_ptr;
+  // write_ptr = fopen(cli.output_filename.c_str(), "wb");
+  // if (write_ptr == NULL) {
+  //   throw std::runtime_error(
+  //       fmt::format("Cannot write to the output file {}.", cli.output_filename));
+  // }
+  // uint64_t cookie      = 1234569;
+  // bool     isok        = true;
+  // size_t   total_bytes = sizeof(cookie) + sizeof(filter.Seed) + sizeof(filter.SegmentLength) +
+  //                      sizeof(filter.SegmentLengthMask) + sizeof(filter.SegmentCount) +
+  //                      sizeof(filter.SegmentCountLength) + sizeof(filter.ArrayLength) +
+  //                      sizeof(uint8_t) * filter.ArrayLength;
+
+  // isok &= fwrite(&cookie, sizeof(cookie), 1, write_ptr);
+  // isok &= fwrite(&filter.Seed, sizeof(filter.Seed), 1, write_ptr);
+  // isok &= fwrite(&filter.SegmentLength, sizeof(filter.SegmentLength), 1, write_ptr);
+  // isok &= fwrite(&filter.SegmentLengthMask, sizeof(filter.SegmentLengthMask), 1, write_ptr);
+  // isok &= fwrite(&filter.SegmentCount, sizeof(filter.SegmentCount), 1, write_ptr);
+  // isok &= fwrite(&filter.SegmentCountLength, sizeof(filter.SegmentCountLength), 1, write_ptr);
+  // isok &= fwrite(&filter.ArrayLength, sizeof(filter.ArrayLength), 1, write_ptr);
+  // isok &= fwrite(filter.Fingerprints, sizeof(uint8_t) * filter.ArrayLength, 1, write_ptr);
+  // isok &= (fclose(write_ptr) == 0);
+  // if (isok) {
+  //   std::cout << fmt::format("filter data saved to {}. Total bytes = {}. \n",
+  //                            cli.output_filename.c_str(), total_bytes);
+  // } else {
+  //   throw std::runtime_error(
+  //       fmt::format("failed to write filter data to {}.\n", cli.output_filename));
+  // }
+
 }
 
 int main(int argc, char* argv[]) {
@@ -170,7 +207,7 @@ int main(int argc, char* argv[]) {
   CLI11_PARSE(app, argc, argv);
 
   try {
-    check_options(cli);
+    // check_options(cli);
 
     build(cli);
 
