@@ -124,6 +124,7 @@ add_library(diffutils src/diffutils.cpp)
 target_compile_features(diffutils PRIVATE cxx_std_20)
 target_include_directories(diffutils PRIVATE include)
 target_link_libraries(diffutils PRIVATE hibp flat_file fmt::fmt)
+target_compile_options(diffutils PRIVATE -Wno-ignored-attributes) # non-sensical warning from gcc?
 
 add_executable(hibp_search app/hibp_search.cpp)
 set_target_properties(hibp_search PROPERTIES OUTPUT_NAME hibp-search)
@@ -192,6 +193,23 @@ if (NOT NOPCH AND NOT CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
   target_precompile_headers(hibp_topn REUSE_FROM hibp_search)
   target_precompile_headers(hibp_download REUSE_FROM hibp_search)
 endif()
+
+add_subdirectory(ext/xor_singleheader)
+
+add_executable(hibp_build_filter app/hibp_build_filter.cpp)
+set_target_properties(hibp_build_filter PROPERTIES OUTPUT_NAME hibp-build-filter)
+target_compile_options(hibp_build_filter PRIVATE ${PROJECT_COMPILE_OPTIONS})
+target_link_libraries(hibp_build_filter PRIVATE CLI11 sha1 hibp flat_file fmt::fmt xor_singleheader)
+target_compile_options(hibp_build_filter PRIVATE -Wno-conversion) # non compliant header in xor_singleheader
+
+add_subdirectory(ext/mio)
+
+add_executable(hibp_query_filter app/hibp_query_filter.cpp)
+set_target_properties(hibp_query_filter PROPERTIES OUTPUT_NAME hibp-query-filter)
+target_compile_options(hibp_query_filter PRIVATE ${PROJECT_COMPILE_OPTIONS})
+target_link_libraries(hibp_query_filter PRIVATE CLI11 sha1 hibp flat_file fmt::fmt xor_singleheader mio)
+target_compile_options(hibp_query_filter PRIVATE -Wno-conversion) # non compliant header in xor_singleheader
+
 
 # testing
 

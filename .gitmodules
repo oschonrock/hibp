@@ -13,3 +13,9 @@
 [submodule "ext/shunit2"]
 	path = ext/shunit2
 	url = https://github.com/kward/shunit2
+[submodule "ext/xor_singleheader"]
+	path = ext/xor_singleheader
+	url = git@github.com:FastFilter/xor_singleheader.git
+[submodule "ext/mio"]
+	path = ext/mio
+	url = https://github.com/vimpunk/mio.git
