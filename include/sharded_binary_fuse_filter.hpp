@@ -9,6 +9,7 @@
 #include <limits>
 #include <random>
 #include <stdexcept>
+#include <system_error>
 
 template <typename T>
 concept filter_type = std::same_as<T, binary_fuse8_t> || std::same_as<T, binary_fuse16_t>;
@@ -131,9 +132,14 @@ using bin_fuse16_filter = bin_fuse_filter<binary_fuse16_t>;
 template <typename T>
 concept mmap_type = std::same_as<T, mio::mmap_sink> || std::same_as<T, mio::mmap_source>;
 
+template <mio::access_mode AccessMode>
+struct map_base {
+   mio::basic_mmap<AccessMode, char> mmap;
+};
+
 // sharded_bin_fuse_filter
 template <filter_type FilterType, mio::access_mode AccessMode>
-class sharded_bin_fuse_filter {
+class sharded_bin_fuse_filter : private map_base<AccessMode> {
 public:
   sharded_bin_fuse_filter() = default;
   explicit sharded_bin_fuse_filter(std::filesystem::path path) : filepath(std::move(path)) {}
@@ -164,26 +170,23 @@ public:
     //       fmt::format("sharded filter has reached max capacity of {}", max_capacity));
     // }
 
-    std::size_t size_req = filter.serialization_bytes();
+    std::size_t size_req      = filter.serialization_bytes();
     std::size_t existing_size = 0;
     if (std::filesystem::exists(filepath)) {
       existing_size = std::filesystem::file_size(filepath);
     } else {
       std::ofstream tmp(filepath); // "touch"
     }
-
-    std::filesystem::resize_file(filepath, existing_size + size_req);
-    sink_map =
-        mio::mmap_sink(filepath.string()); // does move assignment destruct/unmap the old map?
-    filter.serialize(sink_map.data());
+    std::size_t new_size = existing_size + size_req;
+    std::filesystem::resize_file(filepath, new_size);
+    std::error_code err_code;
+    this->mmap.map(filepath.string(), 0, new_size, err_code);  // does move assignment destruct/unmap the old map?
+    filter.serialize(this->mmap.data());
     ++next_prefix;
     std::cout << "added\n";
   }
 
 private:
-  mio::mmap_sink   sink_map;
-  mio::mmap_source source_map;
-
   std::uint8_t                 next_prefix = 0;
   std::filesystem::path        filepath;
   static constexpr std::size_t max_capacity = std::numeric_limits<decltype(next_prefix)>::max() + 1;
