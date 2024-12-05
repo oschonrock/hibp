@@ -3,6 +3,7 @@
 #include "hibp.hpp"
 #include "sha1.h"
 #include <CLI/CLI.hpp>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -13,6 +14,8 @@
 #include <fstream>
 #include <ios>
 #include <iostream>
+#include <mio/mmap.hpp>
+#include <ratio>
 #include <stdexcept>
 #include <string>
 
@@ -65,129 +68,60 @@ std::ofstream get_output_stream(const std::string& output_filename, bool force) 
 
 // void check_options(const cli_config_t& cli) {}
 
-void query(const cli_config_t& cli) {
+// until we get this accepted as a patch
+static const char* binary_fuse8_deserialize_header(binary_fuse8_t* filter,
+                                                          const char*     buffer) {
+  memcpy(&filter->Seed, buffer, sizeof(filter->Seed));
+  buffer += sizeof(filter->Seed);
+  memcpy(&filter->SegmentLength, buffer, sizeof(filter->SegmentLength));
+  buffer += sizeof(filter->SegmentLength);
+  filter->SegmentLengthMask = filter->SegmentLength - 1;
+  memcpy(&filter->SegmentCount, buffer, sizeof(filter->SegmentCount));
+  buffer += sizeof(filter->SegmentCount);
+  memcpy(&filter->SegmentCountLength, buffer, sizeof(filter->SegmentCountLength));
+  buffer += sizeof(filter->SegmentCountLength);
+  memcpy(&filter->ArrayLength, buffer, sizeof(filter->ArrayLength));
+  buffer += sizeof(filter->ArrayLength);
+  return buffer;
+}
 
-  std::cout << fmt::format("using database: {}\n", cli.db_filename);
-  uint64_t hexval = 0;
+void query(const cli_config_t& cli) {
+  uint64_t needle = 0;
   if (cli.hash) {
     hibp::pawned_pw_sha1t64 pw{cli.plain_text_password};
-    std::cout << pw << "\n";
-    hexval = arrcmp::impl::bytearray_cast<std::uint64_t>(pw.hash.data());
+    needle = arrcmp::impl::bytearray_cast<std::uint64_t>(pw.hash.data());
   } else {
-    std::cout << fmt::format("We are going to hash your input.\n");
     hibp::pawned_pw_sha1t64 pw{SHA1{}(cli.plain_text_password)};
-    std::cout << pw << "\n";
-    hexval = arrcmp::impl::bytearray_cast<std::uint64_t>(pw.hash.data());
+    needle = arrcmp::impl::bytearray_cast<std::uint64_t>(pw.hash.data());
   }
-  std::cout << fmt::format("hexval = {:016X}\n", hexval);
-  uint64_t cookie = 0;
+  std::cout << fmt::format("needle = {:016X}\n", needle);
 
-  uint64_t seed  = 0;
-  clock_t  start = clock();
+  using clk    = std::chrono::high_resolution_clock;
+  using micros = std::chrono::microseconds;
+  auto start   = clk::now();
 
-  // could open the file once (map it), instead of this complicated mess.
-  FILE* fp = fopen(cli.db_filename.c_str(), "rb");
-  if (fp == nullptr) {
-    throw std::runtime_error(fmt::format("Cannot read the input file {}.", cli.db_filename));
-  }
-  // should be done with an enum:
-  bool xor8    = false;
-  bool bin16   = false;
-  bool bloom12 = false;
-  // if (fread(&cookie, sizeof(cookie), 1, fp) != 1) std::cout << fmt::format("failed read.\n");
-  // if (cookie != 1234569) {
-  //   if (cookie == 1234570) {
-  //     bin16 = true;
-  //   } else {
-  //     throw std::runtime_error(
-  //         fmt::format("Not a filter file. Cookie found: %llu.\n", (long long unsigned
-  //         int)cookie));
-  //   }
-  // }
-  if (fread(&seed, sizeof(seed), 1, fp) != 1) std::cout << fmt::format("failed read.\n");
-  size_t          length = 0;
-  binary_fuse8_t  binfilter;
-  binary_fuse16_t binfilter16;
+  mio::mmap_source map(cli.db_filename);
+  std::cout << fmt::format("{:<15} {:>8}\n", "mmap", duration_cast<micros>(clk::now() - start));
 
-  if (bin16) {
-    bool isok        = true;
-    binfilter16.Seed = seed;
-    isok &= fread(&binfilter16.SegmentLength, sizeof(binfilter16.SegmentLength), 1, fp);
-    // isok &= fread(&binfilter16.SegmentLengthMask, sizeof(binfilter16.SegmentLengthMask), 1, fp);
-    isok &= fread(&binfilter16.SegmentCount, sizeof(binfilter16.SegmentCount), 1, fp);
-    isok &= fread(&binfilter16.SegmentCountLength, sizeof(binfilter16.SegmentCountLength), 1, fp);
-    isok &= fread(&binfilter16.ArrayLength, sizeof(binfilter16.ArrayLength), 1, fp);
-    if (!isok) std::cout << fmt::format("failed read.\n");
-    length = /* sizeof(cookie) + */ sizeof(binfilter16.Seed) + sizeof(binfilter16.SegmentLength) +
-             /* sizeof(binfilter16.SegmentLengthMask) +*/ sizeof(binfilter16.SegmentCount) +
-             sizeof(binfilter16.SegmentCountLength) + sizeof(binfilter16.ArrayLength) +
-             sizeof(uint16_t) * binfilter16.ArrayLength;
+  start = clk::now();
+  binary_fuse8_t filter;
+  const char* body = binary_fuse8_deserialize_header(&filter, map.data());
+  filter.Fingerprints = reinterpret_cast<std::uint8_t*>(const_cast<char*>(body)); // NOLINT
+  std::cout << fmt::format("{:<15} {:>8}\n", "deserialize",
+                           duration_cast<micros>(clk::now() - start));
+
+  start       = clk::now();
+  bool result = binary_fuse8_contain(needle, &filter);
+  std::cout << fmt::format("{:<15} {:>8}\n", "search", duration_cast<micros>(clk::now() - start));
+
+  if (result) {
+    std::cout << fmt::format("FOUND\n");
   } else {
-
-    bool isok      = true;
-    binfilter.Seed = seed;
-    isok &= fread(&binfilter.SegmentLength, sizeof(binfilter.SegmentLength), 1, fp);
-    binfilter.SegmentLengthMask = binfilter.SegmentLength - 1;
-    // isok &= fread(&binfilter.SegmentLengthMask, sizeof(binfilter.SegmentLengthMask), 1, fp);
-    isok &= fread(&binfilter.SegmentCount, sizeof(binfilter.SegmentCount), 1, fp);
-    isok &= fread(&binfilter.SegmentCountLength, sizeof(binfilter.SegmentCountLength), 1, fp);
-    isok &= fread(&binfilter.ArrayLength, sizeof(binfilter.ArrayLength), 1, fp);
-    if (!isok) std::cout << fmt::format("failed read.\n");
-    std::cout << fmt::format("binfilter.ArrayLength = {}\n", binfilter.ArrayLength);
-    length = /* sizeof(cookie) + */ sizeof(binfilter.Seed) + sizeof(binfilter.SegmentLength) +
-             /* sizeof(binfilter.SegmentLengthMask) + */ sizeof(binfilter.SegmentCount) +
-             sizeof(binfilter.SegmentCountLength) + sizeof(binfilter.ArrayLength) +
-             sizeof(uint8_t) * binfilter.ArrayLength;
+    std::cout << fmt::format("NOT FOUND\n");
   }
-  if (bin16)
-    std::cout << fmt::format("16-bit binary fuse filter detected.\n");
-  else
-    std::cout << fmt::format("8-bit binary fuse filter detected.\n");
-  fclose(fp);
-  int  fd     = open(cli.db_filename.c_str(), O_RDONLY);
-  bool shared = false;
 
-  std::cout << fmt::format("I expect the file to span {} bytes.\n", length);
-  uint8_t* addr = (uint8_t*)(mmap(NULL, length, PROT_READ,
-                                  MAP_FILE | (shared ? MAP_SHARED : MAP_PRIVATE), fd, 0));
-  if (addr == MAP_FAILED) {
-    throw std::runtime_error(fmt::format("Data can't be mapped???\n"));
-  } else {
-    std::cout << fmt::format("memory mapping is a success.\n");
-  }
-  if (bin16) {
-    binfilter16.Fingerprints = reinterpret_cast<uint16_t*>(
-        addr + /* sizeof(cookie) */ +sizeof(binfilter16.Seed) + sizeof(binfilter16.SegmentLength) +
-        /* sizeof(binfilter16.SegmentLengthMask) */ +sizeof(binfilter16.SegmentCount) +
-        sizeof(binfilter16.SegmentCountLength) + sizeof(binfilter16.ArrayLength));
-    if (binary_fuse16_contain(hexval, &binfilter16)) {
-      std::cout << fmt::format("Probably in the set.\n");
-    } else {
-      std::cout << fmt::format("Surely not in the set.\n");
-    }
-  } else {
-    binfilter.Fingerprints =
-        addr + /* sizeof(cookie) */ +sizeof(binfilter.Seed) + sizeof(binfilter.SegmentLength) +
-        /* sizeof(binfilter.SegmentLengthMask) */ +sizeof(binfilter.SegmentCount) +
-        sizeof(binfilter.SegmentCountLength) + sizeof(binfilter.ArrayLength);
-    std::cout << fmt::format("binfilter.Seed = {}\n", binfilter.Seed);
-    std::cout << fmt::format("binfilter.SegmentLength = {}\n", binfilter.SegmentLength);
-    std::cout << fmt::format("binfilter.SegmentCount = {}\n", binfilter.SegmentCount);
-    std::cout << fmt::format("binfilter.SegmentCountLength = {}\n", binfilter.SegmentCountLength);
-    std::cout << fmt::format("binfilter.ArrayLength = {}\n", binfilter.ArrayLength);
-    if (binary_fuse8_contain(hexval, &binfilter)) {
-      std::cout << fmt::format("Probably in the set.\n");
-    } else {
-      std::cout << fmt::format("Surely not in the set.\n");
-    }
-  }
-  clock_t end = clock();
-
-  std::cout << fmt::format("Processing time {:.3f} microseconds.\n",
-                           (float)(end - start) * 1000.0 * 1000.0 / CLOCKS_PER_SEC);
-  std::cout << fmt::format("Expected number of queries per second: {:.3f} \n",
-                           (float)CLOCKS_PER_SEC / (end - start));
-  munmap(addr, length);
+  filter.Fingerprints = nullptr; // can't free the map
+  binary_fuse8_free(&filter);
 }
 
 int main(int argc, char* argv[]) {

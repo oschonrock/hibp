@@ -199,7 +199,7 @@ add_subdirectory(ext/xor_singleheader)
 add_executable(hibp_build_filter app/hibp_build_filter.cpp)
 set_target_properties(hibp_build_filter PROPERTIES OUTPUT_NAME hibp-build-filter)
 target_compile_options(hibp_build_filter PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_build_filter PRIVATE CLI11 sha1 hibp flat_file fmt::fmt xor_singleheader)
+target_link_libraries(hibp_build_filter PRIVATE CLI11 sha1 hibp flat_file fmt::fmt xor_singleheader mio)
 target_compile_options(hibp_build_filter PRIVATE -Wno-conversion) # non compliant header in xor_singleheader
 
 add_subdirectory(ext/mio)
