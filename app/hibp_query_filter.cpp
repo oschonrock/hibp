@@ -4,7 +4,6 @@
 #include "sha1.h"
 #include <CLI/CLI.hpp>
 #include <chrono>
-#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -15,7 +14,6 @@
 #include <ios>
 #include <iostream>
 #include <mio/mmap.hpp>
-#include <ratio>
 #include <stdexcept>
 #include <string>
 
@@ -66,11 +64,8 @@ std::ofstream get_output_stream(const std::string& output_filename, bool force) 
   return output_stream;
 }
 
-// void check_options(const cli_config_t& cli) {}
-
 // until we get this accepted as a patch
-static const char* binary_fuse8_deserialize_header(binary_fuse8_t* filter,
-                                                          const char*     buffer) {
+static const unsigned char* binary_fuse8_deserialize_header(binary_fuse8_t* filter, const unsigned char* buffer) {
   memcpy(&filter->Seed, buffer, sizeof(filter->Seed));
   buffer += sizeof(filter->Seed);
   memcpy(&filter->SegmentLength, buffer, sizeof(filter->SegmentLength));
@@ -100,13 +95,13 @@ void query(const cli_config_t& cli) {
   using micros = std::chrono::microseconds;
   auto start   = clk::now();
 
-  mio::mmap_source map(cli.db_filename);
+  mio::ummap_source map(cli.db_filename);
   std::cout << fmt::format("{:<15} {:>8}\n", "mmap", duration_cast<micros>(clk::now() - start));
 
   start = clk::now();
   binary_fuse8_t filter;
-  const char* body = binary_fuse8_deserialize_header(&filter, map.data());
-  filter.Fingerprints = reinterpret_cast<std::uint8_t*>(const_cast<char*>(body)); // NOLINT
+  const unsigned char*    body = binary_fuse8_deserialize_header(&filter, map.data());
+  filter.Fingerprints = const_cast<unsigned char*>(body); // NOLINT
   std::cout << fmt::format("{:<15} {:>8}\n", "deserialize",
                            duration_cast<micros>(clk::now() - start));
 
@@ -132,8 +127,6 @@ int main(int argc, char* argv[]) {
   CLI11_PARSE(app, argc, argv);
 
   try {
-    // check_options(cli);
-
     query(cli);
 
   } catch (const std::exception& e) {

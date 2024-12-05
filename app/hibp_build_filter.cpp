@@ -1,5 +1,6 @@
 #include "arrcmp.hpp"
 #include "binaryfusefilter.h"
+#include "sharded_binary_fuse_filter.hpp"
 #include "flat_file.hpp"
 #include "hibp.hpp"
 #include "mio/mmap.hpp"
@@ -75,12 +76,6 @@ std::ofstream get_output_stream(const std::string& output_filename, bool force) 
 // }
 
 void build(const cli_config_t& cli) {
-  std::istream* input_stream = &std::cin;
-  std::ifstream ifs;
-  ifs                           = get_input_stream(cli.input_filename);
-  input_stream                  = &ifs;
-  std::string input_stream_name = cli.input_filename;
-
   flat_file::database<hibp::pawned_pw_sha1> db{cli.input_filename,
                                                (1U << 16U) / sizeof(hibp::pawned_pw_sha1)};
 
@@ -94,45 +89,14 @@ void build(const cli_config_t& cli) {
     if (count == cli.limit) break;
   }
 
-  auto           start = clock();
-  binary_fuse8_t filter;
-  if (!binary_fuse8_allocate(count, &filter)) {
-    throw std::runtime_error("failed to allocate memory.\n");
-  }
-  if (!binary_fuse8_populate(hashes.data(), count, &filter)) {
-    throw std::runtime_error("failed to build the filter, do you have sufficient memory?\n");
-  }
-  auto end = clock();
-  std::cout << fmt::format("Done in {:.3f} seconds.\n",
-                           static_cast<float>(end - start) / CLOCKS_PER_SEC);
-  if (cli.verify) {
-    std::cout << fmt::format("Checking for false negatives\n");
-    for (size_t i = 0; i < count; i++) {
-      if (!binary_fuse8_contain(hashes[i], &filter)) {
-        throw std::runtime_error("Detected a false negative. You probably have a bug. "
-                                 "Aborting.\n");
-      }
-    }
-    std::cout << fmt::format("Verified with success: no false negatives\n");
-    size_t matches = 0;
-    size_t volume  = 100000;
-    for (size_t t = 0; t < volume; t++) {
-      if (binary_fuse8_contain(t * 10001 + 13 + count, &filter)) {
-        matches++;
-      }
-    }
-    std::cout << fmt::format("estimated false positive rate: {:.3f} percent\n",
-                             static_cast<double>(matches) * 100.0 / static_cast<double>(volume));
-  }
-
-  size_t filtersize = binary_fuse8_serialization_bytes(&filter);
-  std::cout << fmt::format("filter will occupy {} bytes\n", filtersize, filtersize);
-
-  auto ofs = get_output_stream(cli.output_filename, cli.force);
-  std::filesystem::resize_file(cli.output_filename, filtersize);
-  mio::mmap_sink map(cli.output_filename);
-  binary_fuse8_serialize(&filter, map.data());
-  binary_fuse8_free(&filter);
+  bin_fuse8_filter filter;
+  filter.populate(hashes);
+  filter.verify(hashes);
+  std::cout << fmt::format("estimated false positive rate: {:.5f}%\n", filter.estimate_false_positive_rate());
+  
+  get_output_stream(cli.output_filename, cli.force); // just "touch" and close again
+  sharded_bin_fuse8_filter_sink sharded_filter(cli.output_filename);
+  sharded_filter.add(std::move(filter));
 }
 
 int main(int argc, char* argv[]) {
@@ -153,3 +117,4 @@ int main(int argc, char* argv[]) {
   }
   return EXIT_SUCCESS;
 }
+
