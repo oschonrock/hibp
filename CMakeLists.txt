@@ -181,19 +181,6 @@ target_compile_features(hibp_download PRIVATE cxx_std_20)
 target_compile_options(hibp_download PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_download PRIVATE CLI11 curl event hibp flat_file fmt::fmt ${CMAKE_THREAD_LIBS_INIT})
 
-option(NOPCH "Disable the use of precompiled headers" OFF)
-
-if (NOT NOPCH AND NOT CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
-  target_precompile_headers(CLI11 INTERFACE [["CLI/CLI.hpp"]])
-  target_precompile_headers(flat_file INTERFACE [["flat_file.hpp"]])
-  target_precompile_headers(restinio INTERFACE [["restinio/core.hpp"]])
-
-  target_precompile_headers(hibp_sort REUSE_FROM hibp_search)
-  target_precompile_headers(hibp_convert REUSE_FROM hibp_search)
-  target_precompile_headers(hibp_topn REUSE_FROM hibp_search)
-  target_precompile_headers(hibp_download REUSE_FROM hibp_search)
-endif()
-
 add_subdirectory(ext/xor_singleheader)
 
 add_executable(hibp_build_filter app/hibp_build_filter.cpp)
@@ -210,6 +197,24 @@ target_compile_options(hibp_query_filter PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_query_filter PRIVATE CLI11 sha1 hibp flat_file fmt::fmt xor_singleheader mio)
 target_compile_options(hibp_query_filter PRIVATE -Wno-conversion) # non compliant header in xor_singleheader
 
+# precompiled headers
+
+option(NOPCH "Disable the use of precompiled headers" OFF)
+
+if (NOT NOPCH AND NOT CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+  target_precompile_headers(CLI11 INTERFACE [["CLI/CLI.hpp"]])
+  target_precompile_headers(flat_file INTERFACE [["flat_file.hpp"]])
+  target_precompile_headers(hibp INTERFACE [["hibp.hpp"]])
+  target_precompile_headers(restinio INTERFACE [["restinio/core.hpp"]])
+
+  target_precompile_headers(hibp_sort REUSE_FROM hibp_search)
+  target_precompile_headers(hibp_convert REUSE_FROM hibp_search)
+  target_precompile_headers(hibp_topn REUSE_FROM hibp_search)
+  target_precompile_headers(hibp_download REUSE_FROM hibp_search)
+  target_precompile_headers(hibp_diff REUSE_FROM hibp_search)
+  target_precompile_headers(hibp_build_filter REUSE_FROM hibp_search)
+  target_precompile_headers(hibp_query_filter REUSE_FROM hibp_search)
+endif()
 
 # testing
 
