@@ -77,21 +77,33 @@ void build(const cli_config_t& cli) {
 
   unsigned count = 0;
 
-  std::vector<std::uint64_t> hashes;
-  hashes.reserve(std::min(db.number_records(), cli.limit));
-  for (const auto& record: db) {
-    hashes.emplace_back(arrcmp::impl::bytearray_cast<std::uint64_t>(record.hash.data()));
-    count++;
-    if (count == cli.limit) break;
-  }
-
-  binfuse::filter16 filter(hashes);
-  filter.verify(hashes);
-  std::cout << fmt::format("estimated false positive rate: {:.5f}%\n", filter.estimate_false_positive_rate());
-  
   get_output_stream(cli.output_filename, cli.force); // just "touch" and close again
-  binfuse::sharded_filter16_sink sharded_filter(cli.output_filename);
-  sharded_filter.add(std::move(filter),0);
+  binfuse::sharded_filter8_sink sharded_filter(cli.output_filename);
+
+  std::vector<std::uint64_t> keys;
+  std::uint32_t              last_prefix = 0;
+
+  for (const auto& record: db) {
+    auto key    = arrcmp::impl::bytearray_cast<std::uint64_t>(record.hash.data());
+    auto prefix = sharded_filter.extract_prefix(key);
+    if (prefix != last_prefix) {
+      std::cerr << fmt::format("key = {:016x} prefix ={}, last_prefix={}, size={}\n", key, prefix,
+                               last_prefix, keys.size());
+      sharded_filter.add(binfuse::filter8(keys), last_prefix);
+      keys.clear();
+      last_prefix = prefix;
+    }
+    keys.emplace_back(key);
+
+    count++;
+    if (count == cli.limit) {
+      break;
+    }
+  }
+  if (!keys.empty()) {
+    std::cerr << fmt::format("key = {:016x} last_prefix={}, size = {}\n", keys.back(), last_prefix, keys.size());
+    sharded_filter.add(binfuse::filter8(keys), last_prefix);
+  }
 }
 
 int main(int argc, char* argv[]) {
@@ -112,4 +124,3 @@ int main(int argc, char* argv[]) {
   }
   return EXIT_SUCCESS;
 }
-

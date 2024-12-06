@@ -73,7 +73,7 @@ public:
   filter() = default;
   explicit filter(const std::vector<std::uint64_t>& keys) { populate(keys); }
 
-  filter(const filter& other)            = delete;
+  filter(const filter& other)          = delete;
   filter& operator=(const filter& rhs) = delete;
 
   filter(filter&& other) noexcept : size(other.size), fil(other.fil) {
@@ -85,19 +85,13 @@ public:
   }
 
   ~filter() {
-    std::cerr << fmt::format("~bin_fuse_filter()\n");
     if (skip_free_fingerprints) {
-      std::cerr << fmt::format(
-          "fingerprints ptr = {}  => nulling ptr before calling bin_fuseX_free()\n",
-          (void*)fil.Fingerprints); // NOLINT
       fil.Fingerprints = nullptr;
     }
     ftype<FilterType>::free(&fil);
   }
 
   void populate(const std::vector<std::uint64_t>& keys) {
-    auto start = clk::now();
-
     if (keys.empty()) {
       throw std::runtime_error("empty input");
     }
@@ -108,11 +102,11 @@ public:
     }
     if (!ftype<FilterType>::populate(
             const_cast<std::uint64_t*>(keys.data()), // NOLINT const_cast until API changed
-            keys.size(), &fil)) { 
+            keys.size(), &fil)) {
       throw std::runtime_error("failed to populate the filter");
     }
-    std::cout << fmt::format("{:<15} {:>12}\n", "populate",
-                             duration_cast<micros>(clk::now() - start));
+    // std::cout << fmt::format("{:<15} {:>12}\n", "populate",
+    //                          duration_cast<micros>(clk::now() - start));
   }
 
   bool contains(std::uint64_t needle) {
@@ -125,33 +119,25 @@ public:
   void serialize(char* buffer) { ftype<FilterType>::serialize(&fil, buffer); }
 
   void deserialize(const char* buffer) {
-    auto        start        = clk::now();
     const char* fingerprints = ftype<FilterType>::deserialize_header(&fil, buffer);
 
     fil.Fingerprints = // NOLINTNEXTLINE const_cast & rein_cast: API is flawed
         reinterpret_cast<ftype<FilterType>::fingerprint_t*>(const_cast<char*>(fingerprints));
 
     skip_free_fingerprints = true; // do not attempt to free this external buffer (probably an mmap)
-    std::cout << fmt::format("{:<15} {:>12}\n", "deserialize",
-                             duration_cast<micros>(clk::now() - start));
   }
 
   bool verify(const std::vector<std::uint64_t>& keys) {
-    auto start = clk::now();
     for (auto key: keys) {
       if (!contains(key)) {
         std::cerr << "binary_fuse_filter::verify: Detected a false negative.\n";
         return false;
       }
     }
-    std::cout << fmt::format("{:<30} {:>12}\n", "verify",
-                             duration_cast<micros>(clk::now() - start));
     return true;
   }
 
   double estimate_false_positive_rate() {
-    auto start = clk::now();
-
     auto   gen         = std::mt19937_64(std::random_device{}());
     size_t matches     = 0;
     size_t sample_size = 1'000'000;
@@ -160,8 +146,6 @@ public:
         matches++;
       }
     }
-    std::cout << fmt::format("{:<30} {:>12}\n", "est false +ve rate",
-                             duration_cast<micros>(clk::now() - start));
     return static_cast<double>(matches) * 100.0 / static_cast<double>(sample_size) -
            static_cast<double>(size) /
                static_cast<double>(std::numeric_limits<std::uint64_t>::max());
@@ -193,13 +177,13 @@ struct sharded_base<mio::access_mode::read, FilterType> {
   std::vector<filter<FilterType>> filters;
 };
 
-/* sharded_bin_fuse_filter
+/* sharded_bin_fuse_filter.
  *
- * Wraps a set of `bin_fuse_filter`s.
- * Saves/loads them to/from an mmap'd file.
- * Directs `contains` queries to the apropriate sub-filter
+ * Wraps a set of `binfuse::filter`s.
+ * Saves/loads them to/from an mmap'd file via mio::mmap.
+ * Directs `contains` queries to the apropriate sub-filter.
  */
-template <filter_type FilterType, mio::access_mode AccessMode, std::uint8_t ShardBits>
+template <filter_type FilterType, mio::access_mode AccessMode>
 class sharded_filter : private sharded_mmap_base<AccessMode>,
                        private sharded_base<AccessMode, FilterType> {
 public:
@@ -239,14 +223,11 @@ public:
     return filter.contains(needle);
   }
 
-  static std::uint32_t extract_prefix(std::uint64_t key) {
-    return key >> ((sizeof(key) * 8 - ShardBits) * 8);
-  }
+  std::uint32_t extract_prefix(std::uint64_t key) { return key >> (sizeof(key) * 8 - shard_bits); }
 
   void add(filter<FilterType>&& filter, std::uint32_t prefix)
     requires(AccessMode == mio::access_mode::write)
   {
-    auto start = clk::now();
     if (filepath.empty()) {
       throw std::runtime_error(
           fmt::format("filename not set or file doesn't exist '{}'", filepath));
@@ -255,9 +236,9 @@ public:
     if (prefix != next_prefix) {
       throw std::runtime_error(fmt::format("expecting a shard with prefix {}", next_prefix));
     }
-    if (this->filters.size() == max_capacity) {
+    if (next_prefix == max_capacity()) {
       throw std::runtime_error(
-          fmt::format("sharded filter has reached max capacity of {}", max_capacity));
+          fmt::format("sharded filter has reached max capacity of {}", max_capacity()));
     }
 
     std::size_t size_req      = filter.serialization_bytes();
@@ -279,25 +260,28 @@ public:
     }
     filter.serialize(this->mmap.data());
     ++next_prefix;
-    std::cout << fmt::format("{:<15} {:>12}\n", "add", duration_cast<micros>(clk::now() - start));
+    // std::cout << fmt::format("{:<15} {:>12}\n", "add", duration_cast<micros>(clk::now() -
+    // start));
   }
+
+  std::uint8_t shard_bits = 8;
 
 private:
   using clk    = std::chrono::high_resolution_clock;
   using micros = std::chrono::microseconds;
 
-  std::uint32_t                next_prefix = 0;
-  std::filesystem::path        filepath;
-  static constexpr std::uint32_t max_capacity = 1U << ShardBits;
+  std::uint32_t         next_prefix = 0;
+  std::filesystem::path filepath;
+  std::uint32_t         max_capacity() { return 1U << shard_bits; }
 };
 
 // easy to use aliases
-using sharded_filter8_sink = sharded_filter<binary_fuse8_t, mio::access_mode::write, 8>;
+using sharded_filter8_sink = sharded_filter<binary_fuse8_t, mio::access_mode::write>;
 
-using sharded_filter8_source = sharded_filter<binary_fuse8_t, mio::access_mode::read, 8>;
+using sharded_filter8_source = sharded_filter<binary_fuse8_t, mio::access_mode::read>;
 
-using sharded_filter16_sink = sharded_filter<binary_fuse16_t, mio::access_mode::write, 8>;
+using sharded_filter16_sink = sharded_filter<binary_fuse16_t, mio::access_mode::write>;
 
-using sharded_filter16_source = sharded_filter<binary_fuse16_t, mio::access_mode::read, 8>;
+using sharded_filter16_source = sharded_filter<binary_fuse16_t, mio::access_mode::read>;
 
 } // namespace binfuse
