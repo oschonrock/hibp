@@ -1,9 +1,8 @@
 #include "arrcmp.hpp"
-#include "sharded_binary_fuse_filter.hpp"
 #include "hibp.hpp"
 #include "sha1.h"
+#include "sharded_binary_fuse_filter.hpp"
 #include <CLI/CLI.hpp>
-#include <chrono>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -76,7 +75,7 @@ void query(const cli_config_t& cli) {
   std::cout << fmt::format("needle = {:016X}\n", needle);
 
 
-  sharded_bin_fuse8_filter_source sharded_filter(cli.db_filename);
+  binfuse::sharded_filter16_source sharded_filter(cli.db_filename);
 
   bool result = sharded_filter.contains(needle);
 

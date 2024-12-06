@@ -1,9 +1,7 @@
 #include "arrcmp.hpp"
-#include "binaryfusefilter.h"
-#include "sharded_binary_fuse_filter.hpp"
 #include "flat_file.hpp"
 #include "hibp.hpp"
-#include "mio/mmap.hpp"
+#include "sharded_binary_fuse_filter.hpp"
 #include <CLI/CLI.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -15,8 +13,6 @@
 #include <fstream>
 #include <ios>
 #include <iostream>
-#include <istream>
-#include <ostream>
 #include <stdexcept>
 #include <string>
 #include <sys/mman.h>
@@ -89,13 +85,13 @@ void build(const cli_config_t& cli) {
     if (count == cli.limit) break;
   }
 
-  bin_fuse8_filter filter(hashes);
+  binfuse::filter16 filter(hashes);
   filter.verify(hashes);
   std::cout << fmt::format("estimated false positive rate: {:.5f}%\n", filter.estimate_false_positive_rate());
   
   get_output_stream(cli.output_filename, cli.force); // just "touch" and close again
-  sharded_bin_fuse8_filter_sink sharded_filter(cli.output_filename);
-  sharded_filter.add(std::move(filter));
+  binfuse::sharded_filter16_sink sharded_filter(cli.output_filename);
+  sharded_filter.add(std::move(filter),0);
 }
 
 int main(int argc, char* argv[]) {

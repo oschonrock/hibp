@@ -12,6 +12,8 @@
 #include <stdexcept>
 #include <system_error>
 
+namespace binfuse {
+
 template <typename T>
 concept filter_type = std::same_as<T, binary_fuse8_t> || std::same_as<T, binary_fuse16_t>;
 
@@ -35,10 +37,10 @@ inline static const char* binary_fuse_deserialize_header(FilterType* filter, con
 // select which functions on the C-API will be called with specialisations of the function ptrs
 
 template <filter_type FilterType>
-struct dispatch {};
+struct ftype {};
 
 template <>
-struct dispatch<binary_fuse8_t> {
+struct ftype<binary_fuse8_t> {
   static constexpr auto* allocate            = binary_fuse8_allocate;
   static constexpr auto* populate            = binary_fuse8_populate;
   static constexpr auto* contains            = binary_fuse8_contain;
@@ -46,16 +48,19 @@ struct dispatch<binary_fuse8_t> {
   static constexpr auto* serialization_bytes = binary_fuse8_serialization_bytes;
   static constexpr auto* serialize           = binary_fuse8_serialize;
   static constexpr auto* deserialize_header  = binary_fuse_deserialize_header<binary_fuse8_t>;
+  using fingerprint_t                        = std::uint8_t;
 };
 
 template <>
-struct dispatch<binary_fuse16_t> {
+struct ftype<binary_fuse16_t> {
   static constexpr auto* allocate            = binary_fuse16_allocate;
   static constexpr auto* populate            = binary_fuse16_populate;
   static constexpr auto* contains            = binary_fuse16_contain;
   static constexpr auto* free                = binary_fuse16_free;
   static constexpr auto* serialization_bytes = binary_fuse16_serialization_bytes;
+  static constexpr auto* serialize           = binary_fuse16_serialize;
   static constexpr auto* deserialize_header  = binary_fuse_deserialize_header<binary_fuse16_t>;
+  using fingerprint_t                        = std::uint16_t;
 };
 
 /* bin_fuse_filter
@@ -63,34 +68,31 @@ struct dispatch<binary_fuse16_t> {
  * wraps a single bin_fuse(8|16)_filter
  */
 template <filter_type FilterType>
-class bin_fuse_filter {
+class filter {
 public:
-  bin_fuse_filter() = default;
-  explicit bin_fuse_filter(const std::vector<std::uint64_t>& keys) { populate(keys); }
+  filter() = default;
+  explicit filter(const std::vector<std::uint64_t>& keys) { populate(keys); }
 
-  bin_fuse_filter(const bin_fuse_filter& other)            = delete;
-  bin_fuse_filter& operator=(const bin_fuse_filter& other) = delete;
+  filter(const filter& other)            = delete;
+  filter& operator=(const filter& other) = delete;
 
-  bin_fuse_filter(bin_fuse_filter&& other) noexcept
-      : prefix(other.prefix), size(other.size), filter(other.filter) {
-    other.filter.Fingerprints = nullptr;
+  filter(filter&& other) noexcept : size(other.size), fil(other.fil) {
+    other.fil.Fingerprints = nullptr;
   }
-  bin_fuse_filter& operator=(bin_fuse_filter&& other) noexcept {
-    if (this != &other) {
-      *this = bin_fuse_filter(std::move(other));
-    }
+  filter& operator=(filter&& other) noexcept {
+    if (this != &other) *this = fil(std::move(other));
     return *this;
   }
 
-  ~bin_fuse_filter() {
+  ~filter() {
     std::cerr << fmt::format("~bin_fuse_filter()\n");
     if (skip_free_fingerprints) {
       std::cerr << fmt::format(
-          "fingerprints prt = {}  => nulling ptr before calling bin_fuseX_free()\n",
-          (void*)filter.Fingerprints); // NOLINT
-      filter.Fingerprints = nullptr;
+          "fingerprints ptr = {}  => nulling ptr before calling bin_fuseX_free()\n",
+          (void*)fil.Fingerprints); // NOLINT
+      fil.Fingerprints = nullptr;
     }
-    dispatch<FilterType>::free(&filter);
+    ftype<FilterType>::free(&fil);
   }
 
   void populate(const std::vector<std::uint64_t>& keys) {
@@ -99,35 +101,36 @@ public:
     if (keys.empty()) {
       throw std::runtime_error("empty input");
     }
-    auto front = keys.front();
-    prefix     = front >> ((sizeof(front) - sizeof(prefix)) * 8);
-    size       = keys.size();
+    size = keys.size();
 
-    if (!dispatch<FilterType>::allocate(keys.size(), &filter)) {
+    if (!ftype<FilterType>::allocate(keys.size(), &fil)) {
       throw std::runtime_error("failed to allocate memory.\n");
     }
-    if (!dispatch<FilterType>::populate(
+    if (!ftype<FilterType>::populate(
             const_cast<std::uint64_t*>(keys.data()), // NOLINT const_cast until API changed
-            keys.size(), &filter)) {
+            keys.size(), &fil)) { 
       throw std::runtime_error("failed to populate the filter");
     }
-    std::cout << fmt::format("{:<15} {:>12}\n", "populate", duration_cast<micros>(clk::now() - start));
+    std::cout << fmt::format("{:<15} {:>12}\n", "populate",
+                             duration_cast<micros>(clk::now() - start));
   }
 
   bool contains(std::uint64_t needle) {
-    auto result = dispatch<FilterType>::contains(needle, &filter);
+    auto result = ftype<FilterType>::contains(needle, &fil);
     return result;
   }
 
-  std::size_t serialization_bytes() { return dispatch<FilterType>::serialization_bytes(&filter); }
+  std::size_t serialization_bytes() { return ftype<FilterType>::serialization_bytes(&fil); }
 
-  void serialize(char* buffer) { dispatch<FilterType>::serialize(&filter, buffer); }
+  void serialize(char* buffer) { ftype<FilterType>::serialize(&fil, buffer); }
 
   void deserialize(const char* buffer) {
     auto        start        = clk::now();
-    const char* fingerprints = dispatch<FilterType>::deserialize_header(&filter, buffer);
-    // NOLINTNEXTLINE const_cast & rein_cast: API is flawed
-    filter.Fingerprints    = reinterpret_cast<std::uint8_t*>(const_cast<char*>(fingerprints));
+    const char* fingerprints = ftype<FilterType>::deserialize_header(&fil, buffer);
+
+    fil.Fingerprints = // NOLINTNEXTLINE const_cast & rein_cast: API is flawed
+        reinterpret_cast<ftype<FilterType>::fingerprint_t*>(const_cast<char*>(fingerprints));
+
     skip_free_fingerprints = true; // do not attempt to free this external buffer (probably an mmap)
     std::cout << fmt::format("{:<15} {:>12}\n", "deserialize",
                              duration_cast<micros>(clk::now() - start));
@@ -164,19 +167,17 @@ public:
                static_cast<double>(std::numeric_limits<std::uint64_t>::max());
   }
 
-  std::uint8_t prefix = 0;
-
 private:
   using clk    = std::chrono::high_resolution_clock;
   using micros = std::chrono::microseconds;
 
   std::size_t size = 0;
-  FilterType  filter;
+  FilterType  fil;
   bool        skip_free_fingerprints = false;
 };
 
-using bin_fuse8_filter  = bin_fuse_filter<binary_fuse8_t>;
-using bin_fuse16_filter = bin_fuse_filter<binary_fuse16_t>;
+using filter8  = filter<binary_fuse8_t>;
+using filter16 = filter<binary_fuse16_t>;
 
 // selecting the appropriate map for the access mode
 template <mio::access_mode AccessMode>
@@ -189,7 +190,7 @@ struct sharded_base {};
 
 template <filter_type FilterType>
 struct sharded_base<mio::access_mode::read, FilterType> {
-  std::vector<bin_fuse_filter<FilterType>> filters;
+  std::vector<filter<FilterType>> filters;
 };
 
 /* sharded_bin_fuse_filter
@@ -198,14 +199,12 @@ struct sharded_base<mio::access_mode::read, FilterType> {
  * Saves/loads them to/from an mmap'd file.
  * Directs `contains` queries to the apropriate sub-filter
  */
-template <filter_type FilterType, mio::access_mode AccessMode>
-class sharded_bin_fuse_filter : private sharded_mmap_base<AccessMode>,
-                                private sharded_base<AccessMode, FilterType> {
+template <filter_type FilterType, mio::access_mode AccessMode, std::uint8_t ShardBits>
+class sharded_filter : private sharded_mmap_base<AccessMode>,
+                       private sharded_base<AccessMode, FilterType> {
 public:
-  sharded_bin_fuse_filter() = default;
-  explicit sharded_bin_fuse_filter(std::filesystem::path path) : filepath(std::move(path)) {
-    load();
-  }
+  sharded_filter() = default;
+  explicit sharded_filter(std::filesystem::path path) : filepath(std::move(path)) { load(); }
 
   // here so we can have a default constructor, not normally used
   void set_filename(std::filesystem::path path) {
@@ -240,7 +239,11 @@ public:
     return filter.contains(needle);
   }
 
-  void add(bin_fuse_filter<FilterType>&& filter)
+  static std::uint32_t extract_prefix(std::uint64_t key) {
+    return key >> ((sizeof(key) * 8 - ShardBits) * 8);
+  }
+
+  void add(filter<FilterType>&& filter, std::uint32_t prefix)
     requires(AccessMode == mio::access_mode::write)
   {
     auto start = clk::now();
@@ -249,7 +252,7 @@ public:
           fmt::format("filename not set or file doesn't exist '{}'", filepath));
     }
 
-    if (filter.prefix != next_prefix) {
+    if (prefix != next_prefix) {
       throw std::runtime_error(fmt::format("expecting a shard with prefix {}", next_prefix));
     }
     // need check for overflow
@@ -272,7 +275,8 @@ public:
     std::error_code err;
     this->mmap.map(filepath.string(), err);
     if (err) {
-      throw std::runtime_error(fmt::format("sharded_bin_fuse_filter:: mmap.map(): {}", err.message()));
+      throw std::runtime_error(
+          fmt::format("sharded_bin_fuse_filter:: mmap.map(): {}", err.message()));
     }
     filter.serialize(this->mmap.data());
     ++next_prefix;
@@ -283,18 +287,18 @@ private:
   using clk    = std::chrono::high_resolution_clock;
   using micros = std::chrono::microseconds;
 
-  std::uint8_t                 next_prefix = 0;
+  std::uint32_t                next_prefix = 0;
   std::filesystem::path        filepath;
   static constexpr std::size_t max_capacity = std::numeric_limits<decltype(next_prefix)>::max() + 1;
 };
 
 // easy to use aliases
-using sharded_bin_fuse8_filter_sink =
-    sharded_bin_fuse_filter<binary_fuse8_t, mio::access_mode::write>;
-using sharded_bin_fuse8_filter_source =
-    sharded_bin_fuse_filter<binary_fuse8_t, mio::access_mode::read>;
+using sharded_filter8_sink = sharded_filter<binary_fuse8_t, mio::access_mode::write, 8>;
 
-using sharded_bin_fuse16_filter_sink =
-    sharded_bin_fuse_filter<binary_fuse16_t, mio::access_mode::write>;
-using sharded_bin_fuse16_filter_source =
-    sharded_bin_fuse_filter<binary_fuse16_t, mio::access_mode::read>;
+using sharded_filter8_source = sharded_filter<binary_fuse8_t, mio::access_mode::read, 8>;
+
+using sharded_filter16_sink = sharded_filter<binary_fuse16_t, mio::access_mode::write, 8>;
+
+using sharded_filter16_source = sharded_filter<binary_fuse16_t, mio::access_mode::read, 8>;
+
+} // namespace binfuse
