@@ -130,7 +130,8 @@ public:
   bool verify(const std::vector<std::uint64_t>& keys) {
     for (auto key: keys) {
       if (!contains(key)) {
-        std::cerr << "binary_fuse_filter::verify: Detected a false negative.\n";
+        std::cerr << fmt::format(
+            "binary_fuse_filter::verify: Detected a false negative: {:016X} \n", key);
         return false;
       }
     }
@@ -182,6 +183,7 @@ struct sharded_base<mio::access_mode::read, FilterType> {
  * Wraps a set of `binfuse::filter`s.
  * Saves/loads them to/from an mmap'd file via mio::mmap.
  * Directs `contains` queries to the apropriate sub-filter.
+ *
  */
 template <filter_type FilterType, mio::access_mode AccessMode>
 class sharded_filter : private sharded_mmap_base<AccessMode>,
@@ -236,19 +238,19 @@ public:
     if (prefix != next_prefix) {
       throw std::runtime_error(fmt::format("expecting a shard with prefix {}", next_prefix));
     }
-    if (next_prefix == max_capacity()) {
+    if (next_prefix == capacity()) {
       throw std::runtime_error(
-          fmt::format("sharded filter has reached max capacity of {}", max_capacity()));
+          fmt::format("sharded filter has reached max capacity of {}", capacity()));
     }
 
     std::size_t size_req      = filter.serialization_bytes();
-    std::size_t existing_size = 0;
+    std::size_t existing_filesize = 0;
     if (std::filesystem::exists(filepath)) {
-      existing_size = std::filesystem::file_size(filepath);
+      existing_filesize = std::filesystem::file_size(filepath);
     } else {
       std::ofstream tmp(filepath); // "touch"
     }
-    std::size_t new_size = existing_size + size_req;
+    std::size_t new_size = existing_filesize + size_req;
 
     this->mmap.unmap(); // ensure any existing map is sync'd
     std::filesystem::resize_file(filepath, new_size);
@@ -272,7 +274,40 @@ private:
 
   std::uint32_t         next_prefix = 0;
   std::filesystem::path filepath;
-  std::uint32_t         max_capacity() { return 1U << shard_bits; }
+
+  /* file structure is as follows:
+   *
+   * header [0 -> 16) : small number of bytes identifying the type of file, the
+   * type of filters contained and how many shards are contained.
+   *
+   * index [16 -> 16 + 8 * max_capacity() ): table of offsets to each
+   * filter in the body. The offsets in the table are relative to the
+   * start of the body segment.
+   *
+   * body [16 + 8 * max_capacity() -> end ): the filters: each one has
+   * the filter_struct_fields (ie the "header") followed by the large
+   * array of (8 or 16bit) fingerprints. The offsets in the index will
+   * point the start of the filter_header (relative to start of body
+   * section), so that deserialize can be called directly on that.
+   *
+   */
+  static constexpr std::size_t header_start  = 0;
+  static constexpr std::size_t header_length = 16;
+
+  static constexpr std::size_t index_start = header_start + header_length;
+
+  std::uint32_t capacity() { return 1U << shard_bits; }
+  std::uint32_t size = 0;
+
+  std::size_t index_length() { return sizeof(std::size_t) * capacity(); }
+
+  std::size_t body_start() { return index_start + index_length(); }
+
+  std::size_t filter_offset(std::uint32_t prefix) {
+    return *reinterpret_cast<std::size_t*>(&this->mmap[index_start + sizeof(std::size_t) * prefix]);
+  }
+
+  std::size_t filter_start(uint32_t pos) { return body_start() + filter_offset(pos); }
 };
 
 // easy to use aliases
