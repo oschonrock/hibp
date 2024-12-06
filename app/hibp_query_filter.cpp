@@ -91,7 +91,7 @@ void query(const cli_config_t& cli) {
 int main(int argc, char* argv[]) {
   cli_config_t cli;
 
-  CLI::App app("Converting 'Have I been pawned' databases between text and binary formats");
+  CLI::App app("Querying binary_fuse_filters");
   define_options(app, cli);
   CLI11_PARSE(app, argc, argv);
 

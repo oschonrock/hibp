@@ -94,6 +94,8 @@ public:
   }
 
   void populate(const std::vector<std::uint64_t>& keys) {
+    auto start = clk::now();
+
     if (keys.empty()) {
       throw std::runtime_error("empty input");
     }
@@ -107,15 +109,13 @@ public:
     if (!dispatch<FilterType>::populate(
             const_cast<std::uint64_t*>(keys.data()), // NOLINT const_cast until API changed
             keys.size(), &filter)) {
-      throw std::runtime_error("failed to build the filter, do you have sufficient memory?\n");
+      throw std::runtime_error("failed to populate the filter");
     }
+    std::cout << fmt::format("{:<15} {:>12}\n", "populate", duration_cast<micros>(clk::now() - start));
   }
 
   bool contains(std::uint64_t needle) {
-    auto start = clk::now();
     auto result = dispatch<FilterType>::contains(needle, &filter);
-    std::cout << fmt::format("{:<15} {:>8}\n", "contains",
-                             duration_cast<micros>(clk::now() - start));
     return result;
   }
 
@@ -128,8 +128,8 @@ public:
     const char* fingerprints = dispatch<FilterType>::deserialize_header(&filter, buffer);
     // NOLINTNEXTLINE const_cast & rein_cast: API is flawed
     filter.Fingerprints    = reinterpret_cast<std::uint8_t*>(const_cast<char*>(fingerprints));
-    skip_free_fingerprints = true; // do not attemt to fere this external buffer (probably an mmap)
-    std::cout << fmt::format("{:<15} {:>8}\n", "deserialize",
+    skip_free_fingerprints = true; // do not attempt to free this external buffer (probably an mmap)
+    std::cout << fmt::format("{:<15} {:>12}\n", "deserialize",
                              duration_cast<micros>(clk::now() - start));
   }
 
@@ -218,10 +218,10 @@ public:
     if constexpr (AccessMode == mio::access_mode::read) {
       auto start = clk::now();
 
-      std::error_code err_code;
-      this->mmap.map(filepath.string(), err_code);
-      if (err_code) {
-        throw std::runtime_error(fmt::format("mmap.map(): {}", err_code));
+      std::error_code err;
+      this->mmap.map(filepath.string(), err);
+      if (err) {
+        throw std::runtime_error(fmt::format("mmap.map(): {}", err.message()));
       }
       std::cout << fmt::format("{:<15} {:>8}\n", "mmap", duration_cast<micros>(clk::now() - start));
 
@@ -243,6 +243,7 @@ public:
   void add(bin_fuse_filter<FilterType>&& filter)
     requires(AccessMode == mio::access_mode::write)
   {
+    auto start = clk::now();
     if (filepath.empty()) {
       throw std::runtime_error(
           fmt::format("filename not set or file doesn't exist '{}'", filepath));
@@ -266,19 +267,16 @@ public:
     }
     std::size_t new_size = existing_size + size_req;
 
-    std::error_code err_code;
-    this->mmap.unmap(err_code); // ensure any existing map is sync'd
-    if (err_code) {
-      throw std::runtime_error(fmt::format("mmap.unmap(): {}", err_code));
-    }
+    this->mmap.unmap(); // ensure any existing map is sync'd
     std::filesystem::resize_file(filepath, new_size);
-    this->mmap.map(filepath.string(), err_code);
-    if (err_code) {
-      throw std::runtime_error(fmt::format("mmap.map(): {}", err_code));
+    std::error_code err;
+    this->mmap.map(filepath.string(), err);
+    if (err) {
+      throw std::runtime_error(fmt::format("sharded_bin_fuse_filter:: mmap.map(): {}", err.message()));
     }
     filter.serialize(this->mmap.data());
     ++next_prefix;
-    std::cout << "added\n";
+    std::cout << fmt::format("{:<15} {:>12}\n", "add", duration_cast<micros>(clk::now() - start));
   }
 
 private:
