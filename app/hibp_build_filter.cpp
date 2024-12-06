@@ -89,10 +89,9 @@ void build(const cli_config_t& cli) {
     if (count == cli.limit) break;
   }
 
-  bin_fuse8_filter filter;
-  filter.populate(hashes);
-  filter.verify(hashes);
-  std::cout << fmt::format("estimated false positive rate: {:.5f}%\n", filter.estimate_false_positive_rate());
+  bin_fuse8_filter filter(hashes);
+  // filter.verify(hashes);
+  // std::cout << fmt::format("estimated false positive rate: {:.5f}%\n", filter.estimate_false_positive_rate());
   
   get_output_stream(cli.output_filename, cli.force); // just "touch" and close again
   sharded_bin_fuse8_filter_sink sharded_filter(cli.output_filename);

@@ -1,4 +1,5 @@
 #include "binaryfusefilter.h"
+#include "fmt/format.h"
 #include "mio/mmap.hpp"
 #include "mio/page.hpp"
 #include <concepts>
@@ -14,6 +15,23 @@
 template <typename T>
 concept filter_type = std::same_as<T, binary_fuse8_t> || std::same_as<T, binary_fuse16_t>;
 
+// modified API from lib until this is accepted as a patch
+template <filter_type FilterType>
+inline static const char* binary_fuse_deserialize_header(FilterType* filter, const char* buffer) {
+  memcpy(&filter->Seed, buffer, sizeof(filter->Seed));
+  buffer += sizeof(filter->Seed);
+  memcpy(&filter->SegmentLength, buffer, sizeof(filter->SegmentLength));
+  buffer += sizeof(filter->SegmentLength);
+  filter->SegmentLengthMask = filter->SegmentLength - 1;
+  memcpy(&filter->SegmentCount, buffer, sizeof(filter->SegmentCount));
+  buffer += sizeof(filter->SegmentCount);
+  memcpy(&filter->SegmentCountLength, buffer, sizeof(filter->SegmentCountLength));
+  buffer += sizeof(filter->SegmentCountLength);
+  memcpy(&filter->ArrayLength, buffer, sizeof(filter->ArrayLength));
+  buffer += sizeof(filter->ArrayLength);
+  return buffer;
+}
+
 // select which functions on the C-API will be called with specialisations of the function ptrs
 
 template <filter_type FilterType>
@@ -23,26 +41,32 @@ template <>
 struct dispatch<binary_fuse8_t> {
   static constexpr auto* allocate            = binary_fuse8_allocate;
   static constexpr auto* populate            = binary_fuse8_populate;
-  static constexpr auto* contain             = binary_fuse8_contain;
+  static constexpr auto* contains            = binary_fuse8_contain;
   static constexpr auto* free                = binary_fuse8_free;
   static constexpr auto* serialization_bytes = binary_fuse8_serialization_bytes;
   static constexpr auto* serialize           = binary_fuse8_serialize;
+  static constexpr auto* deserialize_header  = binary_fuse_deserialize_header<binary_fuse8_t>;
 };
 
 template <>
 struct dispatch<binary_fuse16_t> {
   static constexpr auto* allocate            = binary_fuse16_allocate;
   static constexpr auto* populate            = binary_fuse16_populate;
-  static constexpr auto* contain             = binary_fuse16_contain;
+  static constexpr auto* contains            = binary_fuse16_contain;
   static constexpr auto* free                = binary_fuse16_free;
   static constexpr auto* serialization_bytes = binary_fuse16_serialization_bytes;
-  static constexpr auto* serialize           = binary_fuse16_serialize;
+  static constexpr auto* deserialize_header  = binary_fuse_deserialize_header<binary_fuse16_t>;
 };
 
+/* bin_fuse_filter
+ *
+ * wraps a single bin_fuse(8|16)_filter
+ */
 template <filter_type FilterType>
 class bin_fuse_filter {
 public:
   bin_fuse_filter() = default;
+  explicit bin_fuse_filter(const std::vector<std::uint64_t>& keys) { populate(keys); }
 
   bin_fuse_filter(const bin_fuse_filter& other)            = delete;
   bin_fuse_filter& operator=(const bin_fuse_filter& other) = delete;
@@ -58,7 +82,16 @@ public:
     return *this;
   }
 
-  ~bin_fuse_filter() { dispatch<FilterType>::free(&filter); }
+  ~bin_fuse_filter() {
+    std::cerr << fmt::format("~bin_fuse_filter()\n");
+    if (skip_free_fingerprints) {
+      std::cerr << fmt::format(
+          "fingerprints prt = {}  => nulling ptr before calling bin_fuseX_free()\n",
+          (void*)filter.Fingerprints); // NOLINT
+      filter.Fingerprints = nullptr;
+    }
+    dispatch<FilterType>::free(&filter);
+  }
 
   void populate(const std::vector<std::uint64_t>& keys) {
     if (keys.empty()) {
@@ -78,16 +111,32 @@ public:
     }
   }
 
+  bool contains(std::uint64_t needle) {
+    auto start = clk::now();
+    auto result = dispatch<FilterType>::contains(needle, &filter);
+    std::cout << fmt::format("{:<15} {:>8}\n", "contains",
+                             duration_cast<micros>(clk::now() - start));
+    return result;
+  }
+
   std::size_t serialization_bytes() { return dispatch<FilterType>::serialization_bytes(&filter); }
 
   void serialize(char* buffer) { dispatch<FilterType>::serialize(&filter, buffer); }
 
+  void deserialize(const char* buffer) {
+    auto        start        = clk::now();
+    const char* fingerprints = dispatch<FilterType>::deserialize_header(&filter, buffer);
+    // NOLINTNEXTLINE const_cast & rein_cast: API is flawed
+    filter.Fingerprints    = reinterpret_cast<std::uint8_t*>(const_cast<char*>(fingerprints));
+    skip_free_fingerprints = true; // do not attemt to fere this external buffer (probably an mmap)
+    std::cout << fmt::format("{:<15} {:>8}\n", "deserialize",
+                             duration_cast<micros>(clk::now() - start));
+  }
+
   bool verify(const std::vector<std::uint64_t>& keys) {
-    using clk    = std::chrono::high_resolution_clock;
-    using micros = std::chrono::microseconds;
-    auto start   = clk::now();
+    auto start = clk::now();
     for (auto key: keys) {
-      if (!dispatch<FilterType>::contain(key, &filter)) {
+      if (!contains(key)) {
         std::cerr << "binary_fuse_filter::verify: Detected a false negative.\n";
         return false;
       }
@@ -98,21 +147,19 @@ public:
   }
 
   double estimate_false_positive_rate() {
-    using clk    = std::chrono::high_resolution_clock;
-    using micros = std::chrono::microseconds;
-    auto start   = clk::now();
+    auto start = clk::now();
 
-    auto   gen     = std::mt19937_64(std::random_device{}());
-    size_t matches = 0;
-    size_t volume  = 1'000'000;
-    for (size_t t = 0; t < volume; t++) {
-      if (dispatch<FilterType>::contain(gen(), &filter)) { // no distribution needed
+    auto   gen         = std::mt19937_64(std::random_device{}());
+    size_t matches     = 0;
+    size_t sample_size = 1'000'000;
+    for (size_t t = 0; t < sample_size; t++) {
+      if (contains(gen())) { // no distribution needed
         matches++;
       }
     }
     std::cout << fmt::format("{:<30} {:>12}\n", "est false +ve rate",
                              duration_cast<micros>(clk::now() - start));
-    return static_cast<double>(matches) * 100.0 / static_cast<double>(volume) -
+    return static_cast<double>(matches) * 100.0 / static_cast<double>(sample_size) -
            static_cast<double>(size) /
                static_cast<double>(std::numeric_limits<std::uint64_t>::max());
   }
@@ -120,37 +167,77 @@ public:
   std::uint8_t prefix = 0;
 
 private:
+  using clk    = std::chrono::high_resolution_clock;
+  using micros = std::chrono::microseconds;
+
   std::size_t size = 0;
   FilterType  filter;
+  bool        skip_free_fingerprints = false;
 };
-
-// easy to use aliases
 
 using bin_fuse8_filter  = bin_fuse_filter<binary_fuse8_t>;
 using bin_fuse16_filter = bin_fuse_filter<binary_fuse16_t>;
 
-template <typename T>
-concept mmap_type = std::same_as<T, mio::mmap_sink> || std::same_as<T, mio::mmap_source>;
-
+// selecting the appropriate map for the access mode
 template <mio::access_mode AccessMode>
-struct map_base {
-   mio::basic_mmap<AccessMode, char> mmap;
+struct sharded_mmap_base {
+  mio::basic_mmap<AccessMode, char> mmap;
 };
 
-// sharded_bin_fuse_filter
+template <mio::access_mode AccessMode, filter_type FilterType>
+struct sharded_base {};
+
+template <filter_type FilterType>
+struct sharded_base<mio::access_mode::read, FilterType> {
+  std::vector<bin_fuse_filter<FilterType>> filters;
+};
+
+/* sharded_bin_fuse_filter
+ *
+ * Wraps a set of `bin_fuse_filter`s.
+ * Saves/loads them to/from an mmap'd file.
+ * Directs `contains` queries to the apropriate sub-filter
+ */
 template <filter_type FilterType, mio::access_mode AccessMode>
-class sharded_bin_fuse_filter : private map_base<AccessMode> {
+class sharded_bin_fuse_filter : private sharded_mmap_base<AccessMode>,
+                                private sharded_base<AccessMode, FilterType> {
 public:
   sharded_bin_fuse_filter() = default;
-  explicit sharded_bin_fuse_filter(std::filesystem::path path) : filepath(std::move(path)) {}
+  explicit sharded_bin_fuse_filter(std::filesystem::path path) : filepath(std::move(path)) {
+    load();
+  }
 
   // here so we can have a default constructor, not normally used
-  void set_filename(std::filesystem::path path) { filepath = std::move(path); }
+  void set_filename(std::filesystem::path path) {
+    filepath = std::move(path);
+    load();
+  }
 
-  void load()
+  // only does something for AccessMode = read
+  void load() {
+    if constexpr (AccessMode == mio::access_mode::read) {
+      auto start = clk::now();
+
+      std::error_code err_code;
+      this->mmap.map(filepath.string(), err_code);
+      if (err_code) {
+        throw std::runtime_error(fmt::format("mmap.map(): {}", err_code));
+      }
+      std::cout << fmt::format("{:<15} {:>8}\n", "mmap", duration_cast<micros>(clk::now() - start));
+
+      // TODO load all filters
+      this->filters.resize(1);
+      auto& filter = this->filters[0];
+      filter.deserialize(this->mmap.data());
+    }
+  }
+
+  bool contains(std::uint64_t needle)
     requires(AccessMode == mio::access_mode::read)
   {
-    std::cout << "loading\n";
+    // TODO select the correct filter
+    auto& filter = this->filters[0];
+    return filter.contains(needle);
   }
 
   void add(bin_fuse_filter<FilterType>&& filter)
@@ -178,15 +265,26 @@ public:
       std::ofstream tmp(filepath); // "touch"
     }
     std::size_t new_size = existing_size + size_req;
-    std::filesystem::resize_file(filepath, new_size);
+
     std::error_code err_code;
-    this->mmap.map(filepath.string(), 0, new_size, err_code);  // does move assignment destruct/unmap the old map?
+    this->mmap.unmap(err_code); // ensure any existing map is sync'd
+    if (err_code) {
+      throw std::runtime_error(fmt::format("mmap.unmap(): {}", err_code));
+    }
+    std::filesystem::resize_file(filepath, new_size);
+    this->mmap.map(filepath.string(), err_code);
+    if (err_code) {
+      throw std::runtime_error(fmt::format("mmap.map(): {}", err_code));
+    }
     filter.serialize(this->mmap.data());
     ++next_prefix;
     std::cout << "added\n";
   }
 
 private:
+  using clk    = std::chrono::high_resolution_clock;
+  using micros = std::chrono::microseconds;
+
   std::uint8_t                 next_prefix = 0;
   std::filesystem::path        filepath;
   static constexpr std::size_t max_capacity = std::numeric_limits<decltype(next_prefix)>::max() + 1;

@@ -1,5 +1,5 @@
 #include "arrcmp.hpp"
-#include "binaryfusefilter.h"
+#include "sharded_binary_fuse_filter.hpp"
 #include "hibp.hpp"
 #include "sha1.h"
 #include <CLI/CLI.hpp>
@@ -64,22 +64,6 @@ std::ofstream get_output_stream(const std::string& output_filename, bool force) 
   return output_stream;
 }
 
-// until we get this accepted as a patch
-static const unsigned char* binary_fuse8_deserialize_header(binary_fuse8_t* filter, const unsigned char* buffer) {
-  memcpy(&filter->Seed, buffer, sizeof(filter->Seed));
-  buffer += sizeof(filter->Seed);
-  memcpy(&filter->SegmentLength, buffer, sizeof(filter->SegmentLength));
-  buffer += sizeof(filter->SegmentLength);
-  filter->SegmentLengthMask = filter->SegmentLength - 1;
-  memcpy(&filter->SegmentCount, buffer, sizeof(filter->SegmentCount));
-  buffer += sizeof(filter->SegmentCount);
-  memcpy(&filter->SegmentCountLength, buffer, sizeof(filter->SegmentCountLength));
-  buffer += sizeof(filter->SegmentCountLength);
-  memcpy(&filter->ArrayLength, buffer, sizeof(filter->ArrayLength));
-  buffer += sizeof(filter->ArrayLength);
-  return buffer;
-}
-
 void query(const cli_config_t& cli) {
   uint64_t needle = 0;
   if (cli.hash) {
@@ -91,23 +75,10 @@ void query(const cli_config_t& cli) {
   }
   std::cout << fmt::format("needle = {:016X}\n", needle);
 
-  using clk    = std::chrono::high_resolution_clock;
-  using micros = std::chrono::microseconds;
-  auto start   = clk::now();
 
-  mio::ummap_source map(cli.db_filename);
-  std::cout << fmt::format("{:<15} {:>8}\n", "mmap", duration_cast<micros>(clk::now() - start));
+  sharded_bin_fuse8_filter_source sharded_filter(cli.db_filename);
 
-  start = clk::now();
-  binary_fuse8_t filter;
-  const unsigned char*    body = binary_fuse8_deserialize_header(&filter, map.data());
-  filter.Fingerprints = const_cast<unsigned char*>(body); // NOLINT
-  std::cout << fmt::format("{:<15} {:>8}\n", "deserialize",
-                           duration_cast<micros>(clk::now() - start));
-
-  start       = clk::now();
-  bool result = binary_fuse8_contain(needle, &filter);
-  std::cout << fmt::format("{:<15} {:>8}\n", "search", duration_cast<micros>(clk::now() - start));
+  bool result = sharded_filter.contains(needle);
 
   if (result) {
     std::cout << fmt::format("FOUND\n");
@@ -115,8 +86,6 @@ void query(const cli_config_t& cli) {
     std::cout << fmt::format("NOT FOUND\n");
   }
 
-  filter.Fingerprints = nullptr; // can't free the map
-  binary_fuse8_free(&filter);
 }
 
 int main(int argc, char* argv[]) {
