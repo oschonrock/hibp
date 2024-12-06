@@ -63,7 +63,7 @@ struct ftype<binary_fuse16_t> {
   using fingerprint_t                        = std::uint16_t;
 };
 
-/* bin_fuse_filter
+/* binfuse::filter
  *
  * wraps a single bin_fuse(8|16)_filter
  */
@@ -74,13 +74,13 @@ public:
   explicit filter(const std::vector<std::uint64_t>& keys) { populate(keys); }
 
   filter(const filter& other)            = delete;
-  filter& operator=(const filter& other) = delete;
+  filter& operator=(const filter& rhs) = delete;
 
   filter(filter&& other) noexcept : size(other.size), fil(other.fil) {
     other.fil.Fingerprints = nullptr;
   }
-  filter& operator=(filter&& other) noexcept {
-    if (this != &other) *this = fil(std::move(other));
+  filter& operator=(filter&& rhs) noexcept {
+    if (this != &rhs) *this = fil(std::move(rhs));
     return *this;
   }
 
@@ -255,11 +255,10 @@ public:
     if (prefix != next_prefix) {
       throw std::runtime_error(fmt::format("expecting a shard with prefix {}", next_prefix));
     }
-    // need check for overflow
-    // if (filters.size() == max_capacity) {
-    //   throw std::runtime_error(
-    //       fmt::format("sharded filter has reached max capacity of {}", max_capacity));
-    // }
+    if (this->filters.size() == max_capacity) {
+      throw std::runtime_error(
+          fmt::format("sharded filter has reached max capacity of {}", max_capacity));
+    }
 
     std::size_t size_req      = filter.serialization_bytes();
     std::size_t existing_size = 0;
@@ -289,7 +288,7 @@ private:
 
   std::uint32_t                next_prefix = 0;
   std::filesystem::path        filepath;
-  static constexpr std::size_t max_capacity = std::numeric_limits<decltype(next_prefix)>::max() + 1;
+  static constexpr std::uint32_t max_capacity = 1U << ShardBits;
 };
 
 // easy to use aliases
