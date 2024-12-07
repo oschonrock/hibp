@@ -1,7 +1,7 @@
 #include "arrcmp.hpp"
+#include "binfuse/sharded_filter.hpp"
 #include "hibp.hpp"
 #include "sha1.h"
-#include "sharded_binary_fuse_filter.hpp"
 #include <CLI/CLI.hpp>
 #include <cstdint>
 #include <cstdio>

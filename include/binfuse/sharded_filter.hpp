@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bin_fuse_filter.hpp"
+#include "binfuse/filter.hpp"
 #include "fmt/format.h"
 #include "mio/mmap.hpp"
 #include "mio/page.hpp"
@@ -20,7 +20,7 @@ namespace binfuse {
 template <mio::access_mode AccessMode>
 struct sharded_mmap_base {
   mio::basic_mmap<AccessMode, char> mmap;
-  std::vector<std::size_t>          filter_offsets;
+  std::vector<std::size_t>          index;
 };
 
 template <mio::access_mode AccessMode, filter_type FilterType>
@@ -55,14 +55,7 @@ public:
   void load()
     requires(AccessMode == mio::access_mode::read)
   {
-    auto start = clk::now();
-
-    std::error_code err;
-    this->mmap.map(filepath.string(), err);
-    if (err) {
-      throw std::runtime_error(fmt::format("mmap.map(): {}", err.message()));
-    }
-    std::cout << fmt::format("{:<15} {:>8}\n", "mmap", duration_cast<micros>(clk::now() - start));
+    map_whole_file();
 
     // TODO load all filters
     this->filters.resize(1);
@@ -86,7 +79,7 @@ public:
     return key >> (sizeof(key) * 8 - shard_bits);
   }
 
-  void add(filter<FilterType>&& filter, std::uint32_t prefix)
+  void add(filter<FilterType>&& new_filter, std::uint32_t prefix)
     requires(AccessMode == mio::access_mode::write)
   {
     if (prefix != next_prefix) {
@@ -99,20 +92,23 @@ public:
 
     std::size_t new_size = ensure_header();
 
-    std::size_t size_req          = filter.serialization_bytes();
-    auto        new_filter_offset = new_size; // place new filter at end
+    std::size_t size_req          = new_filter.serialization_bytes();
+    offset_t    new_filter_offset = new_size; // place new filter at end
     new_size += size_req;
 
     sync();
     std::filesystem::resize_file(filepath, new_size);
     map_whole_file();
 
-    std::cerr << "prefix: " << prefix << "\n";
-    std::cerr << "filter_index_offset(prefix): " << filter_index_offset(prefix) << "\n";
-    std::cerr << "filter_offset(prefix): " << filter_offset(prefix) << "\n";
+    auto old_filter_offset = get_from_map<offset_t>(filter_index_offset(prefix));
 
-    memcpy(&this->mmap[filter_index_offset(prefix)], &new_filter_offset, sizeof(new_filter_offset));
-    filter.serialize(&this->mmap[filter_offset(prefix)]);
+    std::cerr << fmt::format("old_flter_offset: {:016X}\n", old_filter_offset);
+    if (old_filter_offset != empty_offset) {
+      throw std::runtime_error(
+          fmt::format("there is already a filter in this file for prefix = {}", prefix));
+    }
+    copy_to_map(new_filter_offset, filter_index_offset(prefix)); // set up the index ptr
+    new_filter.serialize(&this->mmap[new_filter_offset]);        // insert the data
     ++size;
     ++next_prefix;
   }
@@ -123,7 +119,7 @@ private:
   using clk    = std::chrono::high_resolution_clock;
   using micros = std::chrono::microseconds;
 
-  using offset_t = typename decltype(sharded_mmap_base<AccessMode>::filter_offsets)::value_type;
+  using offset_t = typename decltype(sharded_mmap_base<AccessMode>::index)::value_type;
   static constexpr auto empty_offset = static_cast<offset_t>(-1);
 
   std::uint32_t         next_prefix = 0;
@@ -145,6 +141,33 @@ private:
    * section), so that deserialize can be called directly on that.
    *
    */
+  template <typename T>
+  void copy_to_map(T value, offset_t offset)
+    requires(AccessMode == mio::access_mode::write)
+  {
+    memcpy(&this->mmap[offset], &value, sizeof(T));
+  }
+
+  void copy_str_to_map(std::string value, offset_t offset)
+    requires(AccessMode == mio::access_mode::write)
+  {
+    memcpy(&this->mmap[offset], value.data(), value.size());
+  }
+
+  template <typename T>
+  [[nodiscard]] T get_from_map(offset_t offset) const {
+    T value;
+    memcpy(&value, &this->mmap[offset], sizeof(T));
+    return value;
+  }
+
+  [[nodiscard]] std::string get_str_from_map(offset_t offset, std::size_t strsize) const {
+    std::string value;
+    value.resize(strsize);
+    memcpy(value.data(), &this->mmap[offset], strsize);
+    return value;
+  }
+
   static constexpr std::size_t header_start  = 0;
   static constexpr std::size_t header_length = 16;
 
@@ -155,22 +178,12 @@ private:
 
   [[nodiscard]] std::size_t index_length() const { return sizeof(std::size_t) * capacity(); }
 
-  [[nodiscard]] std::size_t body_start() const { return index_start + index_length(); }
-
   [[nodiscard]] std::size_t filter_index_offset(std::uint32_t prefix) const {
     return index_start + sizeof(std::size_t) * prefix;
   }
 
-  [[nodiscard]] std::size_t filter_offset(std::uint32_t prefix) const {
-    return *reinterpret_cast<const std::size_t*>(&this->mmap[filter_index_offset(prefix)]);
-  }
-
-  [[nodiscard]] std::size_t filter_offset(std::uint32_t prefix) {
-    return *reinterpret_cast<std::size_t*>(&this->mmap[filter_index_offset(prefix)]);
-  }
-
-  [[nodiscard]] std::size_t filter_start(uint32_t pos) const {
-    return body_start() + filter_offset(pos);
+  [[nodiscard]] offset_t filter_offset(std::uint32_t prefix) const {
+    return get_from_map<offset_t>(filter_index_offset(prefix));
   }
 
   [[nodiscard]] std::string type_id() const {
@@ -198,10 +211,8 @@ private:
   }
 
   void check_type_id() const {
-    auto        tid = type_id();
-    std::string check_tid;
-    check_tid.resize(tid.size());
-    memcpy(check_tid.data(), &this->mmap[0], check_tid.size());
+    auto tid       = type_id();
+    auto check_tid = get_str_from_map(0, tid.size());
     if (check_tid != tid) {
       throw std::runtime_error(
           fmt::format("incorrect type_id: expected {}, found: {} ", tid, check_tid));
@@ -233,25 +244,26 @@ private:
     return existing_filesize;
   }
 
-  void create_filetag() {
-    std::string filetag = fmt::format("{}-{:04d}", type_id(), capacity());
-    memcpy(&this->mmap[0], filetag.data(), filetag.size() * sizeof(decltype(filetag)::value_type));
+  void create_filetag()
+    requires(AccessMode == mio::access_mode::write)
+  {
+    copy_str_to_map(fmt::format("{}-{:04d}", type_id(), capacity()), 0);
   }
 
-  void create_index() {
-    this->filter_offsets.resize(capacity(), empty_offset);
-    memcpy(&this->mmap[index_start], this->filter_offsets.data(),
-           this->filter_offsets.size() * sizeof(offset_t));
+  void create_index()
+    requires(AccessMode == mio::access_mode::write)
+  {
+    this->index.resize(capacity(), empty_offset);
+    memcpy(&this->mmap[index_start], this->index.data(), this->index.size() * sizeof(offset_t));
   }
 
   void load_index() {
-    this->filter_offsets.resize(capacity(), empty_offset);
-    memcpy(this->filter_offsets.data(), &this->mmap[index_start],
-           this->filter_offsets.size() * sizeof(offset_t));
+    this->index.resize(capacity(), empty_offset);
+    memcpy(this->index.data(), &this->mmap[index_start], this->index.size() * sizeof(offset_t));
 
-    auto iter = find_if(this->filter_offsets.begin(), this->filter_offsets.end(),
-                        [](auto a) { return a != empty_offset; });
-    size      = iter - this->filter_offsets.begin();
+    auto iter =
+        find_if(this->index.begin(), this->index.end(), [](auto a) { return a != empty_offset; });
+    size = iter - this->index.begin();
   }
 
   // returns new_filesize

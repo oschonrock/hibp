@@ -1,7 +1,7 @@
 #include "arrcmp.hpp"
+#include "binfuse/sharded_filter.hpp"
 #include "flat_file.hpp"
 #include "hibp.hpp"
-#include "sharded_binary_fuse_filter.hpp"
 #include <CLI/CLI.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -75,6 +75,24 @@ void build(const cli_config_t& cli) {
   flat_file::database<hibp::pawned_pw_sha1> db{cli.input_filename,
                                                (1U << 16U) / sizeof(hibp::pawned_pw_sha1)};
 
+  // flat_file::file_writer<hibp::pawned_pw_sha1> writer("hibp_sharded_sample.sha1.bin");
+
+  // auto start = db.begin();
+  // for (std::uint32_t prefix = 0; prefix != 0x100; ++prefix) {
+  //   if (auto iter = std::find_if(start, db.end(),
+  //                                [=](const hibp::pawned_pw_sha1& pw) {
+  //                                  return static_cast<std::uint8_t>(pw.hash[0]) == prefix;
+  //                                });
+  //       iter != db.end()) {
+  //     start = iter;
+  //     for (unsigned i = 0; i != 10; ++i) {
+  //       std::cerr << fmt::format("{:02X}:{}\n", prefix, iter->to_string());
+  //       writer.write(*iter++);
+  //     }
+  //     writer.flush(true);
+  //   }
+  // }
+  // return;
   unsigned count = 0;
 
   // get_output_stream(cli.output_filename, cli.force); // just "touch" and close again
