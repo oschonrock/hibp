@@ -53,10 +53,10 @@ std::ifstream get_input_stream(const std::string& input_filename) {
 }
 
 std::ofstream get_output_stream(const std::string& output_filename, bool force) {
-  if (!force && std::filesystem::exists(output_filename)) {
-    throw std::runtime_error(
-        fmt::format("File '{}' exists. Use `--force` to overwrite.", output_filename));
-  }
+  // if (!force && std::filesystem::exists(output_filename)) {
+  //   throw std::runtime_error(
+  //       fmt::format("File '{}' exists. Use `--force` to overwrite.", output_filename));
+  // }
 
   auto output_stream = std::ofstream(output_filename, std::ios_base::binary);
   if (!output_stream) {
@@ -77,7 +77,7 @@ void build(const cli_config_t& cli) {
 
   unsigned count = 0;
 
-  get_output_stream(cli.output_filename, cli.force); // just "touch" and close again
+  // get_output_stream(cli.output_filename, cli.force); // just "touch" and close again
   binfuse::sharded_filter8_sink sharded_filter(cli.output_filename);
 
   std::vector<std::uint64_t> keys;
@@ -101,7 +101,8 @@ void build(const cli_config_t& cli) {
     }
   }
   if (!keys.empty()) {
-    std::cerr << fmt::format("key = {:016x} last_prefix={}, size = {}\n", keys.back(), last_prefix, keys.size());
+    std::cerr << fmt::format("key = {:016x} last_prefix={}, size = {}\n", keys.back(), last_prefix,
+                             keys.size());
     sharded_filter.add(binfuse::filter8(keys), last_prefix);
   }
 }

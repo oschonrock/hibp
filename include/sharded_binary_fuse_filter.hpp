@@ -1,15 +1,20 @@
+#pragma once
+
 #include "binaryfusefilter.h"
 #include "fmt/format.h"
 #include "mio/mmap.hpp"
 #include "mio/page.hpp"
+#include <charconv>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <limits>
 #include <random>
 #include <stdexcept>
+#include <string>
 #include <system_error>
 
 namespace binfuse {
@@ -109,14 +114,16 @@ public:
     //                          duration_cast<micros>(clk::now() - start));
   }
 
-  bool contains(std::uint64_t needle) {
+  [[nodiscard]] bool contains(std::uint64_t needle) const {
     auto result = ftype<FilterType>::contains(needle, &fil);
     return result;
   }
 
-  std::size_t serialization_bytes() { return ftype<FilterType>::serialization_bytes(&fil); }
+  [[nodiscard]] std::size_t serialization_bytes() {
+    return ftype<FilterType>::serialization_bytes(&fil);
+  }
 
-  void serialize(char* buffer) { ftype<FilterType>::serialize(&fil, buffer); }
+  void serialize(char* buffer) const { ftype<FilterType>::serialize(&fil, buffer); }
 
   void deserialize(const char* buffer) {
     const char* fingerprints = ftype<FilterType>::deserialize_header(&fil, buffer);
@@ -127,7 +134,7 @@ public:
     skip_free_fingerprints = true; // do not attempt to free this external buffer (probably an mmap)
   }
 
-  bool verify(const std::vector<std::uint64_t>& keys) {
+  [[nodiscard]] bool verify(const std::vector<std::uint64_t>& keys) const {
     for (auto key: keys) {
       if (!contains(key)) {
         std::cerr << fmt::format(
@@ -138,7 +145,7 @@ public:
     return true;
   }
 
-  double estimate_false_positive_rate() {
+  [[nodiscard]] double estimate_false_positive_rate() const {
     auto   gen         = std::mt19937_64(std::random_device{}());
     size_t matches     = 0;
     size_t sample_size = 1'000'000;
@@ -157,7 +164,7 @@ private:
   using micros = std::chrono::microseconds;
 
   std::size_t size = 0;
-  FilterType  fil;
+  FilterType  fil{};
   bool        skip_free_fingerprints = false;
 };
 
@@ -168,6 +175,7 @@ using filter16 = filter<binary_fuse16_t>;
 template <mio::access_mode AccessMode>
 struct sharded_mmap_base {
   mio::basic_mmap<AccessMode, char> mmap;
+  std::vector<std::size_t>          filter_offsets;
 };
 
 template <mio::access_mode AccessMode, filter_type FilterType>
@@ -199,25 +207,29 @@ public:
   }
 
   // only does something for AccessMode = read
-  void load() {
-    if constexpr (AccessMode == mio::access_mode::read) {
-      auto start = clk::now();
+  void load()
+    requires(AccessMode == mio::access_mode::read)
+  {
+    auto start = clk::now();
 
-      std::error_code err;
-      this->mmap.map(filepath.string(), err);
-      if (err) {
-        throw std::runtime_error(fmt::format("mmap.map(): {}", err.message()));
-      }
-      std::cout << fmt::format("{:<15} {:>8}\n", "mmap", duration_cast<micros>(clk::now() - start));
-
-      // TODO load all filters
-      this->filters.resize(1);
-      auto& filter = this->filters[0];
-      filter.deserialize(this->mmap.data());
+    std::error_code err;
+    this->mmap.map(filepath.string(), err);
+    if (err) {
+      throw std::runtime_error(fmt::format("mmap.map(): {}", err.message()));
     }
+    std::cout << fmt::format("{:<15} {:>8}\n", "mmap", duration_cast<micros>(clk::now() - start));
+
+    // TODO load all filters
+    this->filters.resize(1);
+    auto& filter = this->filters[0];
+    filter.deserialize(this->mmap.data());
   }
 
-  bool contains(std::uint64_t needle)
+  void load()
+    requires(AccessMode == mio::access_mode::write)
+  {}
+
+  [[nodiscard]] bool contains(std::uint64_t needle) const
     requires(AccessMode == mio::access_mode::read)
   {
     // TODO select the correct filter
@@ -225,16 +237,13 @@ public:
     return filter.contains(needle);
   }
 
-  std::uint32_t extract_prefix(std::uint64_t key) { return key >> (sizeof(key) * 8 - shard_bits); }
+  [[nodiscard]] std::uint32_t extract_prefix(std::uint64_t key) const {
+    return key >> (sizeof(key) * 8 - shard_bits);
+  }
 
   void add(filter<FilterType>&& filter, std::uint32_t prefix)
     requires(AccessMode == mio::access_mode::write)
   {
-    if (filepath.empty()) {
-      throw std::runtime_error(
-          fmt::format("filename not set or file doesn't exist '{}'", filepath));
-    }
-
     if (prefix != next_prefix) {
       throw std::runtime_error(fmt::format("expecting a shard with prefix {}", next_prefix));
     }
@@ -243,14 +252,11 @@ public:
           fmt::format("sharded filter has reached max capacity of {}", capacity()));
     }
 
-    std::size_t size_req      = filter.serialization_bytes();
-    std::size_t existing_filesize = 0;
-    if (std::filesystem::exists(filepath)) {
-      existing_filesize = std::filesystem::file_size(filepath);
-    } else {
-      std::ofstream tmp(filepath); // "touch"
-    }
-    std::size_t new_size = existing_filesize + size_req;
+    std::size_t new_size = ensure_header();
+
+    std::size_t size_req          = filter.serialization_bytes();
+    auto        new_filter_offset = new_size;
+    new_size += size_req;
 
     this->mmap.unmap(); // ensure any existing map is sync'd
     std::filesystem::resize_file(filepath, new_size);
@@ -260,10 +266,13 @@ public:
       throw std::runtime_error(
           fmt::format("sharded_bin_fuse_filter:: mmap.map(): {}", err.message()));
     }
-    filter.serialize(this->mmap.data());
+    std::cerr << prefix << "\n";
+    std::cerr << filter_index_offset(prefix) << "\n";
+    std::cerr << filter_offset(prefix) << "\n";
+    
+    memcpy(&this->mmap[filter_index_offset(prefix)], &new_filter_offset, sizeof(new_filter_offset));
+    filter.serialize(&this->mmap[filter_offset(prefix)]);
     ++next_prefix;
-    // std::cout << fmt::format("{:<15} {:>12}\n", "add", duration_cast<micros>(clk::now() -
-    // start));
   }
 
   std::uint8_t shard_bits = 8;
@@ -271,6 +280,9 @@ public:
 private:
   using clk    = std::chrono::high_resolution_clock;
   using micros = std::chrono::microseconds;
+
+  using offset_t = typename decltype(sharded_mmap_base<AccessMode>::filter_offsets)::value_type;
+  static constexpr auto empty_offset = static_cast<offset_t>(-1);
 
   std::uint32_t         next_prefix = 0;
   std::filesystem::path filepath;
@@ -296,18 +308,114 @@ private:
 
   static constexpr std::size_t index_start = header_start + header_length;
 
-  std::uint32_t capacity() { return 1U << shard_bits; }
-  std::uint32_t size = 0;
+  [[nodiscard]] std::uint32_t capacity() const { return 1U << shard_bits; }
+  std::uint32_t               size = 0;
 
-  std::size_t index_length() { return sizeof(std::size_t) * capacity(); }
+  [[nodiscard]] std::size_t index_length() const { return sizeof(std::size_t) * capacity(); }
 
-  std::size_t body_start() { return index_start + index_length(); }
+  [[nodiscard]] std::size_t body_start() const { return index_start + index_length(); }
 
-  std::size_t filter_offset(std::uint32_t prefix) {
-    return *reinterpret_cast<std::size_t*>(&this->mmap[index_start + sizeof(std::size_t) * prefix]);
+  [[nodiscard]] std::size_t filter_index_offset(std::uint32_t prefix) const {
+    return index_start + sizeof(std::size_t) * prefix;
   }
 
-  std::size_t filter_start(uint32_t pos) { return body_start() + filter_offset(pos); }
+  [[nodiscard]] std::size_t filter_offset(std::uint32_t prefix) const {
+    return *reinterpret_cast<const std::size_t*>(&this->mmap[filter_index_offset(prefix)]);
+  }
+
+  [[nodiscard]] std::size_t filter_offset(std::uint32_t prefix) {
+    return *reinterpret_cast<std::size_t*>(&this->mmap[filter_index_offset(prefix)]);
+  }
+
+  [[nodiscard]] std::size_t filter_start(uint32_t pos) const {
+    return body_start() + filter_offset(pos);
+  }
+
+  [[nodiscard]] std::string type_id() const {
+    return fmt::format("sbinfuse{:02d}", sizeof(typename ftype<FilterType>::fingerprint_t) * 8);
+  }
+
+  void check_type_id() const {
+    auto        tid = type_id();
+    std::string check_tid;
+    check_tid.resize(tid.size());
+    memcpy(check_tid.data(), &this->mmap[0], check_tid.size());
+    if (check_tid != tid) {
+      throw std::runtime_error(
+          fmt::format("incorrect type_id: expected {}, found: {} ", tid, check_tid));
+    }
+  }
+
+  void check_capacity() const {
+    std::uint32_t check_capacity = 0;
+    std::from_chars(&this->mmap[11], &this->mmap[15], check_capacity);
+    if (check_capacity != capacity()) {
+      throw std::runtime_error(
+          fmt::format("wrong capacity: expected: {}, found: {}", capacity(), check_capacity));
+    }
+  }
+
+  // returns new_filesize
+  std::size_t ensure_header() {
+    if (filepath.empty()) {
+      throw std::runtime_error(
+          fmt::format("filename not set or file doesn't exist '{}'", filepath));
+    }
+
+    std::size_t existing_filesize = 0;
+    if (std::filesystem::exists(filepath)) {
+      existing_filesize = std::filesystem::file_size(filepath);
+    } else {
+      std::ofstream tmp(filepath); // "touch"
+    }
+
+    std::size_t new_size = existing_filesize;
+    if (existing_filesize < header_length + index_length()) {
+      if (existing_filesize != 0) {
+        throw std::runtime_error("corrupt file: header and index half written?!");
+      }
+      // existing_size == 0 here
+      new_size += header_length + index_length();
+      std::filesystem::resize_file(filepath, new_size);
+      std::error_code err;
+      this->mmap.map(filepath.string(), err);
+      if (err) {
+        throw std::runtime_error(
+            fmt::format("sharded_bin_fuse_filter::ensure_header mmap.map(): {}", err.message()));
+      }
+
+      // create filetag
+      std::string filetag = fmt::format("{}-{:04d}", type_id(), capacity());
+      memcpy(&this->mmap[0], filetag.data(),
+             filetag.size() * sizeof(decltype(filetag)::value_type));
+
+      // create index
+      this->filter_offsets.resize(capacity(), empty_offset);
+      memcpy(&this->mmap[index_start], this->filter_offsets.data(),
+             this->filter_offsets.size() * sizeof(offset_t));
+
+      this->mmap.unmap(); // write to disk
+      size = 0;
+    } else {
+      // we have a header already
+      std::error_code err;
+      this->mmap.map(filepath.string(), err);
+      if (err) {
+        throw std::runtime_error(fmt::format(
+            "sharded_bin_fuse_filter::ensure_header check mmap.map(): {}", err.message()));
+      }
+      check_type_id();
+      check_capacity();
+      this->filter_offsets.resize(capacity(), empty_offset);
+      memcpy(this->filter_offsets.data(), &this->mmap[index_start],
+             this->filter_offsets.size() * sizeof(offset_t));
+
+      auto iter = find_if(this->filter_offsets.begin(), this->filter_offsets.end(),
+                          [&](auto a) { return a != empty_offset; });
+      size      = iter - this->filter_offsets.begin();
+    }
+    return new_size;
+  }
 };
 
 // easy to use aliases
@@ -318,5 +426,11 @@ using sharded_filter8_source = sharded_filter<binary_fuse8_t, mio::access_mode::
 using sharded_filter16_sink = sharded_filter<binary_fuse16_t, mio::access_mode::write>;
 
 using sharded_filter16_source = sharded_filter<binary_fuse16_t, mio::access_mode::read>;
+
+// explicit instantiations for clangd help
+template class sharded_filter<binary_fuse8_t, mio::access_mode::write>;
+template class sharded_filter<binary_fuse8_t, mio::access_mode::read>;
+template class sharded_filter<binary_fuse16_t, mio::access_mode::write>;
+template class sharded_filter<binary_fuse16_t, mio::access_mode::read>;
 
 } // namespace binfuse
