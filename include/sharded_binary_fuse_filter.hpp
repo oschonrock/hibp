@@ -1,175 +1,20 @@
 #pragma once
 
-#include "binaryfusefilter.h"
+#include "bin_fuse_filter.hpp"
 #include "fmt/format.h"
 #include "mio/mmap.hpp"
 #include "mio/page.hpp"
 #include <charconv>
-#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
-#include <limits>
-#include <random>
 #include <stdexcept>
 #include <string>
 #include <system_error>
 
 namespace binfuse {
-
-template <typename T>
-concept filter_type = std::same_as<T, binary_fuse8_t> || std::same_as<T, binary_fuse16_t>;
-
-// modified API from lib until this is accepted as a patch
-template <filter_type FilterType>
-inline static const char* binary_fuse_deserialize_header(FilterType* filter, const char* buffer) {
-  memcpy(&filter->Seed, buffer, sizeof(filter->Seed));
-  buffer += sizeof(filter->Seed);
-  memcpy(&filter->SegmentLength, buffer, sizeof(filter->SegmentLength));
-  buffer += sizeof(filter->SegmentLength);
-  filter->SegmentLengthMask = filter->SegmentLength - 1;
-  memcpy(&filter->SegmentCount, buffer, sizeof(filter->SegmentCount));
-  buffer += sizeof(filter->SegmentCount);
-  memcpy(&filter->SegmentCountLength, buffer, sizeof(filter->SegmentCountLength));
-  buffer += sizeof(filter->SegmentCountLength);
-  memcpy(&filter->ArrayLength, buffer, sizeof(filter->ArrayLength));
-  buffer += sizeof(filter->ArrayLength);
-  return buffer;
-}
-
-// select which functions on the C-API will be called with specialisations of the function ptrs
-
-template <filter_type FilterType>
-struct ftype {};
-
-template <>
-struct ftype<binary_fuse8_t> {
-  static constexpr auto* allocate            = binary_fuse8_allocate;
-  static constexpr auto* populate            = binary_fuse8_populate;
-  static constexpr auto* contains            = binary_fuse8_contain;
-  static constexpr auto* free                = binary_fuse8_free;
-  static constexpr auto* serialization_bytes = binary_fuse8_serialization_bytes;
-  static constexpr auto* serialize           = binary_fuse8_serialize;
-  static constexpr auto* deserialize_header  = binary_fuse_deserialize_header<binary_fuse8_t>;
-  using fingerprint_t                        = std::uint8_t;
-};
-
-template <>
-struct ftype<binary_fuse16_t> {
-  static constexpr auto* allocate            = binary_fuse16_allocate;
-  static constexpr auto* populate            = binary_fuse16_populate;
-  static constexpr auto* contains            = binary_fuse16_contain;
-  static constexpr auto* free                = binary_fuse16_free;
-  static constexpr auto* serialization_bytes = binary_fuse16_serialization_bytes;
-  static constexpr auto* serialize           = binary_fuse16_serialize;
-  static constexpr auto* deserialize_header  = binary_fuse_deserialize_header<binary_fuse16_t>;
-  using fingerprint_t                        = std::uint16_t;
-};
-
-/* binfuse::filter
- *
- * wraps a single bin_fuse(8|16)_filter
- */
-template <filter_type FilterType>
-class filter {
-public:
-  filter() = default;
-  explicit filter(const std::vector<std::uint64_t>& keys) { populate(keys); }
-
-  filter(const filter& other)          = delete;
-  filter& operator=(const filter& rhs) = delete;
-
-  filter(filter&& other) noexcept : size(other.size), fil(other.fil) {
-    other.fil.Fingerprints = nullptr;
-  }
-  filter& operator=(filter&& rhs) noexcept {
-    if (this != &rhs) *this = fil(std::move(rhs));
-    return *this;
-  }
-
-  ~filter() {
-    if (skip_free_fingerprints) {
-      fil.Fingerprints = nullptr;
-    }
-    ftype<FilterType>::free(&fil);
-  }
-
-  void populate(const std::vector<std::uint64_t>& keys) {
-    if (keys.empty()) {
-      throw std::runtime_error("empty input");
-    }
-    size = keys.size();
-
-    if (!ftype<FilterType>::allocate(keys.size(), &fil)) {
-      throw std::runtime_error("failed to allocate memory.\n");
-    }
-    if (!ftype<FilterType>::populate(
-            const_cast<std::uint64_t*>(keys.data()), // NOLINT const_cast until API changed
-            keys.size(), &fil)) {
-      throw std::runtime_error("failed to populate the filter");
-    }
-    // std::cout << fmt::format("{:<15} {:>12}\n", "populate",
-    //                          duration_cast<micros>(clk::now() - start));
-  }
-
-  [[nodiscard]] bool contains(std::uint64_t needle) const {
-    auto result = ftype<FilterType>::contains(needle, &fil);
-    return result;
-  }
-
-  [[nodiscard]] std::size_t serialization_bytes() {
-    return ftype<FilterType>::serialization_bytes(&fil);
-  }
-
-  void serialize(char* buffer) const { ftype<FilterType>::serialize(&fil, buffer); }
-
-  void deserialize(const char* buffer) {
-    const char* fingerprints = ftype<FilterType>::deserialize_header(&fil, buffer);
-
-    fil.Fingerprints = // NOLINTNEXTLINE const_cast & rein_cast: API is flawed
-        reinterpret_cast<ftype<FilterType>::fingerprint_t*>(const_cast<char*>(fingerprints));
-
-    skip_free_fingerprints = true; // do not attempt to free this external buffer (probably an mmap)
-  }
-
-  [[nodiscard]] bool verify(const std::vector<std::uint64_t>& keys) const {
-    for (auto key: keys) {
-      if (!contains(key)) {
-        std::cerr << fmt::format(
-            "binary_fuse_filter::verify: Detected a false negative: {:016X} \n", key);
-        return false;
-      }
-    }
-    return true;
-  }
-
-  [[nodiscard]] double estimate_false_positive_rate() const {
-    auto   gen         = std::mt19937_64(std::random_device{}());
-    size_t matches     = 0;
-    size_t sample_size = 1'000'000;
-    for (size_t t = 0; t < sample_size; t++) {
-      if (contains(gen())) { // no distribution needed
-        matches++;
-      }
-    }
-    return static_cast<double>(matches) * 100.0 / static_cast<double>(sample_size) -
-           static_cast<double>(size) /
-               static_cast<double>(std::numeric_limits<std::uint64_t>::max());
-  }
-
-private:
-  using clk    = std::chrono::high_resolution_clock;
-  using micros = std::chrono::microseconds;
-
-  std::size_t size = 0;
-  FilterType  fil{};
-  bool        skip_free_fingerprints = false;
-};
-
-using filter8  = filter<binary_fuse8_t>;
-using filter16 = filter<binary_fuse16_t>;
 
 // selecting the appropriate map for the access mode
 template <mio::access_mode AccessMode>
@@ -255,23 +100,20 @@ public:
     std::size_t new_size = ensure_header();
 
     std::size_t size_req          = filter.serialization_bytes();
-    auto        new_filter_offset = new_size;
+    auto        new_filter_offset = new_size; // place new filter at end
     new_size += size_req;
 
-    this->mmap.unmap(); // ensure any existing map is sync'd
+    sync();
     std::filesystem::resize_file(filepath, new_size);
-    std::error_code err;
-    this->mmap.map(filepath.string(), err);
-    if (err) {
-      throw std::runtime_error(
-          fmt::format("sharded_bin_fuse_filter:: mmap.map(): {}", err.message()));
-    }
-    std::cerr << prefix << "\n";
-    std::cerr << filter_index_offset(prefix) << "\n";
-    std::cerr << filter_offset(prefix) << "\n";
-    
+    map_whole_file();
+
+    std::cerr << "prefix: " << prefix << "\n";
+    std::cerr << "filter_index_offset(prefix): " << filter_index_offset(prefix) << "\n";
+    std::cerr << "filter_offset(prefix): " << filter_offset(prefix) << "\n";
+
     memcpy(&this->mmap[filter_index_offset(prefix)], &new_filter_offset, sizeof(new_filter_offset));
     filter.serialize(&this->mmap[filter_offset(prefix)]);
+    ++size;
     ++next_prefix;
   }
 
@@ -335,6 +177,26 @@ private:
     return fmt::format("sbinfuse{:02d}", sizeof(typename ftype<FilterType>::fingerprint_t) * 8);
   }
 
+  void sync()
+    requires(AccessMode == mio::access_mode::write)
+  {
+    std::error_code err;
+    this->mmap.sync(err); // ensure any existing map is sync'd
+    if (err) {
+      throw std::runtime_error(
+          fmt::format("sharded_bin_fuse_filter:: mmap.map(): {}", err.message()));
+    }
+  }
+
+  void map_whole_file() {
+    std::error_code err;
+    this->mmap.map(filepath.string(), err);
+    if (err) {
+      throw std::runtime_error(
+          fmt::format("sharded_bin_fuse_filter:: mmap.map(): {}", err.message()));
+    }
+  }
+
   void check_type_id() const {
     auto        tid = type_id();
     std::string check_tid;
@@ -355,8 +217,8 @@ private:
     }
   }
 
-  // returns new_filesize
-  std::size_t ensure_header() {
+  // returns existing file size
+  std::size_t ensure_file() {
     if (filepath.empty()) {
       throw std::runtime_error(
           fmt::format("filename not set or file doesn't exist '{}'", filepath));
@@ -368,9 +230,38 @@ private:
     } else {
       std::ofstream tmp(filepath); // "touch"
     }
+    return existing_filesize;
+  }
 
-    std::size_t new_size = existing_filesize;
+  void create_filetag() {
+    std::string filetag = fmt::format("{}-{:04d}", type_id(), capacity());
+    memcpy(&this->mmap[0], filetag.data(), filetag.size() * sizeof(decltype(filetag)::value_type));
+  }
+
+  void create_index() {
+    this->filter_offsets.resize(capacity(), empty_offset);
+    memcpy(&this->mmap[index_start], this->filter_offsets.data(),
+           this->filter_offsets.size() * sizeof(offset_t));
+  }
+
+  void load_index() {
+    this->filter_offsets.resize(capacity(), empty_offset);
+    memcpy(this->filter_offsets.data(), &this->mmap[index_start],
+           this->filter_offsets.size() * sizeof(offset_t));
+
+    auto iter = find_if(this->filter_offsets.begin(), this->filter_offsets.end(),
+                        [](auto a) { return a != empty_offset; });
+    size      = iter - this->filter_offsets.begin();
+  }
+
+  // returns new_filesize
+  std::size_t ensure_header()
+    requires(AccessMode == mio::access_mode::write)
+  {
+    std::size_t existing_filesize = ensure_file();
+    std::size_t new_size          = existing_filesize;
     if (existing_filesize < header_length + index_length()) {
+      std::cout << "new\n";
       if (existing_filesize != 0) {
         throw std::runtime_error("corrupt file: header and index half written?!");
       }
@@ -383,20 +274,13 @@ private:
         throw std::runtime_error(
             fmt::format("sharded_bin_fuse_filter::ensure_header mmap.map(): {}", err.message()));
       }
+      create_filetag();
+      create_index();
 
-      // create filetag
-      std::string filetag = fmt::format("{}-{:04d}", type_id(), capacity());
-      memcpy(&this->mmap[0], filetag.data(),
-             filetag.size() * sizeof(decltype(filetag)::value_type));
-
-      // create index
-      this->filter_offsets.resize(capacity(), empty_offset);
-      memcpy(&this->mmap[index_start], this->filter_offsets.data(),
-             this->filter_offsets.size() * sizeof(offset_t));
-
-      this->mmap.unmap(); // write to disk
+      sync(); // write to disk
       size = 0;
     } else {
+      std::cout << "not new\n";
       // we have a header already
       std::error_code err;
       this->mmap.map(filepath.string(), err);
@@ -406,13 +290,7 @@ private:
       }
       check_type_id();
       check_capacity();
-      this->filter_offsets.resize(capacity(), empty_offset);
-      memcpy(this->filter_offsets.data(), &this->mmap[index_start],
-             this->filter_offsets.size() * sizeof(offset_t));
-
-      auto iter = find_if(this->filter_offsets.begin(), this->filter_offsets.end(),
-                          [&](auto a) { return a != empty_offset; });
-      size      = iter - this->filter_offsets.begin();
+      load_index();
     }
     return new_size;
   }
