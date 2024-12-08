@@ -51,27 +51,31 @@ public:
     load();
   }
 
-  // only does something for AccessMode = read
   void load()
     requires(AccessMode == mio::access_mode::read)
   {
     map_whole_file();
-
-    // TODO load all filters
-    this->filters.resize(1);
-    auto& filter = this->filters[0];
-    filter.deserialize(this->mmap.data());
+    check_type_id();
+    check_capacity();
+    load_index();
+    load_filters();
   }
 
   void load()
     requires(AccessMode == mio::access_mode::write)
-  {}
+  {
+    // only does something for AccessMode = read
+  }
 
-  [[nodiscard]] bool contains(std::uint64_t needle) const
+  [[nodiscard]] bool contains(std::uint64_t needle)
     requires(AccessMode == mio::access_mode::read)
   {
-    // TODO select the correct filter
-    auto& filter = this->filters[0];
+    auto prefix = extract_prefix(needle);
+    if (prefix >= this->filters.size()) {
+      throw std::runtime_error(
+          fmt::format("this sharded filter does not contain a filter for prefix = {}", prefix));
+    }
+    auto& filter = this->filters[prefix];
     return filter.contains(needle);
   }
 
@@ -102,7 +106,6 @@ public:
 
     auto old_filter_offset = get_from_map<offset_t>(filter_index_offset(prefix));
 
-    std::cerr << fmt::format("old_flter_offset: {:016X}\n", old_filter_offset);
     if (old_filter_offset != empty_offset) {
       throw std::runtime_error(
           fmt::format("there is already a filter in this file for prefix = {}", prefix));
@@ -260,10 +263,20 @@ private:
   void load_index() {
     this->index.resize(capacity(), empty_offset);
     memcpy(this->index.data(), &this->mmap[index_start], this->index.size() * sizeof(offset_t));
-
     auto iter =
-        find_if(this->index.begin(), this->index.end(), [](auto a) { return a != empty_offset; });
+        find_if(this->index.begin(), this->index.end(), [](auto a) { return a == empty_offset; });
     size = iter - this->index.begin();
+  }
+
+  void load_filters()
+    requires(AccessMode == mio::access_mode::read)
+  {
+    this->filters.reserve(size);
+    for (uint32_t prefix = 0; prefix != size; ++prefix) {
+      auto  offset = this->index[prefix];
+      auto& filter = this->filters.emplace_back();
+      filter.deserialize(&this->mmap[offset]);
+    }
   }
 
   // returns new_filesize
@@ -273,7 +286,6 @@ private:
     std::size_t existing_filesize = ensure_file();
     std::size_t new_size          = existing_filesize;
     if (existing_filesize < header_length + index_length()) {
-      std::cout << "new\n";
       if (existing_filesize != 0) {
         throw std::runtime_error("corrupt file: header and index half written?!");
       }
@@ -292,7 +304,6 @@ private:
       sync(); // write to disk
       size = 0;
     } else {
-      std::cout << "not new\n";
       // we have a header already
       std::error_code err;
       this->mmap.map(filepath.string(), err);
