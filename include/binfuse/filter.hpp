@@ -9,6 +9,7 @@
 #include <limits>
 #include <random>
 #include <stdexcept>
+#include <iostream>
 
 namespace binfuse {
 
