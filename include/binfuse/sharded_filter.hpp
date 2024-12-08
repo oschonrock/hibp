@@ -67,7 +67,7 @@ public:
     // only does something for AccessMode = read
   }
 
-  [[nodiscard]] bool contains(std::uint64_t needle)
+  [[nodiscard]] bool contains(std::uint64_t needle) const
     requires(AccessMode == mio::access_mode::read)
   {
     auto prefix = extract_prefix(needle);
@@ -116,6 +116,22 @@ public:
     ++next_prefix;
   }
 
+  [[nodiscard]] double estimate_false_positive_rate() const
+    requires(AccessMode == mio::access_mode::read)
+  {
+    auto   gen         = std::mt19937_64(std::random_device{}());
+    size_t matches     = 0;
+    size_t sample_size = 1'000'000;
+    for (size_t t = 0; t < sample_size; t++) {
+      if (contains(gen())) { // no distribution needed
+        matches++;
+      }
+    }
+    return static_cast<double>(matches) / static_cast<double>(sample_size) -
+           static_cast<double>(size) /
+               static_cast<double>(std::numeric_limits<std::uint64_t>::max());
+  }
+
   std::uint8_t shard_bits = 8;
 
 private:
@@ -133,11 +149,11 @@ private:
    * header [0 -> 16) : small number of bytes identifying the type of file, the
    * type of filters contained and how many shards are contained.
    *
-   * index [16 -> 16 + 8 * max_capacity() ): table of offsets to each
+   * index [16 -> 16 + 8 * capacity() ): table of offsets to each
    * filter in the body. The offsets in the table are relative to the
-   * start of the body segment.
+   * start of the file.
    *
-   * body [16 + 8 * max_capacity() -> end ): the filters: each one has
+   * body [16 + 8 * capacity() -> end ): the filters: each one has
    * the filter_struct_fields (ie the "header") followed by the large
    * array of (8 or 16bit) fingerprints. The offsets in the index will
    * point the start of the filter_header (relative to start of body
@@ -292,25 +308,14 @@ private:
       // existing_size == 0 here
       new_size += header_length + index_length();
       std::filesystem::resize_file(filepath, new_size);
-      std::error_code err;
-      this->mmap.map(filepath.string(), err);
-      if (err) {
-        throw std::runtime_error(
-            fmt::format("sharded_bin_fuse_filter::ensure_header mmap.map(): {}", err.message()));
-      }
+      map_whole_file();
       create_filetag();
       create_index();
-
       sync(); // write to disk
       size = 0;
     } else {
       // we have a header already
-      std::error_code err;
-      this->mmap.map(filepath.string(), err);
-      if (err) {
-        throw std::runtime_error(fmt::format(
-            "sharded_bin_fuse_filter::ensure_header check mmap.map(): {}", err.message()));
-      }
+      map_whole_file();
       check_type_id();
       check_capacity();
       load_index();

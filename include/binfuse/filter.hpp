@@ -151,7 +151,7 @@ public:
         matches++;
       }
     }
-    return static_cast<double>(matches) * 100.0 / static_cast<double>(sample_size) -
+    return static_cast<double>(matches) / static_cast<double>(sample_size) -
            static_cast<double>(size) /
                static_cast<double>(std::numeric_limits<std::uint64_t>::max());
   }

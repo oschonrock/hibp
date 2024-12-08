@@ -66,23 +66,7 @@ std::ofstream get_output_stream(const std::string& output_filename, bool force) 
 
 void query(const cli_config_t& cli) {
 
-  // exhaustive search test of sample with 256 shards
-  flat_file::database<hibp::pawned_pw_sha1> db{"hibp_sharded_sample.1000.sha1.bin",
-                                               (1U << 16U) / sizeof(hibp::pawned_pw_sha1)};
-
-  binfuse::sharded_filter8_source sharded_filter(cli.filter_filename);
-  
-  for (const auto& pw : db) {
-    auto needle = arrcmp::impl::bytearray_cast<std::uint64_t>(pw.hash.data());
-    // auto prefix = sharded_filter.extract_prefix(needle);
-    // std::cerr <<  fmt::format("{}   {:016X}   {:02X}\n", pw.to_string(), needle, prefix);
-    if (!sharded_filter.contains(needle)) {
-      throw std::runtime_error(fmt::format("false negative: {:016X}", needle));
-    }
-  }
-  std::cout << "all good!\n";
-  return;
-
+  binfuse::sharded_filter16_source sharded_filter(cli.filter_filename);
   // normal search
   uint64_t needle = 0;
   if (cli.hash) {
@@ -93,8 +77,6 @@ void query(const cli_config_t& cli) {
     needle = arrcmp::impl::bytearray_cast<std::uint64_t>(pw.hash.data());
   }
   std::cout << fmt::format("needle = {:016X}\n", needle);
-
-
 
   bool result = sharded_filter.contains(needle);
 

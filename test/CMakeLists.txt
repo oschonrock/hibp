@@ -29,6 +29,7 @@ endfunction()
 add_unit_test(test_arrcmp)
 add_unit_test(test_search hibp flat_file toc)
 add_unit_test(test_diffutils hibp flat_file diffutils)
+add_unit_test(test_binfuse hibp flat_file xor_singleheader mio)
 
 add_custom_target(all_tests ALL DEPENDS ${all_targets} ${UNIT_TESTS})
 
