@@ -121,6 +121,10 @@ public:
   void deserialize(const char* buffer) {
     const char* fingerprints = ftype<FilterType>::deserialize_header(&fil, buffer);
 
+    // set the freshly deserialized object's Fingerprint ptr (which is
+    // where the bulk of the data is), to the byte immediately AFTER
+    // the place where the small number of header bytes were deserialized
+    // FROM.
     fil.Fingerprints = // NOLINTNEXTLINE const_cast & rein_cast: API is flawed
         reinterpret_cast<ftype<FilterType>::fingerprint_t*>(const_cast<char*>(fingerprints));
 
