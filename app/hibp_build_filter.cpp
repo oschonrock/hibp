@@ -75,7 +75,8 @@ void build(const cli_config_t& cli) {
   flat_file::database<hibp::pawned_pw_sha1> db{cli.input_filename,
                                                (1U << 16U) / sizeof(hibp::pawned_pw_sha1)};
 
-  // flat_file::file_writer<hibp::pawned_pw_sha1> writer("hibp_sharded_sample.sha1.bin");
+  // build a sample filter with 256 shards
+  // flat_file::file_writer<hibp::pawned_pw_sha1> writer("hibp_sharded_sample.1000.sha1.bin");
 
   // auto start = db.begin();
   // for (std::uint32_t prefix = 0; prefix != 0x100; ++prefix) {
@@ -85,17 +86,16 @@ void build(const cli_config_t& cli) {
   //                                });
   //       iter != db.end()) {
   //     start = iter;
-  //     for (unsigned i = 0; i != 10; ++i) {
-  //       std::cerr << fmt::format("{:02X}:{}\n", prefix, iter->to_string());
+  //     for (unsigned i = 0; i != 1000; ++i) {
   //       writer.write(*iter++);
   //     }
-  //     writer.flush(true);
   //   }
   // }
   // return;
   unsigned count = 0;
 
   // get_output_stream(cli.output_filename, cli.force); // just "touch" and close again
+
   binfuse::sharded_filter8_sink sharded_filter(cli.output_filename);
 
   std::vector<std::uint64_t> keys;
@@ -105,8 +105,14 @@ void build(const cli_config_t& cli) {
     auto key    = arrcmp::impl::bytearray_cast<std::uint64_t>(record.hash.data());
     auto prefix = sharded_filter.extract_prefix(key);
     if (prefix != last_prefix) {
-      std::cerr << fmt::format("key = {:016x} prefix ={}, last_prefix={}, size={}\n", key, prefix,
-                               last_prefix, keys.size());
+
+      // build just a single filter and bail out
+      // auto        filter = binfuse::filter8(keys);
+      // std::string buf(filter.serialization_bytes(), '\0');
+      // filter.serialize(buf.data());
+      // std::cout << buf;
+      // return;
+
       sharded_filter.add(binfuse::filter8(keys), last_prefix);
       keys.clear();
       last_prefix = prefix;
@@ -119,8 +125,6 @@ void build(const cli_config_t& cli) {
     }
   }
   if (!keys.empty()) {
-    std::cerr << fmt::format("key = {:016x} last_prefix={}, size = {}\n", keys.back(), last_prefix,
-                             keys.size());
     sharded_filter.add(binfuse::filter8(keys), last_prefix);
   }
 }
