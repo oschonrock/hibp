@@ -15,7 +15,6 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
-#include <sys/mman.h>
 
 struct cli_config_t {
   std::string output_filename;
