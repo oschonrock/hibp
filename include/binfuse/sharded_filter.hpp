@@ -251,7 +251,7 @@ private:
   std::size_t ensure_file() {
     if (filepath.empty()) {
       throw std::runtime_error(
-          fmt::format("filename not set or file doesn't exist '{}'", filepath));
+          fmt::format("filename not set or file doesn't exist '{}'", filepath.string()));
     }
 
     std::size_t existing_filesize = 0;
