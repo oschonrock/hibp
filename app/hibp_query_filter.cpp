@@ -17,9 +17,6 @@
 #include <stdexcept>
 #include <string>
 
-#include <fcntl.h>
-#include <sys/mman.h>
-
 struct cli_config_t {
   std::string filter_filename;
   std::string plain_text_password;

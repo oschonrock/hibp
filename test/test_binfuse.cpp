@@ -22,8 +22,8 @@ protected:
     flat_file::database<hibp::pawned_pw_sha1> db{testdatadir / "hibp_all.sha1.bin",
                                                  (1U << 16U) / sizeof(hibp::pawned_pw_sha1)};
 
-    flat_file::file_writer<hibp::pawned_pw_sha1> writer(testdatadir /
-                                                        "hibp_sharded_sample.10.sha1.bin");
+    flat_file::file_writer<hibp::pawned_pw_sha1> writer(
+        (testdatadir / "hibp_sharded_sample.10.sha1.bin").string());
 
     auto start = db.begin();
     for (std::uint32_t prefix = 0; prefix != 0x100; ++prefix) {
@@ -66,35 +66,38 @@ protected:
     } else {
       filter_filename = "sharded_filter16.bin";
     }
-    binfuse::sharded_filter<FilterType, mio::access_mode::write> sharded_filter_sink(
-        testtmpdir / filter_filename);
+    {
+      binfuse::sharded_filter<FilterType, mio::access_mode::write> sharded_filter_sink(
+          testtmpdir / filter_filename);
 
-    std::vector<std::uint64_t> keys;
-    std::uint32_t              last_prefix = 0;
+      std::vector<std::uint64_t> keys;
+      std::uint32_t              last_prefix = 0;
 
-    for (const auto& record: db) {
-      auto key    = arrcmp::impl::bytearray_cast<std::uint64_t>(record.hash.data());
-      auto prefix = sharded_filter_sink.extract_prefix(key);
-      if (prefix != last_prefix) {
-        sharded_filter_sink.add(binfuse::filter<FilterType>(keys), last_prefix);
-        keys.clear();
-        last_prefix = prefix;
+      for (const auto& record: db) {
+        auto key    = arrcmp::impl::bytearray_cast<std::uint64_t>(record.hash.data());
+        auto prefix = sharded_filter_sink.extract_prefix(key);
+        if (prefix != last_prefix) {
+          sharded_filter_sink.add(binfuse::filter<FilterType>(keys), last_prefix);
+          keys.clear();
+          last_prefix = prefix;
+        }
+        keys.emplace_back(key);
       }
-      keys.emplace_back(key);
-    }
-    if (!keys.empty()) {
-      sharded_filter_sink.add(binfuse::filter<FilterType>(keys), last_prefix);
-    }
+      if (!keys.empty()) {
+        sharded_filter_sink.add(binfuse::filter<FilterType>(keys), last_prefix);
+      }
 
-    binfuse::sharded_filter<FilterType, mio::access_mode::read> sharded_filter_source(testtmpdir / filter_filename);
+      binfuse::sharded_filter<FilterType, mio::access_mode::read> sharded_filter_source(
+          testtmpdir / filter_filename);
 
-    // full verify across all shards
-    for (const auto& pw: db) {
-      auto needle = arrcmp::impl::bytearray_cast<std::uint64_t>(pw.hash.data());
-      EXPECT_TRUE(sharded_filter_source.contains(needle));
+      // full verify across all shards
+      for (const auto& pw: db) {
+        auto needle = arrcmp::impl::bytearray_cast<std::uint64_t>(pw.hash.data());
+        EXPECT_TRUE(sharded_filter_source.contains(needle));
+      }
+
+      EXPECT_LE(sharded_filter_source.estimate_false_positive_rate(), max_false_positive_rate);
     }
-
-    EXPECT_LE(sharded_filter_source.estimate_false_positive_rate(), max_false_positive_rate);
 
     std::filesystem::remove(testtmpdir / filter_filename);
   }
