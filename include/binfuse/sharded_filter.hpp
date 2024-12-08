@@ -83,6 +83,34 @@ public:
     return key >> (sizeof(key) * 8 - shard_bits);
   }
 
+  std::vector<std::uint64_t> stream_keys;
+  std::uint32_t              stream_last_prefix;
+
+  void stream_start() {
+    stream_keys.clear();
+    stream_last_prefix = 0;
+  }
+
+  void stream_add(std::uint64_t key)
+    requires(AccessMode == mio::access_mode::write)
+  {
+    auto prefix = extract_prefix(key);
+    if (prefix != stream_last_prefix) {
+
+      add(filter<FilterType>(stream_keys), stream_last_prefix);
+      stream_keys.clear();
+      stream_last_prefix = prefix;
+    }
+    stream_keys.emplace_back(key);
+  }
+  void stream_finalize()
+    requires(AccessMode == mio::access_mode::write)
+  {
+    if (!stream_keys.empty()) {
+      add(binfuse::filter<FilterType>(stream_keys), stream_last_prefix);
+    }
+  }
+
   void add(filter<FilterType>&& new_filter, std::uint32_t prefix)
     requires(AccessMode == mio::access_mode::write)
   {

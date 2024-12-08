@@ -76,32 +76,18 @@ void build(const cli_config_t& cli) {
 
   unsigned count = 0;
 
-  // get_output_stream(cli.output_filename, cli.force); // just "touch" and close again
+  binfuse::sharded_filter8_sink sharded_filter(cli.output_filename);
 
-  binfuse::sharded_filter16_sink sharded_filter(cli.output_filename);
-
-  std::vector<std::uint64_t> keys;
-  std::uint32_t              last_prefix = 0;
-
+  sharded_filter.stream_start();
   for (const auto& record: db) {
-    auto key    = arrcmp::impl::bytearray_cast<std::uint64_t>(record.hash.data());
-    auto prefix = sharded_filter.extract_prefix(key);
-    if (prefix != last_prefix) {
-
-      sharded_filter.add(binfuse::filter16(keys), last_prefix);
-      keys.clear();
-      last_prefix = prefix;
-    }
-    keys.emplace_back(key);
-
+    auto key = arrcmp::impl::bytearray_cast<std::uint64_t>(record.hash.data());
+    sharded_filter.stream_add(key);
     count++;
     if (count == cli.limit) {
       break;
     }
   }
-  if (!keys.empty()) {
-    sharded_filter.add(binfuse::filter16(keys), last_prefix);
-  }
+  sharded_filter.stream_finalize();
 }
 
 int main(int argc, char* argv[]) {
@@ -112,8 +98,6 @@ int main(int argc, char* argv[]) {
   CLI11_PARSE(app, argc, argv);
 
   try {
-    // check_options(cli);
-
     build(cli);
 
   } catch (const std::exception& e) {

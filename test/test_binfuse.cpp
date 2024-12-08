@@ -70,25 +70,15 @@ protected:
       binfuse::sharded_filter<FilterType, mio::access_mode::write> sharded_filter_sink(
           testtmpdir / filter_filename);
 
-      std::vector<std::uint64_t> keys;
-      std::uint32_t              last_prefix = 0;
+    sharded_filter_sink.stream_start();
+    for (const auto& record: db) {
+      auto key = arrcmp::impl::bytearray_cast<std::uint64_t>(record.hash.data());
+      sharded_filter_sink.stream_add(key);
+    }
+    sharded_filter_sink.stream_finalize();
 
-      for (const auto& record: db) {
-        auto key    = arrcmp::impl::bytearray_cast<std::uint64_t>(record.hash.data());
-        auto prefix = sharded_filter_sink.extract_prefix(key);
-        if (prefix != last_prefix) {
-          sharded_filter_sink.add(binfuse::filter<FilterType>(keys), last_prefix);
-          keys.clear();
-          last_prefix = prefix;
-        }
-        keys.emplace_back(key);
-      }
-      if (!keys.empty()) {
-        sharded_filter_sink.add(binfuse::filter<FilterType>(keys), last_prefix);
-      }
-
-      binfuse::sharded_filter<FilterType, mio::access_mode::read> sharded_filter_source(
-          testtmpdir / filter_filename);
+    binfuse::sharded_filter<FilterType, mio::access_mode::read> sharded_filter_source(
+        testtmpdir / filter_filename);
 
       // full verify across all shards
       for (const auto& pw: db) {

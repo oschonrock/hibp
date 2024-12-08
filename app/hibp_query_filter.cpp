@@ -62,7 +62,6 @@ std::ofstream get_output_stream(const std::string& output_filename, bool force) 
 }
 
 void query(const cli_config_t& cli) {
-
   binfuse::sharded_filter16_source sharded_filter(cli.filter_filename);
   // normal search
   uint64_t needle = 0;
