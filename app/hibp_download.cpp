@@ -105,7 +105,7 @@ int main(int argc, char* argv[]) {
 
   try {
     check_options(cli);
-    
+
     std::size_t start_index = 0;
     auto        mode        = cli.txt_out ? std::ios_base::out : std::ios_base::binary;
 

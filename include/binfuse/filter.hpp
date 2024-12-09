@@ -6,10 +6,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <iostream>
 #include <limits>
 #include <random>
 #include <stdexcept>
-#include <iostream>
 
 namespace binfuse {
 
@@ -169,4 +169,4 @@ private:
 using filter8  = filter<binary_fuse8_t>;
 using filter16 = filter<binary_fuse16_t>;
 
-}  // namespace binfuse
+} // namespace binfuse

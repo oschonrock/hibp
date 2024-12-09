@@ -25,7 +25,8 @@ struct cli_config_t {
 
 void define_options(CLI::App& app, cli_config_t& cli) {
 
-  app.add_option("filter_filename", cli.filter_filename, "The file that contains the filter you built.")
+  app.add_option("filter_filename", cli.filter_filename,
+                 "The file that contains the filter you built.")
       ->required();
 
   app.add_option("plain-text-password", cli.plain_text_password,
@@ -81,7 +82,6 @@ void query(const cli_config_t& cli) {
   } else {
     std::cout << fmt::format("NOT FOUND\n");
   }
-
 }
 
 int main(int argc, char* argv[]) {

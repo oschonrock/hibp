@@ -83,11 +83,12 @@ int main(int argc, char* argv[]) {
   CLI11_PARSE(app, argc, argv);
 
   try {
-    if (cli.sha1_db_filename.empty() && cli.ntlm_db_filename.empty() && cli.sha1t64_db_filename.empty()) {
+    if (cli.sha1_db_filename.empty() && cli.ntlm_db_filename.empty() &&
+        cli.sha1t64_db_filename.empty()) {
       throw std::runtime_error("You must one of --sha1-db, --ntlm-db or --sha1t64-db");
     }
     prep_databases(cli);
-    
+
     hibp::srv::run_server();
   } catch (const std::exception& e) {
     std::cerr << "something went wrong: " << e.what() << "\n";

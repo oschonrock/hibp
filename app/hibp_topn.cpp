@@ -50,7 +50,8 @@ void define_options(CLI::App& app, cli_config_t& cli) {
 
   app.add_flag("--ntlm", cli.ntlm, "Use ntlm hashes rather than sha1.");
 
-  app.add_flag("--sha1t64", cli.sha1t64, "Use sha1 hashes truncated to 64bits rather than full sha1.");
+  app.add_flag("--sha1t64", cli.sha1t64,
+               "Use sha1 hashes truncated to 64bits rather than full sha1.");
 
   app.add_flag("-f,--force", cli.force, "Overwrite any existing output file!");
 }

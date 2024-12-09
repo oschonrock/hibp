@@ -162,7 +162,8 @@ void finished_downloads() {
   qmgt::msg_cv.notify_one();
 }
 
-void service_queue(write_fn_t& write_fn, std::size_t next_index, std::stop_token stoken) { // NOLINT stoken
+void service_queue(write_fn_t& write_fn, std::size_t next_index,
+                   std::stop_token stoken) { // NOLINT stoken
 
   while (true) {
     std::unique_lock lk(qmgt::msgmutex);

@@ -9,7 +9,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fmt/format.h>
-#include <fmt/std.h>  // IWYU pragma: keep
+#include <fmt/std.h> // IWYU pragma: keep
 #include <fstream>
 #include <iostream>
 #include <limits>
@@ -57,7 +57,8 @@ void build(const std::filesystem::path& db_path, unsigned bits) {
   std::cout << fmt::format("{:30s} {:15.0f} per query\n", "Max disk reads without ToC",
                            std::ceil(std::log2(db_size)));
   std::cout << fmt::format("{:30s} {:15d}\n", "Number of bits in ToC prefix", bits);
-  std::cout << fmt::format("{:30s} {:15d} ({:.1f}MB consumed)\n", "Number of ToC entries", toc_entries,
+  std::cout << fmt::format("{:30s} {:15d} ({:.1f}MB consumed)\n", "Number of ToC entries",
+                           toc_entries,
                            static_cast<double>(toc_entries * sizeof(toc_entry)) / pow(2, 20));
   std::cout << fmt::format("{:30s} {:15d} records in db (avg)\n", "Each ToC entry covers",
                            toc_entry_size);
@@ -174,10 +175,10 @@ toc_search<hibp::pawned_pw_ntlm>(flat_file::database<hibp::pawned_pw_ntlm>& db,
 
 // sha1t64
 template void toc_build<hibp::pawned_pw_sha1t64>(const std::filesystem::path& db_filename,
-                                              unsigned                     bits);
+                                                 unsigned                     bits);
 
 template std::optional<hibp::pawned_pw_sha1t64>
 toc_search<hibp::pawned_pw_sha1t64>(flat_file::database<hibp::pawned_pw_sha1t64>& db,
-                                 const hibp::pawned_pw_sha1t64& needle, unsigned bits);
+                                    const hibp::pawned_pw_sha1t64& needle, unsigned bits);
 
 } // namespace hibp

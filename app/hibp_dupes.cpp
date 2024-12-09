@@ -23,20 +23,20 @@ void define_options(CLI::App& app, cli_config_t& cli) {
                  "The file that contains the binary database you downloaded")
       ->required();
 
-  app.add_option(
-         "--bits", cli.bits,
-         fmt::format("Specify how may bits you want to use for dupe searching. default {}", cli.bits))
+  app.add_option("--bits", cli.bits,
+                 fmt::format("Specify how may bits you want to use for dupe searching. default {}",
+                             cli.bits))
       ->check(CLI::Range(32, 64));
 
   app.add_flag("--ntlm", cli.ntlm, "Use ntlm hashes rather than sha1.");
-
 }
 
 template <hibp::pw_type PwType>
 void run_search(const cli_config_t& cli) {
   flat_file::database<PwType> db(cli.db_filename, (1U << 16U) / sizeof(PwType));
 
-  std::cout << fmt::format("Looking for duplicates in the first {} bits of the hash...\n", cli.bits);
+  std::cout << fmt::format("Looking for duplicates in the first {} bits of the hash...\n",
+                           cli.bits);
   std::uint64_t last = -1;
   for (auto& pw: db) {
     auto prefix = arrcmp::impl::bytearray_cast<std::uint64_t>(pw.hash.data()) >> (64 - cli.bits);

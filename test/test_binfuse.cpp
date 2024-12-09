@@ -70,15 +70,15 @@ protected:
       binfuse::sharded_filter<FilterType, mio::access_mode::write> sharded_filter_sink(
           testtmpdir / filter_filename);
 
-    sharded_filter_sink.stream_start();
-    for (const auto& record: db) {
-      auto key = arrcmp::impl::bytearray_cast<std::uint64_t>(record.hash.data());
-      sharded_filter_sink.stream_add(key);
-    }
-    sharded_filter_sink.stream_finalize();
+      sharded_filter_sink.stream_start();
+      for (const auto& record: db) {
+        auto key = arrcmp::impl::bytearray_cast<std::uint64_t>(record.hash.data());
+        sharded_filter_sink.stream_add(key);
+      }
+      sharded_filter_sink.stream_finalize();
 
-    binfuse::sharded_filter<FilterType, mio::access_mode::read> sharded_filter_source(
-        testtmpdir / filter_filename);
+      binfuse::sharded_filter<FilterType, mio::access_mode::read> sharded_filter_source(
+          testtmpdir / filter_filename);
 
       // full verify across all shards
       for (const auto& pw: db) {
@@ -87,7 +87,7 @@ protected:
       }
 
       EXPECT_LE(sharded_filter_source.estimate_false_positive_rate(), max_false_positive_rate);
-    }
+    } // allow mmap to destroy before file remove (required on windows)
 
     std::filesystem::remove(testtmpdir / filter_filename);
   }
