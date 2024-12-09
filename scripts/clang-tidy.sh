@@ -6,7 +6,7 @@
 # masked by precompiled headers
 
 # ensure we have genrated a compile_commands.json without precompiled headers
-./build.sh -c clang -b debug -g --nopch >/dev/null
+./build.sh -c clang -b debug --run-tests --nopch -g >/dev/null
 
 # Use clang-tidy -p to force read of compile_commands.json in the
 # current directory. This is quite a slow process and may take
