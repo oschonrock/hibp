@@ -1,11 +1,11 @@
 #pragma once
 
 #include "binaryfusefilter.h"
-#include "fmt/format.h"
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <iomanip>
 #include <iostream>
 #include <limits>
 #include <random>
@@ -117,8 +117,8 @@ public:
   [[nodiscard]] bool verify(const std::vector<std::uint64_t>& keys) const {
     for (auto key: keys) {
       if (!contains(key)) {
-        std::cerr << fmt::format(
-            "binary_fuse_filter::verify: Detected a false negative: {:016X} \n", key);
+        std::cerr << "binfuse::filter::verify: Detected a false negative: " << std::hex
+                  << std::setfill('0') << std::setw(16) << key << '\n';
         return false;
       }
     }
@@ -126,8 +126,8 @@ public:
   }
 
   [[nodiscard]] double estimate_false_positive_rate() const {
-    auto   gen         = std::mt19937_64(std::random_device{}());
-    size_t matches     = 0;
+    auto         gen         = std::mt19937_64(std::random_device{}());
+    size_t       matches     = 0;
     const size_t sample_size = 1'000'000;
     for (size_t t = 0; t < sample_size; t++) {
       if (contains(gen())) { // no distribution needed
