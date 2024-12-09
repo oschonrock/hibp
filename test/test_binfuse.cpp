@@ -74,7 +74,7 @@ protected:
       binfuse::sharded_filter<FilterType, mio::access_mode::write> sharded_filter_sink(
           testtmpdir / filter_filename);
 
-      sharded_filter_sink.stream_start();
+      sharded_filter_sink.stream_prepare();
       for (const auto& record: db) {
         auto key = arrcmp::impl::bytearray_cast<std::uint64_t>(record.hash.data());
         sharded_filter_sink.stream_add(key);

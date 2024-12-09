@@ -58,7 +58,7 @@ void build(const cli_config_t& cli) {
 
   binfuse::sharded_filter8_sink sharded_filter(cli.output_filename);
 
-  sharded_filter.stream_start();
+  sharded_filter.stream_prepare();
   for (const auto& record: db) {
     auto key = arrcmp::impl::bytearray_cast<std::uint64_t>(record.hash.data());
     sharded_filter.stream_add(key);

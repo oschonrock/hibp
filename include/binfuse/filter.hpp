@@ -17,7 +17,11 @@ namespace binfuse {
 template <typename T>
 concept filter_type = std::same_as<T, binary_fuse8_t> || std::same_as<T, binary_fuse16_t>;
 
-// modified API from lib until this is accepted as a patch
+// Returns the buffer position immediately following the deserialized
+// bytes.  That is the position of the `filter->Fingerprints` array, if
+// you used `binary_fuse(8|16)_serialize`.
+// 
+// Implemented here rather than the lib until this is accepted as a patch
 template <filter_type FilterType>
 inline static const char* binary_fuse_deserialize_header(FilterType* filter, const char* buffer) {
   memcpy(&filter->Seed, buffer, sizeof(filter->Seed));
@@ -65,7 +69,7 @@ struct ftype<binary_fuse16_t> {
 
 /* binfuse::filter
  *
- * wraps a single bin_fuse(8|16)_filter
+ * wraps a single binary_fuse(8|16)_filter
  */
 template <filter_type FilterType>
 class filter {
@@ -124,9 +128,8 @@ public:
 
     // set the freshly deserialized object's Fingerprint ptr (which is
     // where the bulk of the data is), to the byte immediately AFTER
-    // the place where the small number of header bytes were deserialized
-    // FROM.
-    fil.Fingerprints = // NOLINTNEXTLINE const_cast & rein_cast: API is flawed
+    // the block where header bytes were deserialized FROM.
+    fil.Fingerprints = // NOLINTNEXTLINE const_cast & rein_cast due to upstream API
         reinterpret_cast<ftype<FilterType>::fingerprint_t*>(const_cast<char*>(fingerprints));
 
     skip_free_fingerprints = true; // do not attempt to free this external buffer (probably an mmap)

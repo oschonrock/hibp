@@ -88,10 +88,7 @@ public:
     return key >> (sizeof(key) * 8 - shard_bits);
   }
 
-  std::vector<std::uint64_t> stream_keys;
-  std::uint32_t              stream_last_prefix{};
-
-  void stream_start() {
+  void stream_prepare() {
     stream_keys.clear();
     stream_last_prefix = 0;
   }
@@ -108,6 +105,7 @@ public:
     }
     stream_keys.emplace_back(key);
   }
+  
   void stream_finalize()
     requires(AccessMode == mio::access_mode::write)
   {
@@ -171,6 +169,9 @@ private:
   using offset_t = typename decltype(sharded_mmap_base<AccessMode>::index)::value_type;
   static constexpr auto empty_offset = static_cast<offset_t>(-1);
 
+  std::vector<std::uint64_t> stream_keys;
+  std::uint32_t              stream_last_prefix{};
+
   std::uint32_t         next_prefix = 0;
   std::filesystem::path filepath;
 
@@ -190,6 +191,12 @@ private:
    * section), so that deserialize can be called directly on that.
    *
    */
+
+  static constexpr std::size_t header_start  = 0;
+  static constexpr std::size_t header_length = 16;
+
+  static constexpr std::size_t index_start = header_start + header_length;
+
   template <typename T>
   void copy_to_map(T value, offset_t offset)
     requires(AccessMode == mio::access_mode::write)
@@ -216,11 +223,6 @@ private:
     memcpy(value.data(), &this->mmap[offset], strsize);
     return value;
   }
-
-  static constexpr std::size_t header_start  = 0;
-  static constexpr std::size_t header_length = 16;
-
-  static constexpr std::size_t index_start = header_start + header_length;
 
   [[nodiscard]] std::uint32_t capacity() const { return 1U << shard_bits; }
   std::uint32_t               size = 0;
