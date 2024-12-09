@@ -11,6 +11,6 @@
 # Use clang-tidy -p to force read of compile_commands.json in the
 # current directory. This is quite a slow process and may take
 # several minutes, hence the use of gnu parallel.
-time find app/ src/ include/ -type f -name '*.cpp' -or -name '*.hpp' | \
+time find app/ src/ include/ test/ -type f -name '*.cpp' -or -name '*.hpp' | \
     nice parallel -q clang-tidy --quiet -p --config-file=.clang-tidy \
 	 -header-filter='.*/hibp/include/.*' --use-color
