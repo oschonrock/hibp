@@ -2,7 +2,6 @@
 
 #include "binaryfusefilter.h"
 #include "binfuse/filter.hpp"
-#include "fmt/format.h"
 #include "mio/mmap.hpp"
 #include "mio/page.hpp"
 #include <charconv>
@@ -11,8 +10,10 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <limits>
 #include <random>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <system_error>
@@ -77,8 +78,8 @@ public:
   {
     auto prefix = extract_prefix(needle);
     if (prefix >= this->filters.size()) {
-      throw std::runtime_error(
-          fmt::format("this sharded filter does not contain a filter for prefix = {}", prefix));
+      throw std::runtime_error("this sharded filter does not contain a filter for prefix = " +
+                               std::to_string(prefix));
     }
     auto& filter = this->filters[prefix];
     return filter.contains(needle);
@@ -105,7 +106,7 @@ public:
     }
     stream_keys.emplace_back(key);
   }
-  
+
   void stream_finalize()
     requires(AccessMode == mio::access_mode::write)
   {
@@ -118,11 +119,11 @@ public:
     requires(AccessMode == mio::access_mode::write)
   {
     if (prefix != next_prefix) {
-      throw std::runtime_error(fmt::format("expecting a shard with prefix {}", next_prefix));
+      throw std::runtime_error("expecting a shard with prefix " + std::to_string(next_prefix));
     }
     if (next_prefix == capacity()) {
-      throw std::runtime_error(
-          fmt::format("sharded filter has reached max capacity of {}", capacity()));
+      throw std::runtime_error("sharded filter has reached max capacity of " +
+                               std::to_string(capacity()));
     }
 
     std::size_t new_size = ensure_header();
@@ -138,8 +139,8 @@ public:
     auto old_filter_offset = get_from_map<offset_t>(filter_index_offset(prefix));
 
     if (old_filter_offset != empty_offset) {
-      throw std::runtime_error(
-          fmt::format("there is already a filter in this file for prefix = {}", prefix));
+      throw std::runtime_error("there is already a filter in this file for prefix = " +
+                               std::to_string(prefix));
     }
     copy_to_map(new_filter_offset, filter_index_offset(prefix)); // set up the index ptr
     new_filter.serialize(&this->mmap[new_filter_offset]);        // insert the data
@@ -238,7 +239,11 @@ private:
   }
 
   [[nodiscard]] std::string type_id() const {
-    return fmt::format("sbinfuse{:02d}", sizeof(typename ftype<FilterType>::fingerprint_t) * 8);
+    std::string       type_id;
+    std::stringstream type_id_stream(type_id);
+    type_id_stream << "sbinfuse" << std::setfill('0') << std::setw(2)
+                   << sizeof(typename ftype<FilterType>::fingerprint_t) * 8;
+    return type_id_stream.str();
   }
 
   void sync()
@@ -247,8 +252,7 @@ private:
     std::error_code err;
     this->mmap.sync(err); // ensure any existing map is sync'd
     if (err) {
-      throw std::runtime_error(
-          fmt::format("sharded_bin_fuse_filter:: mmap.map(): {}", err.message()));
+      throw std::runtime_error("sharded_bin_fuse_filter:: mmap.map(): " + err.message());
     }
   }
 
@@ -256,8 +260,7 @@ private:
     std::error_code err;
     this->mmap.map(filepath.string(), err);
     if (err) {
-      throw std::runtime_error(
-          fmt::format("sharded_bin_fuse_filter:: mmap.map(): {}", err.message()));
+      throw std::runtime_error("sharded_bin_fuse_filter:: mmap.map(): " + err.message());
     }
   }
 
@@ -265,8 +268,7 @@ private:
     auto tid       = type_id();
     auto check_tid = get_str_from_map(0, tid.size());
     if (check_tid != tid) {
-      throw std::runtime_error(
-          fmt::format("incorrect type_id: expected {}, found: {} ", tid, check_tid));
+      throw std::runtime_error("incorrect type_id: expected: " + tid + ", found: " + check_tid);
     }
   }
 
@@ -274,16 +276,16 @@ private:
     std::uint32_t check_capacity = 0;
     std::from_chars(&this->mmap[11], &this->mmap[15], check_capacity);
     if (check_capacity != capacity()) {
-      throw std::runtime_error(
-          fmt::format("wrong capacity: expected: {}, found: {}", capacity(), check_capacity));
+      throw std::runtime_error("wrong capacity: expected: " + std::to_string(capacity()) +
+                               ", found: " + std::to_string(check_capacity));
     }
   }
 
   // returns existing file size
   std::size_t ensure_file() {
     if (filepath.empty()) {
-      throw std::runtime_error(
-          fmt::format("filename not set or file doesn't exist '{}'", filepath.string()));
+      throw std::runtime_error("filename not set or file doesn't exist: '" + filepath.string() +
+                               "'");
     }
 
     std::size_t existing_filesize = 0;
@@ -298,7 +300,10 @@ private:
   void create_filetag()
     requires(AccessMode == mio::access_mode::write)
   {
-    copy_str_to_map(fmt::format("{}-{:04d}", type_id(), capacity()), 0);
+    std::string tagstr;
+    std::stringstream tagstream(tagstr);
+    tagstream << type_id() << '-' << std::setfill('0') << std::setw(4) << capacity();
+    copy_str_to_map(tagstream.str(), 0);
   }
 
   void create_index()
