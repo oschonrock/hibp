@@ -1,5 +1,4 @@
 #include "arrcmp.hpp"
-#include "binfuse/filter.hpp"
 #include "binfuse/sharded_filter.hpp"
 #include "hibp.hpp"
 #include "sha1.h"
@@ -13,7 +12,6 @@
 #include <fstream>
 #include <ios>
 #include <iostream>
-#include <mio/mmap.hpp>
 #include <stdexcept>
 #include <string>
 
@@ -63,7 +61,7 @@ std::ofstream get_output_stream(const std::string& output_filename, bool force) 
 }
 
 void query(const cli_config_t& cli) {
-  binfuse::sharded_filter16_source sharded_filter(cli.filter_filename);
+  const binfuse::sharded_filter16_source sharded_filter(cli.filter_filename);
   // normal search
   uint64_t needle = 0;
   if (cli.hash) {
@@ -75,7 +73,7 @@ void query(const cli_config_t& cli) {
   }
   std::cout << fmt::format("needle = {:016X}\n", needle);
 
-  bool result = sharded_filter.contains(needle);
+  const bool result = sharded_filter.contains(needle);
 
   if (result) {
     std::cout << fmt::format("FOUND\n");

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "binaryfusefilter.h"
 #include "binfuse/filter.hpp"
 #include "fmt/format.h"
 #include "mio/mmap.hpp"
@@ -10,9 +11,13 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <limits>
+#include <random>
 #include <stdexcept>
 #include <string>
 #include <system_error>
+#include <utility>
+#include <vector>
 
 namespace binfuse {
 
@@ -84,7 +89,7 @@ public:
   }
 
   std::vector<std::uint64_t> stream_keys;
-  std::uint32_t              stream_last_prefix;
+  std::uint32_t              stream_last_prefix{};
 
   void stream_start() {
     stream_keys.clear();
@@ -107,11 +112,11 @@ public:
     requires(AccessMode == mio::access_mode::write)
   {
     if (!stream_keys.empty()) {
-      add(binfuse::filter<FilterType>(stream_keys), stream_last_prefix);
+      add(filter<FilterType>(stream_keys), stream_last_prefix);
     }
   }
 
-  void add(filter<FilterType>&& new_filter, std::uint32_t prefix)
+  void add(const filter<FilterType>& new_filter, std::uint32_t prefix)
     requires(AccessMode == mio::access_mode::write)
   {
     if (prefix != next_prefix) {
@@ -124,8 +129,8 @@ public:
 
     std::size_t new_size = ensure_header();
 
-    std::size_t size_req          = new_filter.serialization_bytes();
-    offset_t    new_filter_offset = new_size; // place new filter at end
+    const std::size_t size_req          = new_filter.serialization_bytes();
+    const offset_t    new_filter_offset = new_size; // place new filter at end
     new_size += size_req;
 
     sync();
@@ -147,9 +152,9 @@ public:
   [[nodiscard]] double estimate_false_positive_rate() const
     requires(AccessMode == mio::access_mode::read)
   {
-    auto   gen         = std::mt19937_64(std::random_device{}());
-    size_t matches     = 0;
-    size_t sample_size = 1'000'000;
+    auto         gen         = std::mt19937_64(std::random_device{}());
+    size_t       matches     = 0;
+    const size_t sample_size = 1'000'000;
     for (size_t t = 0; t < sample_size; t++) {
       if (contains(gen())) { // no distribution needed
         matches++;
@@ -163,9 +168,6 @@ public:
   std::uint8_t shard_bits = 8;
 
 private:
-  using clk    = std::chrono::high_resolution_clock;
-  using micros = std::chrono::microseconds;
-
   using offset_t = typename decltype(sharded_mmap_base<AccessMode>::index)::value_type;
   static constexpr auto empty_offset = static_cast<offset_t>(-1);
 
@@ -286,7 +288,7 @@ private:
     if (std::filesystem::exists(filepath)) {
       existing_filesize = std::filesystem::file_size(filepath);
     } else {
-      std::ofstream tmp(filepath); // "touch"
+      const std::ofstream tmp(filepath); // "touch"
     }
     return existing_filesize;
   }
@@ -327,8 +329,8 @@ private:
   std::size_t ensure_header()
     requires(AccessMode == mio::access_mode::write)
   {
-    std::size_t existing_filesize = ensure_file();
-    std::size_t new_size          = existing_filesize;
+    const std::size_t existing_filesize = ensure_file();
+    std::size_t       new_size          = existing_filesize;
     if (existing_filesize < header_length + index_length()) {
       if (existing_filesize != 0) {
         throw std::runtime_error("corrupt file: header and index half written?!");

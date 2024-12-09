@@ -10,6 +10,7 @@
 #include <limits>
 #include <random>
 #include <stdexcept>
+#include <vector>
 
 namespace binfuse {
 
@@ -104,8 +105,6 @@ public:
             keys.size(), &fil)) {
       throw std::runtime_error("failed to populate the filter");
     }
-    // std::cout << fmt::format("{:<15} {:>12}\n", "populate",
-    //                          duration_cast<micros>(clk::now() - start));
   }
 
   [[nodiscard]] bool contains(std::uint64_t needle) const {
@@ -113,8 +112,9 @@ public:
     return result;
   }
 
-  [[nodiscard]] std::size_t serialization_bytes() {
-    return ftype<FilterType>::serialization_bytes(&fil);
+  [[nodiscard]] std::size_t serialization_bytes() const {
+    // upstream API should be const
+    return ftype<FilterType>::serialization_bytes(const_cast<FilterType*>(&fil));
   }
 
   void serialize(char* buffer) const { ftype<FilterType>::serialize(&fil, buffer); }
@@ -146,7 +146,7 @@ public:
   [[nodiscard]] double estimate_false_positive_rate() const {
     auto   gen         = std::mt19937_64(std::random_device{}());
     size_t matches     = 0;
-    size_t sample_size = 1'000'000;
+    const size_t sample_size = 1'000'000;
     for (size_t t = 0; t < sample_size; t++) {
       if (contains(gen())) { // no distribution needed
         matches++;
@@ -158,9 +158,6 @@ public:
   }
 
 private:
-  using clk    = std::chrono::high_resolution_clock;
-  using micros = std::chrono::microseconds;
-
   std::size_t size = 0;
   FilterType  fil{};
   bool        skip_free_fingerprints = false;

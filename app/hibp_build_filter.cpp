@@ -7,7 +7,6 @@
 #include <cstdint>
 #include <cstdlib>
 #include <exception>
-#include <fcntl.h>
 #include <filesystem>
 #include <fmt/format.h>
 #include <fstream>
@@ -50,25 +49,6 @@ std::ifstream get_input_stream(const std::string& input_filename) {
   }
   return input_stream;
 }
-
-std::ofstream get_output_stream(const std::string& output_filename, bool force) {
-  // if (!force && std::filesystem::exists(output_filename)) {
-  //   throw std::runtime_error(
-  //       fmt::format("File '{}' exists. Use `--force` to overwrite.", output_filename));
-  // }
-
-  auto output_stream = std::ofstream(output_filename, std::ios_base::binary);
-  if (!output_stream) {
-    throw std::runtime_error(fmt::format("Error opening '{}' for writing. Because: \"{}\".\n",
-                                         output_filename,
-                                         std::strerror(errno))); // NOLINT errno
-  }
-  return output_stream;
-}
-
-// void check_options(const cli_config_t& cli) {
-
-// }
 
 void build(const cli_config_t& cli) {
   flat_file::database<hibp::pawned_pw_sha1> db{cli.input_filename,

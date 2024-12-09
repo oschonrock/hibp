@@ -225,7 +225,7 @@ void run(write_fn_t write_fn, std::size_t start_index_, bool testing_) {
     std::stop_source que_stop_source;
     std::stop_source req_stop_source;
 
-    std::jthread requests_thread([&]() {
+    const std::jthread requests_thread([&]() {
       try {
         run_event_loop(start_index_, testing_, req_stop_source.get_token());
       } catch (...) {
@@ -238,7 +238,7 @@ void run(write_fn_t write_fn, std::size_t start_index_, bool testing_) {
     req_thr_id           = requests_thread.get_id();
     thrnames[req_thr_id] = "requests";
 
-    std::jthread queuemgt_thread([&]() {
+    const std::jthread queuemgt_thread([&]() {
       try {
         service_queue(write_fn, start_index_, que_stop_source.get_token());
       } catch (...) {
