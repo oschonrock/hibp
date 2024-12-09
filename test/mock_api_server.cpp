@@ -1,10 +1,16 @@
 #include "restinio/http_server_run.hpp"
+#include "restinio/http_headers.hpp"
 #include "restinio/router/express.hpp"
+#include "restinio/sendfile.hpp"
+#include "restinio/traits.hpp"
+#include <exception>
 #include <filesystem>
+#include <iostream>
+#include <memory>
 #include <restinio/all.hpp>
-#include <restinio/router/easy_parser_router.hpp>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 namespace fs = std::filesystem;
 
@@ -12,7 +18,7 @@ auto get_router(const fs::path& static_dir) {
   auto router = std::make_unique<restinio::router::express_router_t<>>();
 
   router->http_get("/:file", [static_dir](auto req, auto params) {
-    fs::path requested_path(params["file"]);
+    const fs::path requested_path(params["file"]);
 
     const auto qp = restinio::parse_query(req->header().query());
     fs::path   file_path;
@@ -63,7 +69,7 @@ int main(int argc, char* argv[]) {
     restinio::run(std::move(settings));
 
   } catch (const std::exception& ex) {
-    std::cerr << "Error: " << ex.what() << std::endl;
+    std::cerr << "Error: " << ex.what() << '\n';
     return 1;
   }
   return 0;

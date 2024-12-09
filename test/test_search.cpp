@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <random>
+#include <sstream>
 #include <type_traits>
 
 template <hibp::pw_type PwType>

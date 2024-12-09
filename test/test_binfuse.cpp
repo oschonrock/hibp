@@ -1,3 +1,4 @@
+#include "arrcmp.hpp"
 #include "binaryfusefilter.h"
 #include "binfuse/filter.hpp"
 #include "binfuse/sharded_filter.hpp"
@@ -5,8 +6,11 @@
 #include "hibp.hpp"
 #include "mio/page.hpp"
 #include "gtest/gtest.h"
+#include <algorithm>
 #include <concepts>
+#include <cstdint>
 #include <filesystem>
+#include <vector>
 
 class binfuse_test : public testing::Test {
 protected:
@@ -77,7 +81,7 @@ protected:
       }
       sharded_filter_sink.stream_finalize();
 
-      binfuse::sharded_filter<FilterType, mio::access_mode::read> sharded_filter_source(
+      const binfuse::sharded_filter<FilterType, mio::access_mode::read> sharded_filter_source(
           testtmpdir / filter_filename);
 
       // full verify across all shards

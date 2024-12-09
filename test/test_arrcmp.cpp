@@ -1,6 +1,9 @@
 #include "arrcmp.hpp"
 #include "gtest/gtest.h"
+#include <array>
+#include <cstddef>
 #include <string>
+#include <utility>
 #include <vector>
 
 template <typename T>

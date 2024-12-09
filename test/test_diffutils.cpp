@@ -6,6 +6,8 @@
 #include <fstream>
 #include <ios>
 #include <sstream>
+#include <stdexcept>
+#include <string>
 
 template <hibp::pw_type PwType>
 class DiffTest : public testing::Test {

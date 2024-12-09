@@ -89,6 +89,7 @@ auto handle_hash_search(flat_file::database<PwType>& db, const std::string& pass
   return search_and_respond<PwType>(db, needle, req);
 }
 
+// NOLINTNEXTLINE cognitive complexity
 auto get_router(const std::string& sha1_db_filename, const std::string& ntlm_db_filename,
                 const std::string& sha1t64_db_filename) {
   auto router = std::make_unique<restinio::router::express_router_t<>>();
