@@ -17,27 +17,6 @@ namespace binfuse {
 template <typename T>
 concept filter_type = std::same_as<T, binary_fuse8_t> || std::same_as<T, binary_fuse16_t>;
 
-// Returns the buffer position immediately following the deserialized
-// bytes.  That is the position of the `filter->Fingerprints` array, if
-// you used `binary_fuse(8|16)_serialize`.
-// 
-// Implemented here rather than the lib until this is accepted as a patch
-template <filter_type FilterType>
-inline static const char* binary_fuse_deserialize_header(FilterType* filter, const char* buffer) {
-  memcpy(&filter->Seed, buffer, sizeof(filter->Seed));
-  buffer += sizeof(filter->Seed);
-  memcpy(&filter->SegmentLength, buffer, sizeof(filter->SegmentLength));
-  buffer += sizeof(filter->SegmentLength);
-  filter->SegmentLengthMask = filter->SegmentLength - 1;
-  memcpy(&filter->SegmentCount, buffer, sizeof(filter->SegmentCount));
-  buffer += sizeof(filter->SegmentCount);
-  memcpy(&filter->SegmentCountLength, buffer, sizeof(filter->SegmentCountLength));
-  buffer += sizeof(filter->SegmentCountLength);
-  memcpy(&filter->ArrayLength, buffer, sizeof(filter->ArrayLength));
-  buffer += sizeof(filter->ArrayLength);
-  return buffer;
-}
-
 // select which functions on the C-API will be called with specialisations of the function ptrs
 
 template <filter_type FilterType>
@@ -51,7 +30,7 @@ struct ftype<binary_fuse8_t> {
   static constexpr auto* free                = binary_fuse8_free;
   static constexpr auto* serialization_bytes = binary_fuse8_serialization_bytes;
   static constexpr auto* serialize           = binary_fuse8_serialize;
-  static constexpr auto* deserialize_header  = binary_fuse_deserialize_header<binary_fuse8_t>;
+  static constexpr auto* deserialize_header  = binary_fuse8_deserialize_header;
   using fingerprint_t                        = std::uint8_t;
 };
 
@@ -63,7 +42,7 @@ struct ftype<binary_fuse16_t> {
   static constexpr auto* free                = binary_fuse16_free;
   static constexpr auto* serialization_bytes = binary_fuse16_serialization_bytes;
   static constexpr auto* serialize           = binary_fuse16_serialize;
-  static constexpr auto* deserialize_header  = binary_fuse_deserialize_header<binary_fuse16_t>;
+  static constexpr auto* deserialize_header  = binary_fuse16_deserialize_header;
   using fingerprint_t                        = std::uint16_t;
 };
 
