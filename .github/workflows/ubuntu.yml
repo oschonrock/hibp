@@ -1,0 +1,41 @@
+name: Ubuntu 24.04 (gcc-13, clang-18)
+
+on: [push, pull_request]
+
+jobs:
+  ubuntu-build:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        compiler: [gcc, clang]
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+          
+      - name: install dependencies
+        run: |
+          apt install build-essential cmake ninja-build git libcurl4-openssl-dev libevent-dev ruby libtbb-dev
+          cd ext/restinio
+          gem install Mxx_ru
+          mxxruexternals
+          cd ../..
+          
+      - name: select compiler
+        run: |
+          if [ "${{ matrix.compiler }}" == "gcc" ]; then
+            export CC=gcc
+            export CXX=g++
+          elif [ "${{ matrix.compiler }}" == "clang" ]; then
+            export CC=clang
+            export CXX=clang++
+          fi
+          
+      - name: configure with cmake
+        run: |
+          cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=debug -DBINFUSE_TEST=OFF -DHIBP_TEST=ON
+
+      - name: build with cmake
+        run: |
+          cmake --build build

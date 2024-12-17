@@ -1,0 +1,48 @@
+name: Windows MINGW32/64 gcc/clang
+
+on: [push, pull_request]
+
+jobs:
+  windows-mingw:
+    name: ${{ matrix.sys }}
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    strategy:
+      fail-fast: false
+      matrix:
+        sys: [ UCRT64, CLANG64, MINGW64, MINGW32 ]
+    steps:
+      - name: install msys2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{matrix.sys}}
+          update: true
+          pacboy: >-
+            toolchain
+            cmake
+            ninja
+            ruby
+            tbb
+            curl
+            libevent
+            diffutils
+            
+      - name: checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+          
+      - name: install restinio dependencies
+        run: |
+          cd ext/restinio
+          gem install Mxx_ru
+          mxxruexternals
+          cd ../..
+            
+      - name: Configure
+        run: cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=debug -DBINFUSE_TEST=OFF -DHIBP_TEST=ON
+        
+      - name: Build
+        run: cmake --build build
