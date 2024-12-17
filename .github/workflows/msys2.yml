@@ -45,7 +45,7 @@ jobs:
           cd ../..
             
       - name: Configure
-        run: cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=debug -DBINFUSE_TEST=OFF -DHIBP_TEST=ON
+        run: cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=debug -DNOPCH=ON -DBINFUSE_TEST=OFF -DHIBP_TEST=ON
         
       - name: Build
         run: cmake --build build

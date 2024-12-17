@@ -43,7 +43,7 @@ jobs:
           
       - name: configure with cmake
         run: |
-          cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=debug -DBINFUSE_TEST=OFF -DHIBP_TEST=ON
+          cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=debug -DNOPCH=ON -DBINFUSE_TEST=OFF -DHIBP_TEST=ON
 
       - name: build with cmake
         run: |

@@ -15,7 +15,7 @@ else() # unix'ish
     # -ftime-trace # for compile time reporting
     -Wmissing-noreturn -Wconversion -Wsign-conversion -Wno-ignored-attributes)
 
-  if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+  if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD" OR (MINGW AND CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
     list(APPEND PROJECT_COMPILE_OPTIONS -fexperimental-library)
   endif()
   
