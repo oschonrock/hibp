@@ -16,9 +16,17 @@ jobs:
           
       - name: install dependencies
         run: |
-          apt install build-essential cmake ninja-build git libcurl4-openssl-dev libevent-dev ruby libtbb-dev
+          sudo apt update
+          sudo apt install -y build-essential \
+            cmake \
+            ninja-build \
+            git \
+            libcurl4-openssl-dev \
+            libevent-dev \
+            ruby \
+            libtbb-dev
           cd ext/restinio
-          gem install Mxx_ru
+          sudo gem install Mxx_ru
           mxxruexternals
           cd ../..
           
