@@ -19,12 +19,15 @@ jobs:
         with:
           msystem: ${{matrix.sys}}
           update: true
+          install: >-
+            pactoys
+            git
+            unzip
           pacboy: >-
             toolchain
             cmake
             ninja
             ruby
-            tbb
             curl
             libevent
             diffutils
