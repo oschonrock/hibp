@@ -6,14 +6,15 @@
 #include <fstream>
 #include <ios>
 #include <sstream>
+#include <stdexcept>
+#include <string>
 
 template <hibp::pw_type PwType>
 class DiffTest : public testing::Test {
 protected:
   DiffTest()
-      : testtmpdir{std::filesystem::canonical(std::filesystem::current_path() /
-                                              "../../../../test/tmp")},
-        
+      : testtmpdir{std::filesystem::canonical(std::filesystem::current_path() / "tmp")},
+
         old_path{testtmpdir / "old.sha1.bin"}, old_stream{old_path, std::ios_base::binary},
         oldw{old_stream}, new_path{testtmpdir / "new.sha1.bin"},
         new_stream{new_path, std::ios_base::binary}, neww{new_stream} {

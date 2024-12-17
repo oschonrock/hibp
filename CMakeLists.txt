@@ -8,26 +8,24 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 if (MSVC)
-  set(PROJECT_COMPILE_OPTIONS /W3)
+  list(APPEND PROJECT_COMPILE_OPTIONS /W3)
   string(APPEND CMAKE_CXX_FLAGS_DEBUG " /fsanitize=address")
 else() # unix'ish
-  set(PROJECT_COMPILE_OPTIONS -Wall -Wextra -Wpedantic -Wshadow -Wextra-semi
+  list(APPEND PROJECT_COMPILE_OPTIONS -Wall -Wextra -Wpedantic -Wshadow -Wextra-semi
     # -ftime-trace # for compile time reporting
     -Wmissing-noreturn -Wconversion -Wsign-conversion -Wno-ignored-attributes)
 
   if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
     list(APPEND PROJECT_COMPILE_OPTIONS -fexperimental-library)
   endif()
-    
+  
   # sanatizers
-  if(CMAKE_BUILD_TYPE STREQUAL "debug")
-    if (NOT MINGW) # sanitizers are not working under mingw
-      if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
-	message(WARNING "FreeBSD detected: skipping santizers which cause weird errors in OpenSSL")
-      else()
-	string(APPEND CMAKE_CXX_FLAGS_DEBUG " -fsanitize=address,undefined,leak")
-	# string(APPEND CMAKE_CXX_FLAGS_DEBUG " -fsanitize=thread") # alternative to above
-      endif()
+  if (NOT MINGW) # sanitizers are not working under mingw
+    if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+      message(WARNING "FreeBSD detected: skipping santizers which cause weird errors in OpenSSL")
+    else()
+      string(APPEND CMAKE_CXX_FLAGS_DEBUG " -fsanitize=address,undefined,leak")
+      # string(APPEND CMAKE_CXX_FLAGS_DEBUG " -fsanitize=thread") # alternative to above
     endif()
   endif()
 endif()
@@ -124,6 +122,7 @@ add_library(diffutils src/diffutils.cpp)
 target_compile_features(diffutils PRIVATE cxx_std_20)
 target_include_directories(diffutils PRIVATE include)
 target_link_libraries(diffutils PRIVATE hibp flat_file fmt::fmt)
+target_compile_options(diffutils PRIVATE -Wno-ignored-attributes) # non-sensical warning from gcc?
 
 add_executable(hibp_search app/hibp_search.cpp)
 set_target_properties(hibp_search PROPERTIES OUTPUT_NAME hibp-search)
@@ -180,17 +179,38 @@ target_compile_features(hibp_download PRIVATE cxx_std_20)
 target_compile_options(hibp_download PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_download PRIVATE CLI11 curl event hibp flat_file fmt::fmt ${CMAKE_THREAD_LIBS_INIT})
 
+add_subdirectory(ext/binfuse)
+
+add_executable(hibp_build_filter app/hibp_build_filter.cpp)
+set_target_properties(hibp_build_filter PROPERTIES OUTPUT_NAME hibp-build-filter)
+target_compile_features(hibp_build_filter PRIVATE cxx_std_20)
+target_compile_options(hibp_build_filter PRIVATE ${PROJECT_COMPILE_OPTIONS})
+target_link_libraries(hibp_build_filter PRIVATE CLI11 sha1 hibp flat_file fmt::fmt binfuse)
+
+add_executable(hibp_query_filter app/hibp_query_filter.cpp)
+set_target_properties(hibp_query_filter PROPERTIES OUTPUT_NAME hibp-query-filter)
+target_compile_features(hibp_query_filter PRIVATE cxx_std_20)
+target_compile_options(hibp_query_filter PRIVATE ${PROJECT_COMPILE_OPTIONS})
+target_link_libraries(hibp_query_filter PRIVATE CLI11 sha1 hibp flat_file fmt::fmt binfuse)
+
+
+# precompiled headers
+
 option(NOPCH "Disable the use of precompiled headers" OFF)
 
 if (NOT NOPCH AND NOT CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
   target_precompile_headers(CLI11 INTERFACE [["CLI/CLI.hpp"]])
   target_precompile_headers(flat_file INTERFACE [["flat_file.hpp"]])
+  target_precompile_headers(hibp INTERFACE [["hibp.hpp"]])
   target_precompile_headers(restinio INTERFACE [["restinio/core.hpp"]])
 
   target_precompile_headers(hibp_sort REUSE_FROM hibp_search)
   target_precompile_headers(hibp_convert REUSE_FROM hibp_search)
   target_precompile_headers(hibp_topn REUSE_FROM hibp_search)
   target_precompile_headers(hibp_download REUSE_FROM hibp_search)
+  target_precompile_headers(hibp_diff REUSE_FROM hibp_search)
+  target_precompile_headers(hibp_build_filter REUSE_FROM hibp_search)
+  target_precompile_headers(hibp_query_filter REUSE_FROM hibp_search)
 endif()
 
 # testing

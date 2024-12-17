@@ -146,7 +146,7 @@ void process_curl_messages() {
     logger.log("stop request received: bailing out");
     throw std::runtime_error("stop requested by queuemgt thread");
   }
-  
+
   enq_msg_t msg;
   while ((message = curl_multi_info_read(curl_multi_handle, &pending)) != nullptr) {
     switch (message->msg) {

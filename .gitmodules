@@ -13,3 +13,6 @@
 [submodule "ext/shunit2"]
 	path = ext/shunit2
 	url = https://github.com/kward/shunit2
+[submodule "ext/binfuse"]
+	path = ext/binfuse
+	url = https://github.com/oschonrock/binfuse.git

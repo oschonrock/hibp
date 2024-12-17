@@ -44,7 +44,7 @@ void run_diff(const std::filesystem::path& old_path, const std::filesystem::path
       // copy rest of new into diff as inserts
       while (diff_iter_new != db_new.end()) {
         const hunk h{hunk_type::insert, static_cast<unsigned>(diff_iter_old - db_old.begin()),
-               *diff_iter_new};
+                     *diff_iter_new};
         diff << h << '\n';
 
         ++diff_iter_new;
@@ -64,7 +64,7 @@ void run_diff(const std::filesystem::path& old_path, const std::filesystem::path
     if (std::next(diff_iter_new) != db_new.end() &&
         deep_equals(*diff_iter_old, *std::next(diff_iter_new))) {
       const hunk h{hunk_type::insert, static_cast<unsigned>(diff_iter_old - db_old.begin()),
-             *diff_iter_new};
+                   *diff_iter_new};
       diff << h << '\n';
       old_begin = diff_iter_old;
       new_begin = diff_iter_new + 1;
@@ -74,7 +74,7 @@ void run_diff(const std::filesystem::path& old_path, const std::filesystem::path
       throw std::runtime_error("Replacement implies deletion");
     }
     const hunk h{hunk_type::update, static_cast<unsigned>(diff_iter_old - db_old.begin()),
-           *diff_iter_new};
+                 *diff_iter_new};
     diff << h << '\n';
     old_begin = diff_iter_old + 1;
     new_begin = diff_iter_new + 1;

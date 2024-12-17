@@ -1,8 +1,8 @@
 #pragma once
 
 #include <cstddef>
-#include <string>
 #include <stop_token>
+#include <string>
 
 namespace hibp::dnl {
 

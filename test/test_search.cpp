@@ -5,12 +5,13 @@
 #include <cstddef>
 #include <filesystem>
 #include <random>
+#include <sstream>
 #include <type_traits>
 
 template <hibp::pw_type PwType>
 void run_search(bool toc, unsigned toc_bits = 0) { // NOLINT complexity
   auto testdatadir =
-      std::filesystem::canonical(std::filesystem::current_path() / "../../../../test/data");
+      std::filesystem::canonical(std::filesystem::current_path() / "data");
 
   std::filesystem::path db_path;
 
