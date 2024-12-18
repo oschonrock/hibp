@@ -75,6 +75,23 @@ void launch(std::ofstream& output_db_stream, const hibp::dnl::cli_config_t& cli,
                  cli.testing);
 }
 
+template <typename ShardedFilterType>
+void launch_filter(const hibp::dnl::cli_config_t& cli) {
+  if (std::filesystem::exists(cli.output_db_filename) && cli.force) {
+    // there can be no --resume of any sort, user suplied force, start from scratch
+    std::filesystem::remove(cli.output_db_filename);
+  }
+  ShardedFilterType filter(cli.output_db_filename);
+  filter.stream_prepare();
+  hibp::dnl::run(
+      [&](const std::string& line) {
+        auto pw = hibp::pawned_pw_sha1{line};
+        filter.stream_add(arrcmp::impl::bytearray_cast<std::uint64_t>(pw.hash.data()));
+      },
+      0, cli.testing);
+  filter.stream_finalize();
+}
+
 template <hibp::pw_type PwType>
 std::size_t get_start_index(const hibp::dnl::cli_config_t& cli) {
   return hibp::dnl::get_last_prefix<PwType>(cli.output_db_filename, cli.testing) + 1;
@@ -143,26 +160,18 @@ int main(int argc, char* argv[]) {
       std::cerr << fmt::format("Resuming from file {}\n", start_index);
     }
 
-    if (cli.binfuse8_out) {
+    if (cli.binfuse8_out || cli.binfuse16_out) {
       // binfuse uses mmap, so no stream
-      if (cli.force && std::filesystem::exists(cli.output_db_filename)) {
-        // there can be no --resume of any sort, user suplied force, start from scratch
-        std::filesystem::remove(cli.output_db_filename);
+      if (cli.binfuse8_out) {
+        launch_filter<binfuse::sharded_filter8_sink>(cli);
+      } else {
+        launch_filter<binfuse::sharded_filter16_sink>(cli);
       }
-      binfuse::sharded_filter8_sink filter(cli.output_db_filename);
-      filter.stream_prepare();
-      hibp::dnl::run(
-          [&](const std::string& line) {
-            auto pw = hibp::pawned_pw_sha1{line};
-            filter.stream_add(arrcmp::impl::bytearray_cast<std::uint64_t>(pw.hash.data()));
-          },
-          start_index, cli.testing);
-      filter.stream_finalize();
     } else {
       // all other methods stream
       auto output_db_stream = std::ofstream(cli.output_db_filename, mode);
       if (!output_db_stream) {
-        throw std::runtime_error(fmt::format("Error opening '{}' for writing. Because: \"{}\".\n",
+        throw std::runtime_error(fmt::format("Error opening '{}' for writing. Because: \"{}\".",
                                              cli.output_db_filename,
                                              std::strerror(errno))); // NOLINT errno
       }
