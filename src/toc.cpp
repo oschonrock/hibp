@@ -98,7 +98,7 @@ void save(const std::filesystem::path& toc_filename) {
 template <pw_type PwType>
 void load(const std::filesystem::path& toc_filename) {
   std::cout << fmt::format("loading table of contents: {}\n", toc_filename);
-  const auto toc_file_size = std::filesystem::file_size(toc_filename);
+  const auto toc_file_size = static_cast<std::size_t>(std::filesystem::file_size(toc_filename));
   auto       toc_stream    = std::ifstream(toc_filename, std::ios_base::binary);
   toc<PwType>              = std::vector<toc_entry>(toc_file_size / sizeof(toc_entry));
   toc_stream.read(reinterpret_cast<char*>(toc<PwType>.data()), // NOLINT reincast
