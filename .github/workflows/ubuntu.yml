@@ -31,7 +31,7 @@ jobs:
           mxxruexternals
           cd ../..
           
-      - name: select compiler
+      - name: select compiler and configure with cmake
         run: |
           if [ "${{ matrix.compiler }}" == "gcc" ]; then
             export CC=gcc
@@ -40,9 +40,6 @@ jobs:
             export CC=clang
             export CXX=clang++
           fi
-          
-      - name: configure with cmake
-        run: |
           cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=debug -DNOPCH=ON -DBINFUSE_TEST=OFF -DHIBP_TEST=ON
 
       - name: build with cmake
