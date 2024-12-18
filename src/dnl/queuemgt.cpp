@@ -258,7 +258,7 @@ void run(write_fn_t write_fn, std::size_t start_index_, bool testing_) {
   if (ex_requests || ex_queuemgt) {
     curl_and_event_cleanup();
     throw std::runtime_error("Thread exceptions thrown as above. Sorry, we are aborting. You can "
-                             "try rerunning with `--resume`");
+                             "try rerunning with `--resume` in many download modes.");
   }
   shutdown_curl_and_events();
 }

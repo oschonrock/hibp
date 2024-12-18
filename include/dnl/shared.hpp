@@ -44,7 +44,7 @@ struct download {
   // used in priority_queue to keep items in order
   std::strong_ordering operator<=>(const download& rhs) const { return index <=> rhs.index; }
 
-  static constexpr int max_retries = 5;
+  static constexpr int max_retries = 10;
 
   CURL*             easy = nullptr;
   std::size_t       index;
