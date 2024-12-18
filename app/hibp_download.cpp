@@ -1,3 +1,5 @@
+#include "arrcmp.hpp"
+#include "binfuse/sharded_filter.hpp"
 #include "dnl/queuemgt.hpp"
 #include "dnl/resume.hpp"
 #include "dnl/shared.hpp"
@@ -39,6 +41,12 @@ void define_options(CLI::App& app, hibp::dnl::cli_config_t& cli) {
   app.add_flag("--txt-out", cli.txt_out,
                "Output text format, rather than the default custom binary format.");
 
+  app.add_flag("--binfuse8-out", cli.binfuse8_out,
+               "Output a binary_fuse8 filter, for space saving probabilistic queries.");
+
+  app.add_flag("--binfuse16-out", cli.binfuse16_out,
+               "Output a binary_fuse16 filter, for space saving probabilistic queries.");
+
   app.add_flag("--force", cli.force, "Overwrite any existing file! Not with --resume.");
 
   app.add_option("--parallel-max", cli.parallel_max,
@@ -75,6 +83,14 @@ std::size_t get_start_index(const hibp::dnl::cli_config_t& cli) {
 void check_options(const hibp::dnl::cli_config_t& cli) {
   if (cli.txt_out && cli.resume) {
     throw std::runtime_error("can't use `--resume` and `--txt-out` together");
+  }
+
+  if ((cli.binfuse8_out || cli.binfuse16_out) && cli.resume) {
+    throw std::runtime_error("can't use `--resume` on binfuse filters");
+  }
+
+  if ((cli.binfuse8_out || cli.binfuse16_out) && (cli.txt_out || cli.ntlm || cli.sha1t64)) {
+    throw std::runtime_error("can't use `--binfuse(8|16)-out` with a hash format selector");
   }
 
   if (cli.force && cli.resume) {
@@ -127,26 +143,42 @@ int main(int argc, char* argv[]) {
       std::cerr << fmt::format("Resuming from file {}\n", start_index);
     }
 
-    auto output_db_stream = std::ofstream(cli.output_db_filename, mode);
-    if (!output_db_stream) {
-      throw std::runtime_error(fmt::format("Error opening '{}' for writing. Because: \"{}\".\n",
-                                           cli.output_db_filename,
-                                           std::strerror(errno))); // NOLINT errno
-    }
-    if (cli.txt_out) {
-      auto tw = hibp::dnl::text_writer(output_db_stream);
-      hibp::dnl::run([&](const std::string& line) { tw.write(line); }, start_index, cli.testing);
-
+    if (cli.binfuse8_out) {
+      // binfuse uses mmap, so no stream
+      if (cli.force && std::filesystem::exists(cli.output_db_filename)) {
+        // there can be no --resume of any sort, user suplied force, start from scratch
+        std::filesystem::remove(cli.output_db_filename);
+      }
+      binfuse::sharded_filter8_sink filter(cli.output_db_filename);
+      filter.stream_prepare();
+      hibp::dnl::run(
+          [&](const std::string& line) {
+            auto pw = hibp::pawned_pw_sha1{line};
+            filter.stream_add(arrcmp::impl::bytearray_cast<std::uint64_t>(pw.hash.data()));
+          },
+          start_index, cli.testing);
+      filter.stream_finalize();
     } else {
-      if (cli.ntlm) {
-        launch<hibp::pawned_pw_ntlm>(output_db_stream, cli, start_index);
-      } else if (cli.sha1t64) {
-        launch<hibp::pawned_pw_sha1t64>(output_db_stream, cli, start_index);
+      // all other methods stream
+      auto output_db_stream = std::ofstream(cli.output_db_filename, mode);
+      if (!output_db_stream) {
+        throw std::runtime_error(fmt::format("Error opening '{}' for writing. Because: \"{}\".\n",
+                                             cli.output_db_filename,
+                                             std::strerror(errno))); // NOLINT errno
+      }
+      if (cli.txt_out) {
+        auto tw = hibp::dnl::text_writer(output_db_stream);
+        hibp::dnl::run([&](const std::string& line) { tw.write(line); }, start_index, cli.testing);
       } else {
-        launch<hibp::pawned_pw_sha1>(output_db_stream, cli, start_index);
+        if (cli.ntlm) {
+          launch<hibp::pawned_pw_ntlm>(output_db_stream, cli, start_index);
+        } else if (cli.sha1t64) {
+          launch<hibp::pawned_pw_sha1t64>(output_db_stream, cli, start_index);
+        } else {
+          launch<hibp::pawned_pw_sha1>(output_db_stream, cli, start_index);
+        }
       }
     }
-
   } catch (const std::exception& e) {
     std::cerr << fmt::format("Error: {}\n", e.what());
     return EXIT_FAILURE;

@@ -21,16 +21,18 @@ namespace hibp::dnl {
 
 struct cli_config_t {
   std::string output_db_filename;
-  bool        debug        = false;
-  bool        progress     = true;
-  bool        resume       = false;
-  bool        ntlm         = false;
-  bool        sha1t64      = false;
-  bool        txt_out      = false;
-  bool        force        = false;
-  bool        testing      = false;
-  std::size_t index_limit  = 0x100000;
-  std::size_t parallel_max = 300;
+  bool        debug         = false;
+  bool        progress      = true;
+  bool        resume        = false;
+  bool        ntlm          = false;
+  bool        sha1t64       = false;
+  bool        txt_out       = false;
+  bool        binfuse8_out  = false;
+  bool        binfuse16_out = false;
+  bool        force         = false;
+  bool        testing       = false;
+  std::size_t index_limit   = 0x100000;
+  std::size_t parallel_max  = 300;
 };
 
 struct download {

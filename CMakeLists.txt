@@ -177,7 +177,8 @@ add_executable(hibp_download
 set_target_properties(hibp_download PROPERTIES OUTPUT_NAME hibp-download)
 target_compile_features(hibp_download PRIVATE cxx_std_20)
 target_compile_options(hibp_download PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_download PRIVATE CLI11 curl event hibp flat_file fmt::fmt ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(hibp_download PRIVATE CLI11 curl event hibp flat_file
+  fmt::fmt ${CMAKE_THREAD_LIBS_INIT} binfuse)
 
 add_subdirectory(ext/binfuse)
 
