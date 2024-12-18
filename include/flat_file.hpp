@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #if HIBP_USE_PSTL && __cpp_lib_parallel_algorithm
@@ -105,7 +106,7 @@ public:
     if (dbfsize_ % sizeof(ValueType) != 0)
       throw std::ios::failure("db file size is not a multiple of the record size");
 
-    dbsize_ = dbfsize_ / sizeof(ValueType);
+    dbsize_ = static_cast<std::size_t>(dbfsize_ / sizeof(ValueType));
 
     if (!db_.is_open())
       throw std::ios::failure(fmt::format("cannot open db: {}, because '{}'", filename_,
@@ -150,7 +151,7 @@ public:
 
 private:
   std::filesystem::path  filename_;
-  std::size_t            dbfsize_;
+  std::uintmax_t         dbfsize_;
   std::size_t            dbsize_;
   std::ifstream          db_;
   std::size_t            buf_start_ = 0;
