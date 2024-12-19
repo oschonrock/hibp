@@ -96,6 +96,17 @@ because we can use random access binary search. There is an additional
 "table of contents" feature (see `--toc`below) to reduce disk access
 further at the expense of only 4MB of memory.
 
+The system of uitlities supportes multiple storage formats for the password db. These each have different advantages: 
+
+| format         | download | storage | false +ve rate   | search strategy   | count |
+|----------------|----------|---------|------------------|-------------------| ------|
+| text           | 37GB     | 37GB    | 1 / 2^160        | difficult         | avail |
+| binary sha1    | 37GB     | 21GB    | 1 / 2^160        | binary search     | avail |
+| binary ntlm    | 32GB     | 18GB    | 1 / 2^128        | binary search     | avail |
+| binary sha1t64 | 37GB     | 11GB    | 1 / 2^64         | binary search     | avail |
+| binfuse16      | 37GB     | 2GB     | 1 / 2^16         | hash table like   | NA    |
+| binfuse8       | 37GB     | 1GB     | 1 / 2^8          | hash table like   | NA    |
+
 The local http server component is both multi threaded and event loop
 driven for high efficiency. Even in a minimal configuration it should
 be more than sufficient to back almost any site, at over 1,000req/s
