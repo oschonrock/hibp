@@ -448,8 +448,13 @@ These utilities are written in C++ and centre around a `flat_file` class to mode
 	small effect on `hibp-sort` and `hibp-topn`. And due to
 	portability annoyances and a bug in libstd++, this is disabled by
 	default, and you need to turn `HIBP_WITH_PSTL=ON` to use it.
-
+- the binary fuse filters are based on the [binfuse C++
+  library](https://github.com/oschonrock/binfuse). 
+  
 ## Future plans
+
+- partial diff/patch algorithm, so after one full download, small patch
+  files can keep you up to date.
 
 - More packaging: 
   - Get the .deb accepted into Debian 
