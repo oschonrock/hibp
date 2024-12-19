@@ -30,7 +30,8 @@ void define_options(CLI::App& app, hibp::dnl::cli_config_t& cli) {
                "Show a progress meter on stderr. This is the default.");
 
   app.add_flag("--resume", cli.resume,
-               "Attempt to resume an earlier download. Not with --txt-out. And not with --force.");
+               "Attempt to resume an earlier download. Not with --txt-out or --binfuse(9|16)-out. "
+               "And not with --force.");
 
   app.add_flag("--ntlm", cli.ntlm, "Download the NTLM format password hashes instead of SHA1.");
 
@@ -60,11 +61,6 @@ void define_options(CLI::App& app, hibp::dnl::cli_config_t& cli) {
                "Download from a local test server instead of public api.");
 }
 
-namespace hibp::dnl {
-thread_logger logger;
-cli_config_t  cli;
-} // namespace hibp::dnl
-
 template <hibp::pw_type PwType>
 void launch_bin_db(std::ofstream& output_db_stream, const hibp::dnl::cli_config_t& cli,
                    std::size_t start_index) {
@@ -76,21 +72,19 @@ void launch_bin_db(std::ofstream& output_db_stream, const hibp::dnl::cli_config_
 }
 
 template <hibp::pw_type PwType>
-std::size_t get_start_index(const hibp::dnl::cli_config_t& cli) {
+std::size_t compute_start_index(const hibp::dnl::cli_config_t& cli) {
   return hibp::dnl::get_last_prefix<PwType>(cli.output_db_filename, cli.testing) + 1;
 }
 
-void launch_stream(const hibp::dnl::cli_config_t& cli) {
-  std::size_t             start_index = 0;
-  std::ios_base::openmode mode        = cli.txt_out ? std::ios_base::out : std::ios_base::binary;
-
+std::size_t get_start_index(const hibp::dnl::cli_config_t& cli) {
+  std::size_t start_index = 0;
   if (cli.resume) {
     if (cli.ntlm) {
-      start_index = get_start_index<hibp::pawned_pw_ntlm>(cli);
+      start_index = compute_start_index<hibp::pawned_pw_ntlm>(cli);
     } else if (cli.sha1t64) {
-      start_index = get_start_index<hibp::pawned_pw_sha1t64>(cli);
+      start_index = compute_start_index<hibp::pawned_pw_sha1t64>(cli);
     } else {
-      start_index = get_start_index<hibp::pawned_pw_sha1>(cli);
+      start_index = compute_start_index<hibp::pawned_pw_sha1>(cli);
     }
 
     if (cli.index_limit <= start_index) {
@@ -98,15 +92,26 @@ void launch_stream(const hibp::dnl::cli_config_t& cli) {
                                            "specified --limit={}. Nothing to do. Aborting.",
                                            cli.output_db_filename, start_index, cli.index_limit));
     }
-    mode |= std::ios_base::app;
     std::cerr << fmt::format("Resuming from file {}\n", start_index);
   }
+  return start_index;
+}
+
+void launch_stream(const hibp::dnl::cli_config_t& cli) {
+  std::size_t             start_index = get_start_index(cli);
+
+  std::ios_base::openmode mode        = cli.txt_out ? std::ios_base::out : std::ios_base::binary;
+  if (cli.resume) {
+    mode |= std::ios_base::app;
+  }
+  
   auto output_db_stream = std::ofstream(cli.output_db_filename, mode);
   if (!output_db_stream) {
     throw std::runtime_error(fmt::format("Error opening '{}' for writing. Because: \"{}\".",
                                          cli.output_db_filename,
                                          std::strerror(errno))); // NOLINT errno
   }
+  
   if (cli.txt_out) {
     auto tw = hibp::dnl::text_writer(output_db_stream);
     hibp::dnl::run([&](const std::string& line) { tw.write(line); }, start_index, cli.testing);
@@ -134,7 +139,7 @@ void launch_filter(const hibp::dnl::cli_config_t& cli) {
         auto pw = hibp::pawned_pw_sha1{line};
         filter.stream_add(arrcmp::impl::bytearray_cast<std::uint64_t>(pw.hash.data()));
       },
-      0, cli.testing);
+      0, cli.testing); // always start at 0
   filter.stream_finalize();
 }
 
@@ -165,6 +170,11 @@ void check_options(const hibp::dnl::cli_config_t& cli) {
                                          cli.output_db_filename));
   }
 }
+
+namespace hibp::dnl {
+thread_logger logger;
+cli_config_t  cli;
+} // namespace hibp::dnl
 
 int main(int argc, char* argv[]) {
   using hibp::dnl::cli;
