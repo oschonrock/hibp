@@ -1,6 +1,5 @@
 #include "srv/server.hpp"
 #include "binfuse.hpp"
-#include "binfuse/filter.hpp"
 #include "flat_file.hpp"
 #include "hibp.hpp"
 #include "ntlm.hpp"

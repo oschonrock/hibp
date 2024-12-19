@@ -96,16 +96,22 @@ because we can use random access binary search. There is an additional
 "table of contents" feature (see `--toc`below) to reduce disk access
 further at the expense of only 4MB of memory.
 
-The system of uitlities supportes multiple storage formats for the password db. These each have different advantages: 
+The system of uitlities supportes multiple storage formats for the
+password db. These each have different advantages - figures based on
+an ~1billion record pawned password DB from Dec 2024.
 
-| format         | download | storage | false +ve rate   | search strategy   | count |
-|----------------|----------|---------|------------------|-------------------| ------|
-| text           | 37GB     | 37GB    | 1 / 2^160        | difficult         | avail |
-| binary sha1    | 37GB     | 21GB    | 1 / 2^160        | binary search     | avail |
-| binary ntlm    | 32GB     | 18GB    | 1 / 2^128        | binary search     | avail |
-| binary sha1t64 | 37GB     | 11GB    | 1 / 2^64         | binary search     | avail |
-| binfuse16      | 37GB     | 2GB     | 1 / 2^16         | hash table like   | NA    |
-| binfuse8       | 37GB     | 1GB     | 1 / 2^8          | hash table like   | NA    |
+| format         | download | storage | false +ve rate   | search strategy    | queries/s     |  count |
+|----------------|----------|---------|------------------|------------------- |---------------|--------|
+| text           | 37GB     | 37GB    | 1 / 2^160        | need external tool | >25[^1]       |  avail |
+| binary sha1    | 37GB     | 21GB    | 1 / 2^160        | binary search      | >1,000[^2]    |  avail |
+| binary ntlm    | 32GB     | 18GB    | 1 / 2^128        | binary search      | >1,000[^2]    |  avail |
+| binary sha1t64 | 37GB     | 11GB    | 1 / 2^64         | binary search      | >1,000[^2]    |  avail |
+| binfuse16      | 37GB     | 2GB     | 1 / 2^16         | binary fuse filter | >100,000[^3]  |  NA    |
+| binfuse8       | 37GB     | 1GB     | 1 / 2^8          | binary fuse filter | >100,000[^3]  |  NA    |
+
+[^1]: when inserted into MariaDB table using aria engine and primary index on the hash in binary
+[^2]: performance can be increased up to 3x with `--toc` and another 5x with `--threads`
+[^3]: uses `mmap` for access, so performance is heavily dependent on available RAM, relative to storage size
 
 The local http server component is both multi threaded and event loop
 driven for high efficiency. Even in a minimal configuration it should
