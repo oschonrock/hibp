@@ -5,6 +5,18 @@
 
 ## Intro
 
+>Have I Been Pwned? (HIBP) is a public resource that allows
+>Internet users to check whether their personal data has been
+>compromised by data breaches. The service collects and analyzes
+>hundreds of database dumps and pastes containing information about
+>billions of leaked accounts...
+> 
+> It makes available a database of password which have been
+> compromised in previous data breaches from all over the globe. There
+> are currently (Dec 2024) just shy of 1 billion unique passwords in
+> this db. This database is available in sha1 or ntlm text file form
+> together with a count of the number of previous breaches.
+
 High performance *downloader, query tool, server and utilities*
 
 This very useful database is somewhat challenging to use locally
