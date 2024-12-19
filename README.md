@@ -72,6 +72,28 @@ warnings to the user that they using a compromised password.
 
 For production, make this server a proper "autostart service" on your distribution. 
 
+### Binary fuse filters
+
+If you want reduced storage requirements and/or faster queries, and
+can tolerate a non-zero false positive rate (with zero false negative),
+then you should consider the binfuse formats.
+
+```bash
+hibp-download --binfuse16-out hibp_binfuse16.bin
+```
+This converts the 37GB download into an immutable 2GB [binary fuse16 filter](https://github.com/oschonrock/binfuse). 
+Alternatively `--binfuse8-out` produces a 1GB file with a higher false positive rate
+(see [format comparison](https://github.com/oschonrock/hibp?tab=readme-ov-file#design-high-performance-with-a-small-memory-disk-and-cpu-footprint))
+
+and then run a server
+```bash
+hibp-server --binfuse16-filter=hibp_binfuse16.bin 
+```
+and then query with plain or 64bit hashed passwords
+```bash
+curl http://localhost:8082/check/binfuse8/password123
+```
+
 #### Uninstall
 
 To remove the package:
