@@ -66,13 +66,59 @@ cli_config_t  cli;
 } // namespace hibp::dnl
 
 template <hibp::pw_type PwType>
-void launch(std::ofstream& output_db_stream, const hibp::dnl::cli_config_t& cli,
-            std::size_t start_index) {
+void launch_bin_db(std::ofstream& output_db_stream, const hibp::dnl::cli_config_t& cli,
+                   std::size_t start_index) {
   // use a largegish output buffer ~240kB for efficient writes
   // keep stream instance alive here
   auto ffsw = flat_file::stream_writer<PwType>(output_db_stream, 10'000);
   hibp::dnl::run([&](const std::string& line) { ffsw.write(PwType{line}); }, start_index,
                  cli.testing);
+}
+
+template <hibp::pw_type PwType>
+std::size_t get_start_index(const hibp::dnl::cli_config_t& cli) {
+  return hibp::dnl::get_last_prefix<PwType>(cli.output_db_filename, cli.testing) + 1;
+}
+
+void launch_stream(const hibp::dnl::cli_config_t& cli) {
+  std::size_t             start_index = 0;
+  std::ios_base::openmode mode        = cli.txt_out ? std::ios_base::out : std::ios_base::binary;
+
+  if (cli.resume) {
+    if (cli.ntlm) {
+      start_index = get_start_index<hibp::pawned_pw_ntlm>(cli);
+    } else if (cli.sha1t64) {
+      start_index = get_start_index<hibp::pawned_pw_sha1t64>(cli);
+    } else {
+      start_index = get_start_index<hibp::pawned_pw_sha1>(cli);
+    }
+
+    if (cli.index_limit <= start_index) {
+      throw std::runtime_error(fmt::format("File '{}' contains {} records already, but you have "
+                                           "specified --limit={}. Nothing to do. Aborting.",
+                                           cli.output_db_filename, start_index, cli.index_limit));
+    }
+    mode |= std::ios_base::app;
+    std::cerr << fmt::format("Resuming from file {}\n", start_index);
+  }
+  auto output_db_stream = std::ofstream(cli.output_db_filename, mode);
+  if (!output_db_stream) {
+    throw std::runtime_error(fmt::format("Error opening '{}' for writing. Because: \"{}\".",
+                                         cli.output_db_filename,
+                                         std::strerror(errno))); // NOLINT errno
+  }
+  if (cli.txt_out) {
+    auto tw = hibp::dnl::text_writer(output_db_stream);
+    hibp::dnl::run([&](const std::string& line) { tw.write(line); }, start_index, cli.testing);
+  } else {
+    if (cli.ntlm) {
+      launch_bin_db<hibp::pawned_pw_ntlm>(output_db_stream, cli, start_index);
+    } else if (cli.sha1t64) {
+      launch_bin_db<hibp::pawned_pw_sha1t64>(output_db_stream, cli, start_index);
+    } else {
+      launch_bin_db<hibp::pawned_pw_sha1>(output_db_stream, cli, start_index);
+    }
+  }
 }
 
 template <typename ShardedFilterType>
@@ -90,11 +136,6 @@ void launch_filter(const hibp::dnl::cli_config_t& cli) {
       },
       0, cli.testing);
   filter.stream_finalize();
-}
-
-template <hibp::pw_type PwType>
-std::size_t get_start_index(const hibp::dnl::cli_config_t& cli) {
-  return hibp::dnl::get_last_prefix<PwType>(cli.output_db_filename, cli.testing) + 1;
 }
 
 void check_options(const hibp::dnl::cli_config_t& cli) {
@@ -139,54 +180,14 @@ int main(int argc, char* argv[]) {
   try {
     check_options(cli);
 
-    std::size_t start_index = 0;
-    auto        mode        = cli.txt_out ? std::ios_base::out : std::ios_base::binary;
-
-    if (cli.resume) {
-      if (cli.ntlm) {
-        start_index = get_start_index<hibp::pawned_pw_ntlm>(cli);
-      } else if (cli.sha1t64) {
-        start_index = get_start_index<hibp::pawned_pw_sha1t64>(cli);
-      } else {
-        start_index = get_start_index<hibp::pawned_pw_sha1>(cli);
-      }
-
-      if (cli.index_limit <= start_index) {
-        throw std::runtime_error(fmt::format("File '{}' contains {} records already, but you have "
-                                             "specified --limit={}. Nothing to do. Aborting.",
-                                             cli.output_db_filename, start_index, cli.index_limit));
-      }
-      mode |= std::ios_base::app;
-      std::cerr << fmt::format("Resuming from file {}\n", start_index);
-    }
-
     if (cli.binfuse8_out || cli.binfuse16_out) {
-      // binfuse uses mmap, so no stream
       if (cli.binfuse8_out) {
         launch_filter<binfuse::sharded_filter8_sink>(cli);
       } else {
         launch_filter<binfuse::sharded_filter16_sink>(cli);
       }
     } else {
-      // all other methods stream
-      auto output_db_stream = std::ofstream(cli.output_db_filename, mode);
-      if (!output_db_stream) {
-        throw std::runtime_error(fmt::format("Error opening '{}' for writing. Because: \"{}\".",
-                                             cli.output_db_filename,
-                                             std::strerror(errno))); // NOLINT errno
-      }
-      if (cli.txt_out) {
-        auto tw = hibp::dnl::text_writer(output_db_stream);
-        hibp::dnl::run([&](const std::string& line) { tw.write(line); }, start_index, cli.testing);
-      } else {
-        if (cli.ntlm) {
-          launch<hibp::pawned_pw_ntlm>(output_db_stream, cli, start_index);
-        } else if (cli.sha1t64) {
-          launch<hibp::pawned_pw_sha1t64>(output_db_stream, cli, start_index);
-        } else {
-          launch<hibp::pawned_pw_sha1>(output_db_stream, cli, start_index);
-        }
-      }
+      launch_stream(cli);
     }
   } catch (const std::exception& e) {
     std::cerr << fmt::format("Error: {}\n", e.what());
