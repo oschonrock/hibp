@@ -16,7 +16,7 @@ jobs:
       with:
         usesh: true
         prepare: |
-          pkg install -y cmake ruby ruby32-gems rubygem-rake curl libevent
+          pkg install -y bash cmake ruby ruby32-gems rubygem-rake curl libevent
 
         run: |
           gem install Mxx_ru   # install ruby gem required for restinio dependency installation
