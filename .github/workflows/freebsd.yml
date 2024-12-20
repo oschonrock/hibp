@@ -17,12 +17,12 @@ jobs:
         usesh: true
         prepare: |
           pkg install -y cmake ruby ruby32-gems rubygem-rake curl libevent onetbb 
-          gem install Mxx_ru   # install ruby gem required for restinio dependency installation
-          cd ext/restinio
-          mxxruexternals            # install those restinio deps
-          cd ../..
 
         run: |
+          gem install Mxx_ru   # install ruby gem required for restinio dependency installation
+          cd ext/restinio
+          mxxruexternals       # install those restinio deps
+          cd ../..
           cmake -S . -B build -DCMAKE_BUILD_TYPE=debug -DNOPCH=ON -DBINFUSE_TEST=OFF -DHIBP_TEST=ON
           cmake --build build
           
