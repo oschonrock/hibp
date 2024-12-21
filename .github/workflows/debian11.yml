@@ -23,6 +23,7 @@ jobs:
           docker run --rm -v $(pwd):/workspace -w /workspace debian:11-slim /bin/bash -c "
           apt-get update &&
           apt install -y build-essential \
+            curl \
             cmake \
             ninja-build \
             git \
