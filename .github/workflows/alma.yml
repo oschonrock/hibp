@@ -21,7 +21,7 @@ jobs:
       - name: Run Alma container
         run: |
           docker run --rm -v $(pwd):/workspace -w /workspace almalinux:latest /bin/bash -c "
-          dnf update &&
+          dnf update -y &&
           dnf install -y gcc gcc-c++ glibc-devel make curl cmake ninja-build git libcurl-devel libevent-devel ruby libtbb-devel &&
           cd ext/restinio &&
           gem install Mxx_ru &&
