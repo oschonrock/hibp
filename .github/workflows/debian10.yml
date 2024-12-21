@@ -22,6 +22,7 @@ jobs:
         run: |
           docker run --rm -v $(pwd):/workspace -w /workspace debian:10-slim /bin/bash -c "
           apt-get update
+          apt-get upgrade
           apt install -y build-essential \
             cmake \
             ninja-build \
