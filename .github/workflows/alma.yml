@@ -24,6 +24,7 @@ jobs:
           dnf update -y &&
           dnf install -y gcc gcc-c++ glibc-devel make cmake git libcurl-devel libevent-devel ruby &&
           cd ext/restinio &&
+          gem install rake &&
           gem install Mxx_ru &&
           mxxruexternals &&
           cd ../.. &&
