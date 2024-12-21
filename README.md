@@ -103,11 +103,12 @@ Alternatively `--binfuse8-out` produces a 1GB file with a higher false positive 
 
 and then run a server
 ```bash
-hibp-server --binfuse16-filter=hibp_binfuse16.bin 
+hibp-server --binfuse16-filter=hibp_binfuse16.bin
 ```
 and then query with plain or 64bit hashed passwords
 ```bash
-curl http://localhost:8082/check/binfuse8/password123
+curl http://localhost:8082/check/plain/password123
+curl http://localhost:8082/check/binfuse16/CBFDAC6008F9CAB4
 ```
 
 #### Uninstall
