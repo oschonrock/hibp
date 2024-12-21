@@ -22,11 +22,11 @@ jobs:
         run: |
           docker run --rm -v $(pwd):/workspace -w /workspace almalinux:latest /bin/bash -c "
           dnf update -y &&
-          dnf install -y gcc gcc-c++ glibc-devel make curl cmake ninja-build git libcurl-devel libevent-devel ruby libtbb-devel &&
+          dnf install -y gcc gcc-c++ glibc-devel make curl cmake git libcurl-devel libevent-devel ruby &&
           cd ext/restinio &&
           gem install Mxx_ru &&
           mxxruexternals &&
           cd ../.. &&
-          cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=debug -DNOPCH=ON -DBINFUSE_TEST=OFF -DHIBP_TEST=ON &&
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=debug -DNOPCH=ON -DBINFUSE_TEST=OFF -DHIBP_TEST=ON &&
           cmake --build build
           "
