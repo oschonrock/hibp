@@ -22,7 +22,7 @@ jobs:
         run: |
           docker run --rm -v $(pwd):/workspace -w /workspace almalinux:latest /bin/bash -c "
           dnf update -y &&
-          dnf install -y gcc gcc-c++ glibc-devel make cmake git libcurl-devel libevent-devel ruby unzip libasan &&
+          dnf install -y gcc gcc-c++ glibc-devel make cmake git libcurl-devel libevent-devel ruby unzip libasan libubsan &&
           cd ext/restinio &&
           gem install rake &&
           gem install Mxx_ru &&
