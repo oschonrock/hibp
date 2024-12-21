@@ -335,40 +335,6 @@ The first run with `--toc` builds the index, which takes about 1
 minute, depending on your sequential disk speed. `hibp-search` shows
 that completely uncached queries *reduce from 5-8ms to just 0.7ms*.
 
-#### The "ultimate" server
-
-Maybe you want to serve plaintext, sha1 and ntlm at the same time,
-while taking advantage extra of `--toc` performance. Here is the full
-set of commands script for that, assuming the programs are on your
-`PATH` for brevity:
-
-```bash
-hibp-download --sha1 hibp_all.sha1.bin
-hibp-download --ntlm hibp_all.ntlm.bin
-
-hibp-server --sha1-db=hibp_all.sha1.bin --ntlm-db=hibp_all.ntlm.bin --toc
-```
-
-Output:
-```
-Make a request to any of:
-http://localhost:8082/check/plain/password123  [using sha1 db]
-http://localhost:8082/check/sha1/CBFDAC6008F9CAB4083784CBD1874F76618D2A97
-http://localhost:8082/check/ntlm/A9FDFA038C4B75EBC76DC855DD74F0DA
-```
-
-And if you wanted to conserve diskspace you could, use `hibp-topn`:
-
-```bash
-hibp-topn hibp_all.sha1.bin -o hibp_topn.sha1.bin
-hibp-topn --ntlm hibp_all.ntlm.bin -o hibp_topn.ntlm.bin
-
-hibp-server --sha1-db=hibp_topn.sha1.bin --ntlm-db=hibp_topn.ntlm.bin --toc
-```
-
-You can now remove the really big files, if the top 50million entries
-is enough for you.
-
 ### Saving further diskspace: sha1t64 
 
 We can also store the sha1 database with the hashes truncated to
@@ -416,6 +382,46 @@ It's just a convenience wrapper around `cmake`, mainly to select
 
 You can use `./build.sh --verbose` to see how `./build.sh` is invoking
 `cmake` (as well as making `cmake` verbose).
+
+#### The "ultimate" server
+
+Maybe you want to serve plaintext, sha1 and ntlm at the same time,
+while taking advantage extra of `--toc` performance, and also offering
+an extra fast option for probbabilistic results with a binfuse16
+filter. Here is the full commands script for that, assuming the
+programs are on your `PATH` for brevity:
+
+```bash
+hibp-download --sha1 hibp_all.sha1.bin
+hibp-download --ntlm hibp_all.ntlm.bin
+
+hibp-server \
+	--sha1-db=hibp_all.sha1.bin \
+	--ntlm-db=hibp_all.ntlm.bin \
+	--toc --binfuse16-filter=hibp_binfuse16.bin
+```
+
+Output:
+```
+Make a request to any of:
+http://localhost:8082/check/plain/password123  [using sha1 db]
+http://localhost:8082/check/sha1/CBFDAC6008F9CAB4083784CBD1874F76618D2A97
+http://localhost:8082/check/ntlm/A9FDFA038C4B75EBC76DC855DD74F0DA
+http://localhost:8082/check/binfuse16/CBFDAC6008F9CAB4
+```
+
+And if you wanted to conserve diskspace with the binary databases, you
+could, use `hibp-topn`:
+
+```bash
+hibp-topn hibp_all.sha1.bin -o hibp_topn.sha1.bin
+hibp-topn --ntlm hibp_all.ntlm.bin -o hibp_topn.ntlm.bin
+
+hibp-server --sha1-db=hibp_topn.sha1.bin --ntlm-db=hibp_topn.ntlm.bin --toc
+```
+
+You can now remove the really big files, if the top 50million entries
+is enough for you.
 
 ## Running tests
 
