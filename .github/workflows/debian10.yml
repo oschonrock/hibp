@@ -1,4 +1,4 @@
-name: Debian 10: gcc-10
+name: Debian 10 gcc-10
 
 on:
   push:
