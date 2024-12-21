@@ -22,8 +22,8 @@ jobs:
         run: |
           docker run --rm -v $(pwd):/workspace -w /workspace almalinux:latest /bin/bash -c "
           dnf update &&
-          dnf groupinstall 'Development Tools' && 
-          dnf install -y 
+          dnf install -y
+            gcc gcc-c++ glibc-devel make \
             curl \
             cmake \
             ninja-build \
