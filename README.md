@@ -3,7 +3,7 @@
 [![FreeBSD-14.1 clang-18.1](https://github.com/oschonrock/hibp/actions/workflows/freebsd.yml/badge.svg)](https://github.com/oschonrock/hibp/actions/workflows/freebsd.yml)
 [![Debian 11 gcc-10.2](https://github.com/oschonrock/hibp/actions/workflows/debian11.yml/badge.svg)](https://github.com/oschonrock/hibp/actions/workflows/debian11.yml)
 [![Debian 12 gcc-12.2](https://github.com/oschonrock/hibp/actions/workflows/debian12.yml/badge.svg)](https://github.com/oschonrock/hibp/actions/workflows/debian12.yml)
-[![Alma 12 gcc-12.2](https://github.com/oschonrock/hibp/actions/workflows/alma.yml/badge.svg)](https://github.com/oschonrock/hibp/actions/workflows/alma.yml)
+[![Alma 9 gcc-11.5](https://github.com/oschonrock/hibp/actions/workflows/alma.yml/badge.svg)](https://github.com/oschonrock/hibp/actions/workflows/alma.yml)
 
 # hibp: "Have I been pawned" database utilities
 
