@@ -18,6 +18,11 @@ jobs:
 
       - name: Run Debian container
         run: |
-          docker run --rm -v $(pwd):/workspace -w /workspace debian:10-slim /bin/bash -c "
-          uname -a
+          docker run --rm -v $(pwd):/workspace -w /workspace debian:latest /bin/bash -c "
+          apt-get update &&
+          apt-get install -y build-essential &&
+          uname -a && 
+          gcc --version
+          pwd
+          ls -al
           "
