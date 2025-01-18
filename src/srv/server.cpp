@@ -33,7 +33,7 @@ auto respond(int count, auto req) {
       restinio::http_field::content_type, fmt::format("{}; charset=utf-8", content_type));
 
   if (cli.json) {
-    response.set_body(fmt::format("{{count:{}}}\n", count));
+    response.set_body(fmt::format("{{\"count\":{}}}", count));
   } else {
     response.set_body(fmt::format("{}\n", count));
   }
