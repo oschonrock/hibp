@@ -1,5 +1,5 @@
 #include "toc.hpp"
-#include "arrcmp.hpp"
+#include "bytearray_cast.hpp"
 #include "flat_file.hpp"
 #include "hibp.hpp"
 #include <algorithm>
@@ -31,7 +31,7 @@ std::vector<toc_entry> toc;
 
 template <pw_type PwType>
 std::uint32_t pw_to_prefix(const PwType& pw, unsigned bits) {
-  return arrcmp::impl::bytearray_cast<std::uint32_t>(pw.hash.data()) >>
+  return hibp::bytearray_cast<std::uint32_t>(pw.hash.data()) >>
          (sizeof(toc_entry) * 8 - bits);
 }
 

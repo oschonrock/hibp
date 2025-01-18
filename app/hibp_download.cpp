@@ -1,4 +1,4 @@
-#include "arrcmp.hpp"
+#include "bytearray_cast.hpp"
 #include "binfuse/sharded_filter.hpp"
 #include "dnl/queuemgt.hpp"
 #include "dnl/resume.hpp"
@@ -137,7 +137,7 @@ void launch_filter(const hibp::dnl::cli_config_t& cli) {
   hibp::dnl::run(
       [&](const std::string& line) {
         auto pw = hibp::pawned_pw_sha1{line};
-        filter.stream_add(arrcmp::impl::bytearray_cast<std::uint64_t>(pw.hash.data()));
+        filter.stream_add(hibp::bytearray_cast<std::uint64_t>(pw.hash.data()));
       },
       0, cli.testing); // always start at 0
   filter.stream_finalize();

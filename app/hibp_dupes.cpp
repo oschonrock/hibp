@@ -1,4 +1,4 @@
-#include "arrcmp.hpp"
+#include "bytearray_cast.hpp"
 #include "flat_file.hpp"
 #include "hibp.hpp"
 #include <CLI/CLI.hpp>
@@ -39,7 +39,7 @@ void run_search(const cli_config_t& cli) {
                            cli.bits);
   std::uint64_t last = -1;
   for (auto& pw: db) {
-    auto prefix = arrcmp::impl::bytearray_cast<std::uint64_t>(pw.hash.data()) >> (64 - cli.bits);
+    auto prefix = hibp::bytearray_cast<std::uint64_t>(pw.hash.data()) >> (64 - cli.bits);
     if (prefix == last) {
       std::cout << fmt::format("{:016X} is a dupe (orig record: {})\n", prefix, pw.to_string());
     }

@@ -1,6 +1,8 @@
 #pragma once
 
+#if defined(__i386__) || defined(__x86_64__)
 #include "arrcmp.hpp"
+#endif
 #include <array>
 #include <cassert>
 #include <charconv>
@@ -76,7 +78,12 @@ struct pawned_pw {
     if constexpr (HashSize == 8) { // alignment problems => fallback
       return hash <=> rhs.hash;
     } else {
+#if defined(__i386__) || defined(__x86_64__)
       return arrcmp::array_compare(hash, rhs.hash, arrcmp::three_way{});
+#else
+      //arrcmp is for x86 only
+      return hash <=> rhs.hash;
+#endif
     }
   }
 
@@ -84,7 +91,12 @@ struct pawned_pw {
     if constexpr (HashSize == 8) { // alignment problems => fallback
       return hash == rhs.hash;
     } else {
+#if defined(__i386__) || defined(__x86_64__)
       return arrcmp::array_compare(hash, rhs.hash, arrcmp::equal{});
+#else
+      //arrcmp is for x86 only
+      return hash == rhs.hash;
+#endif
     }
   }
 

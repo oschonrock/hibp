@@ -1,4 +1,4 @@
-#include "arrcmp.hpp"
+#include "bytearray_cast.hpp"
 #include "binfuse/sharded_filter.hpp"
 #include "hibp.hpp"
 #include "sha1.h"
@@ -66,10 +66,10 @@ void query(const cli_config_t& cli) {
   uint64_t needle = 0;
   if (cli.hash) {
     hibp::pawned_pw_sha1t64 pw{cli.plain_text_password};
-    needle = arrcmp::impl::bytearray_cast<std::uint64_t>(pw.hash.data());
+    needle = hibp::bytearray_cast<std::uint64_t>(pw.hash.data());
   } else {
     hibp::pawned_pw_sha1t64 pw{SHA1{}(cli.plain_text_password)};
-    needle = arrcmp::impl::bytearray_cast<std::uint64_t>(pw.hash.data());
+    needle = hibp::bytearray_cast<std::uint64_t>(pw.hash.data());
   }
   std::cout << fmt::format("needle = {:016X}\n", needle);
 

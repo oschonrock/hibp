@@ -1,4 +1,4 @@
-#include "arrcmp.hpp"
+#include "bytearray_cast.hpp"
 #include "binfuse/sharded_filter.hpp"
 #include "flat_file.hpp"
 #include "hibp.hpp"
@@ -60,7 +60,7 @@ void build(const cli_config_t& cli) {
 
   sharded_filter.stream_prepare();
   for (const auto& record: db) {
-    auto key = arrcmp::impl::bytearray_cast<std::uint64_t>(record.hash.data());
+    auto key = hibp::bytearray_cast<std::uint64_t>(record.hash.data());
     sharded_filter.stream_add(key);
     count++;
     if (count == cli.limit) {

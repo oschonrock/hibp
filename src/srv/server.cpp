@@ -1,8 +1,9 @@
-#include "srv/server.hpp"
+#include "bytearray_cast.hpp"
 #include "binfuse.hpp"
 #include "flat_file.hpp"
 #include "hibp.hpp"
 #include "ntlm.hpp"
+#include "srv/server.hpp"
 #include "toc.hpp"
 #include <algorithm>
 #include <atomic>
@@ -102,7 +103,7 @@ auto handle_plain_filter_search(FilterType& filter, std::string plain_password, 
 
   // TODO this is ineffecient, use binary SHA1 directly
   hibp::pawned_pw_sha1t64 pw{SHA1{}(plain_password)};
-  auto                    needle = arrcmp::impl::bytearray_cast<std::uint64_t>(pw.hash.data());
+  auto                    needle = hibp::bytearray_cast<std::uint64_t>(pw.hash.data());
   return handle_filter_search(filter, needle, req);
 }
 
@@ -112,7 +113,7 @@ auto handle_hash_filter_search(FilterType& filter, const std::string& password, 
     return bad_request("Invalid hash provided. Check type of hash.", req);
   }
   hibp::pawned_pw_sha1t64 pw{password};
-  auto                    needle = arrcmp::impl::bytearray_cast<std::uint64_t>(pw.hash.data());
+  auto                    needle = hibp::bytearray_cast<std::uint64_t>(pw.hash.data());
   return handle_filter_search(filter, needle, req);
 }
 

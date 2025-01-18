@@ -160,11 +160,13 @@ target_link_libraries(hibp_sort PRIVATE CLI11 hibp flat_file fmt::fmt)
 
 add_executable(hibp_topn app/hibp_topn.cpp)
 set_target_properties(hibp_topn PROPERTIES OUTPUT_NAME hibp-topn)
+target_compile_features(hibp_topn PRIVATE cxx_std_20)
 target_compile_options(hibp_topn PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_topn PRIVATE CLI11 sha1 hibp flat_file fmt::fmt)
 
 add_executable(hibp_convert app/hibp_convert.cpp)
 set_target_properties(hibp_convert PROPERTIES OUTPUT_NAME hibp-convert)
+target_compile_features(hibp_convert PRIVATE cxx_std_20)
 target_compile_options(hibp_convert PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_convert PRIVATE CLI11 sha1 hibp flat_file fmt::fmt)
 
