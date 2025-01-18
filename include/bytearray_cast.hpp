@@ -1,3 +1,8 @@
+#include <concepts>
+#include <cstddef>
+#include <cstdint>
+#include <bit>
+
 namespace hibp {
 
 #ifdef __cpp_lib_byteswap
