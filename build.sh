@@ -49,7 +49,7 @@ if command -v /usr/local/bin/getopt > /dev/null 2>&1; then
 fi
 
 options=$("$GETOPT" --options hvc:b:t:pg --long help,verbose,compiler:,buildtype:,targets:,purge,generate-only,run-tests,skip-tests,install,install-prefix:,clean-first,nopch -- "$@")
-
+[[ $? -ne 0 ]] && echo "$USAGE" >&2 && exit 1
 eval set -- "$options"
 while true; do
     case "$1" in
@@ -59,63 +59,73 @@ while true; do
         ;;
     -v|--verbose)
         VERBOSE='--verbose'
+        shift
         ;;
     -c|--compiler)
-        shift
-        COMPILER=$1
+        COMPILER=$2
         [[ ! "$COMPILER" =~ ^(gcc(-[0-9]+)?|clang(-[0-9]+)?)$ ]] && {
             echo "[--compiler | -c] must be gcc[-xx] or clang[-xx]" >&2
             exit 1
         }
+        shift 2
         ;;
     -b|--buildtype)
-        shift
-        BUILDTYPE=${1,,}
+        BUILDTYPE=${2,,}
         [[ ! "$BUILDTYPE" =~ debug|release|relwithdebinfo ]] && {
             echo "[--buildtype | -b] must be debug|release|relwithdebinfo" >&2
             exit 1
         }
+        shift 2
         ;;
     -t|--targets)
-        shift
-        [ -z "$1" ] && echo "--targets parameter must not be empty" >&2 && exit 1
-        set -- ${1//,/ }
+        [[ -z "$2" ]] && {
+            echo "[-t | --targets] must not be empty" >&2
+            exit 1
+        }
+        set -- ${2//,/ }
         TARGETS=(
             "--target"
             "$@"
         )
+        shift 2
         ;;
     -p|--purge)
         PURGE=1
+        shift
         ;;
     -g|--generateonly)
         GENERATEONLY=1
+        shift
         ;;
     --clean-first)
         CLEAN_FIRST="--clean-first"
+        shift
         ;;
     --install)
         INSTALL=1
+        shift
         ;;
     --install-prefix)
-        shift
-        INSTALL_PREFIX="-DCMAKE_INSTALL_PREFIX=$1"
+        INSTALL_PREFIX="-DCMAKE_INSTALL_PREFIX=$2"
+        shift 2
         ;;
     --nopch)
         NOPCH="-DNOPCH=ON"
+        shift
         ;;
     --run-tests)
         TESTS="-DHIBP_TEST=ON"
+        shift
         ;;
     --skip-tests)
         TESTS="-DHIBP_TEST=OFF"
+        shift
         ;;
     --)
         shift
         break
         ;;
     esac
-    shift
 done
 
 [[ $# -gt 0 ]] && echo "unexpected argument '$1'" && exit 1
@@ -138,8 +148,8 @@ BUILD_OPTIONS=(
     "-DCMAKE_BUILD_TYPE=$BUILDTYPE"
 )
 
-[ -n "$TESTS" ] && BUILD_OPTIONS+=("$TESTS")
-[ -n "$INSTALL_PREFIX" ] && BUILD_OPTIONS+=("$INSTALL_PREFIX")
+[[ -n "$TESTS" ]] && BUILD_OPTIONS+=("$TESTS")
+[[ -n "$INSTALL_PREFIX" ]] && BUILD_OPTIONS+=("$INSTALL_PREFIX")
 
 if command -v ccache > /dev/null 2>&1; then
     BUILD_OPTIONS+=(

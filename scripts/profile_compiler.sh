@@ -7,7 +7,7 @@ then
 fi
 if git status app | egrep modified
 then
-    echo "ensure you have comttted, stashed or reverted any changes in app/" 1>&2 
+    echo "ensure you have committed, stashed or reverted any changes in app/" 1>&2 
     exit 1
 fi
 
