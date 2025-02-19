@@ -12,7 +12,7 @@ dependencies are libcurl and libevent (plus libtbb if you compile with
 ## Install Dependencies
 
 ```bash
-sudo apt install build-essential cmake curl ninja-build ccache git libcurl4-openssl-dev libevent-dev rubylibtbb-dev
+sudo apt install build-essential cmake curl ninja-build ccache git libcurl4-openssl-dev libevent-dev ruby libtbb-dev
 git clone https://github.com/oschonrock/hibp.git
 cd hibp
 git submodule update --init --recursive

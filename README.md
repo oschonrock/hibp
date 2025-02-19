@@ -296,11 +296,10 @@ Run server like this (--perf-test will generate a unique password for each reque
 ./build/gcc/release/hibp-server data/hibp_all.bin --perf-test
 ```
 
-And run apache bench like this (generating a random password to start with):
+And run apache bench like this (generating a somewhat random password to start with):
 
 ```bash
-hash=$(dd if=/dev/urandom status=none | tr -cd "a-zA-Z0-9" | head -c20 | sha1sum | cut -d" " -f1)
-ab -c100 -n10000 "http://localhost:8082/check/plain/${hash:0:10}"
+hash=$(date | sha1sum); ab -c100 -n10000 "http://localhost:8082/check/plain/${hash:0:10}"
 ```
 
 These are the key figures from a short run on an old i5-3470 CPU @ 3.20GHz with 3 threads
@@ -320,8 +319,7 @@ want to reduce the server to just one thread like so:
 ```
 
 ```bash
-hash=$(dd if=/dev/urandom status=none | tr -cd "a-zA-Z0-9" | head -c20 | sha1sum | cut -d" " -f1)
-ab -c25 -n10000 "http://localhost:8082/check/plain/${hash:0:10}"
+hash=$(date | sha1sum); ab -c25 -n10000 "http://localhost:8082/check/plain/${hash:0:10}"
 
 Requests per second:    1017.17 [#/sec] (mean)
 Time per request:       24.578 [ms] (mean)
