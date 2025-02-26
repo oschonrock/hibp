@@ -28,4 +28,17 @@ if [ -z "$ARGS" ]; then
   exit 1
 fi
 
-hibp-server --bind-address 0.0.0.0 ${ARGS} ${EXTRA_ARGS}
+# Function to process TERM signal
+_term() {
+  echo "Caught SIGTERM signal, stopping"
+  kill -TERM "$pid" 2>/dev/null
+}
+
+# Capture TERM signal and execute function
+trap _term SIGTERM
+
+hibp-server --bind-address 0.0.0.0 ${ARGS} ${EXTRA_ARGS} &
+
+# Store PID of celery worker
+pid=$!
+wait "$pid"
