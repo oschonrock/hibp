@@ -26,7 +26,14 @@ function (add_unit_test UNIT_TEST)
     gtest_discover_tests(${UNIT_TEST} PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 endfunction()
 
+# arrcmp can't work on non intelesque architectures
+if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64" OR
+    ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "AMD64" OR
+    ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "i386" OR
+    ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "i686")
 add_unit_test(test_arrcmp)
+endif()
+
 add_unit_test(test_search hibp flat_file toc)
 add_unit_test(test_diffutils hibp flat_file diffutils)
 
