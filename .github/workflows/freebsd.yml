@@ -1,6 +1,10 @@
 name: FreeBSD-14.1 clang-18.1
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - main
+  pull_request:
 
 jobs:
   freebsd-build:

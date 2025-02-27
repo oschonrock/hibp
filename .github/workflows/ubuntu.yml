@@ -1,6 +1,10 @@
 name: Ubuntu 24.04 (gcc-13, clang-18)
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - main
+  pull_request:
 
 jobs:
   ubuntu-build:
