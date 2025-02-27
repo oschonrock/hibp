@@ -1,4 +1,4 @@
-# Build with MSYS2 / mingw 
+# Build with MSYS2 / mingw
 
 Download and install MSYS2 with all default settings
 https://www.msys2.org/
@@ -25,17 +25,16 @@ and continue with main README...
 ## Running executables / loading shared libraries
 
 By default this project builds with as many static libraries as
-possible, but you still need to ensure the remaining dynbamic ones can
+possible, but you still need to ensure the remaining dynamic ones can
 be found. Note that `PATH` is sensibly configured within the MSYS2
 environment, and executables should just run trivially there. But the
 same will not necessarily be true in the Windows `cmd` console, or
 when launching from File Explorer, etc.
 
 To be able to run the programs in the build directory from the `cmd`
-(windows shell) you need to put `C:\msys64\ucrt64\bin`into your `PATH`
+(windows shell) you need to put `C:\msys64\ucrt64\bin` into your `PATH`
 environment variable. You can do that in the usual place in the
 Windows GUI.
 
-Any problems and you can check what each program is loading with 
+Any problems and you can check what each program is loading with
 `ldd program_name` from within the MSYS2 console.
-

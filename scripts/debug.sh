@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-
 ./build.sh -c gcc -b debug -t hibp_search
 ./build/gcc/debug/hibp-download hibp_sample.sha1.bin --force --no-progress 2>/dev/null 1>/dev/null &
 pid=$!
@@ -13,5 +12,5 @@ kill $pid
 exit
 
 # attaching to running process in windows (mingw)
-gdb /home/oliver/hibp/build/gcc/debug/hibp-download
-gdb /home/oliver/hibp/build/gcc/debug/hibp-download $(ps -W | egrep "hibp-download" | awk "{print $4}")
+gdb "$HOME/hibp/build/gcc/debug/hibp-download"
+gdb "$HOME/hibp/build/gcc/debug/hibp-download" $(pgrep "hibp-download")

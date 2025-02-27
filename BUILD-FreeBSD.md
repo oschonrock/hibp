@@ -1,6 +1,7 @@
-### FreeBSD 14.1 
+# FreeBSD 14.1
 
-#### Install Dependencies
+## Install Dependencies
+
 ```bash
 # as root
 pkg install bash getopt cmake ccmake ccache git ruby ruby32-gems rubygem-rake curl libevent onetbb 
