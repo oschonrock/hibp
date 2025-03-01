@@ -14,22 +14,10 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-# Setup command
-DOCKER_RUN="docker run --privileged -it --rm --name $IMAGE_NAME -p 8082:8082 -v $PWD/data:/data"
+export EXTRA_ARGS="--sha1-db=hibp_test.sha1.bin --ntlm-db=hibp_test.ntlm.bin --sha1t64-db=hibp_test.sha1t64.bin"
 
-# Partial database download
-if [ ! -f "$PWD/data/hibp_all.sha1.bin" ]; then
-  $DOCKER_RUN $IMAGE_NAME hibp-download hibp_all.sha1.bin --limit 256 --no-progress
-fi
-
-# Assert that the downloaded file is not empty
-if [ ! -s "$PWD/data/hibp_all.sha1.bin" ]; then
-  echo "Test failed: Downloaded file is empty."
-  exit 1
-fi
-
-# Start server
-$DOCKER_RUN -d $IMAGE_NAME
+# Start server, mount database files from test/data
+docker run -d --rm --name $IMAGE_NAME -p 8082:8082 -v $PWD/test/data:/data -e EXTRA_ARGS $IMAGE_NAME
 
 # Wait for the server to start
 COUNT=20

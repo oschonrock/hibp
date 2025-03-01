@@ -40,6 +40,8 @@ RUN \
     strip build/hibp-* && \
     cmake --install build --prefix /usr/local
 
+RUN if [ -f "build/mock_api_server" ]; then cp -vf build/mock_api_server /usr/local/bin/; fi
+
 # ---
 
 FROM ${BASE_IMAGE}
@@ -53,7 +55,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     mkdir -p /data && \
     chown hibp:hibp /data
 
-COPY --from=build /usr/local/bin/hibp-* /usr/local/bin/
+COPY --from=build /usr/local/bin/* /usr/local/bin/
 
 COPY docker/entrypoint.sh /entrypoint.sh
 

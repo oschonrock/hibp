@@ -23,7 +23,7 @@ ARGS=""
 [ -f "hibp_binfuse16.bin" ] && echo "Using database binfuse16" && ARGS="$ARGS --binfuse16-filter=hibp_binfuse16.bin"
 [ -f "hibp_binfuse8.bin" ] && echo "Using database binfuse8" && ARGS="$ARGS --binfuse8-filter=hibp_binfuse8.bin"
 
-if [ -z "$ARGS" ]; then
+if [ -z "$ARGS" ] && ! echo "$EXTRA_ARGS" | grep -qE '(-db|-filter)'; then
   echo "No database files found. Exiting."
   exit 1
 fi
@@ -39,6 +39,6 @@ trap _term SIGTERM
 
 hibp-server --bind-address 0.0.0.0 ${ARGS} ${EXTRA_ARGS} &
 
-# Store PID of celery worker
+# Store PID of server
 pid=$!
 wait "$pid"
