@@ -19,7 +19,7 @@ jobs:
         sys: [ UCRT64, CLANG64, MINGW64, MINGW32 ]
     steps:
       - name: install msys2
-        uses: msys2/setup-msys2@v2
+        uses: msys2/setup-msys2@v2.30.0
         with:
           msystem: ${{matrix.sys}}
           update: true
@@ -37,7 +37,7 @@ jobs:
             diffutils
             
       - name: checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: 'recursive'
           
