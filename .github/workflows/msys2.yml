@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        sys: [ UCRT64, CLANG64, MINGW64, MINGW32 ]
+        sys: [ UCRT64, CLANG64, MINGW64 ]
     steps:
       - name: install msys2
         uses: msys2/setup-msys2@v2.30.0
