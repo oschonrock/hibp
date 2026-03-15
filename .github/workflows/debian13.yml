@@ -1,4 +1,4 @@
-name: Debian 11 gcc-10.2
+name: Debian 13 gcc-14.2
 
 on:
   push:
@@ -20,7 +20,7 @@ jobs:
 
       - name: Run Debian container
         run: |
-          docker run --rm -v $(pwd):/workspace -w /workspace debian:11-slim /bin/bash -c "
+          docker run --rm -v $(pwd):/workspace -w /workspace debian:13-slim /bin/bash -c "
           apt-get update &&
           apt install -y build-essential \
             curl \
