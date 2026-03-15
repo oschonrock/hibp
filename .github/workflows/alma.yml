@@ -1,4 +1,4 @@
-name: Alma 9 gcc-11.5
+name: Alma 10.1 gcc-14.3
 
 on:
   push:
