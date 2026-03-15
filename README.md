@@ -1,8 +1,8 @@
 [![Ubuntu 24.04 (gcc-13, clang-18)](https://github.com/oschonrock/hibp/actions/workflows/ubuntu.yml/badge.svg)](https://github.com/oschonrock/hibp/actions/workflows/ubuntu.yml)
 [![Windows MINGW32/64 gcc/clang](https://github.com/oschonrock/hibp/actions/workflows/msys2.yml/badge.svg)](https://github.com/oschonrock/hibp/actions/workflows/msys2.yml)
 [![FreeBSD-14.1 clang-18.1](https://github.com/oschonrock/hibp/actions/workflows/freebsd.yml/badge.svg)](https://github.com/oschonrock/hibp/actions/workflows/freebsd.yml)
-[![Debian 11 gcc-10.2](https://github.com/oschonrock/hibp/actions/workflows/debian11.yml/badge.svg)](https://github.com/oschonrock/hibp/actions/workflows/debian11.yml)
 [![Debian 12 gcc-12.2](https://github.com/oschonrock/hibp/actions/workflows/debian12.yml/badge.svg)](https://github.com/oschonrock/hibp/actions/workflows/debian12.yml)
+[![Debian 13 gcc-14.2](https://github.com/oschonrock/hibp/actions/workflows/debian13.yml/badge.svg)](https://github.com/oschonrock/hibp/actions/workflows/debian13.yml)
 [![Alma 9 gcc-11.5](https://github.com/oschonrock/hibp/actions/workflows/alma.yml/badge.svg)](https://github.com/oschonrock/hibp/actions/workflows/alma.yml)
 
 # hibp: "Have I been pawned" database utilities
@@ -49,7 +49,7 @@ On a full 1Gbit/s connection this takes *around 6 minutes*, as shown here under 
 
 These .deb releases are compatible with recent'ish debian derived
 distributions on amd64 platforms. They are explicitly tested on:
-Debian 11 & 12, Ubuntu 20.04LTS, 22.04LTS & 24.04LTS.
+Debian 12 & 13, Ubuntu 20.04LTS, 22.04LTS & 24.04LTS.
 
 ```bash
 wget -q https://github.com/oschonrock/hibp/releases/download/v0.6.1/hibp_0.6.1-1_amd64.deb
