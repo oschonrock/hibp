@@ -190,10 +190,10 @@ BUILD_CMD=(
 )
 [ -n "${TARGETS[@]}" ] && BUILD_CMD+=("${TARGETS[@]}")
 [ -n "$CLEAN_FIRST" ] && BUILD_CMD+=("$CLEAN_FIRST")
-BUILD_CMD+=(
-    "--"
-    "$VERBOSE"
-)
+[ -n "$VERBOSE" ] && BUILD_CMD+=(
+	"--"
+	"$VERBOSE"
+    )
 
 [[ -n $VERBOSE ]] && echo "${BUILD_CMD[@]}"
 "${BUILD_CMD[@]}" && BUILD_RET=$? || BUILD_RET=$?
