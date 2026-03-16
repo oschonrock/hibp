@@ -52,8 +52,8 @@ distributions on amd64 platforms. They are explicitly tested on:
 Debian 12 & 13, Ubuntu 20.04LTS, 22.04LTS & 24.04LTS.
 
 ```bash
-wget -q https://github.com/oschonrock/hibp/releases/download/v0.6.1/hibp_0.6.1-1_amd64.deb
-sudo apt install ./hibp_0.6.1-1_amd64.deb  # will install minimal dependencies (eg `libevent`)
+wget -q https://github.com/oschonrock/hibp/releases/download/v0.6.2/hibp_0.6.2-1_amd64.deb
+sudo apt install ./hibp_0.6.2-1_amd64.deb  # will install minimal dependencies (eg `libevent`)
 ```
 
 ### Usage
