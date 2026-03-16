@@ -59,7 +59,7 @@
 
 namespace hibp::dnl {
 
-namespace qmgt {
+namespace {
 
 using clk = std::chrono::high_resolution_clock;
 
@@ -134,40 +134,42 @@ bool handle_exception(const std::exception_ptr& exception_ptr, std::thread::id t
   return false;
 }
 
-} // namespace qmgt
+}  // namespace
 
 // msg API called by requests thread
 void enqueue_downloads_for_writing(enq_msg_t&& msg) {
   {
-    const std::lock_guard lk(qmgt::msgmutex);
+    const std::lock_guard lk(msgmutex);
     auto                  msg_size = msg.size();
-    qmgt::msg_queue.emplace(std::move(msg));
+    msg_queue.emplace(std::move(msg));
     logger.log(fmt::format("enqueue_downloads_for_writing(): "
                            "acquired lock and received mesage of size = {}, "
                            "notifying queuemgt thread",
                            msg_size));
   }
-  qmgt::msg_cv.notify_one();
+  msg_cv.notify_one();
 }
 
 // msg API called by requests thread
 void finished_downloads() {
   {
-    const std::lock_guard lk(qmgt::msgmutex);
-    qmgt::finished_dls = true;
+    const std::lock_guard lk(msgmutex);
+    finished_dls = true;
     logger.log("finished_downloads(): acquired lock, "
                "set finished_dls = true, "
                "notifying queuemgt thread");
   }
-  qmgt::msg_cv.notify_one();
+  msg_cv.notify_one();
 }
+
+namespace {
 
 void service_queue(write_fn_t& write_fn, std::size_t next_index,
                    std::stop_token stoken) { // NOLINT stoken
 
   while (true) {
-    std::unique_lock lk(qmgt::msgmutex);
-    qmgt::msg_cv.wait(lk, stoken, [&] { return !qmgt::msg_queue.empty() || qmgt::finished_dls; });
+    std::unique_lock lk(msgmutex);
+    msg_cv.wait(lk, stoken, [&] { return !msg_queue.empty() || finished_dls; });
 
     if (stoken.stop_requested()) {
       logger.log("stop request received: bailing out");
@@ -175,15 +177,15 @@ void service_queue(write_fn_t& write_fn, std::size_t next_index,
     }
 
     // bring messages over into process_queue
-    while (!qmgt::msg_queue.empty()) {
-      auto& msg = qmgt::msg_queue.front();
+    while (!msg_queue.empty()) {
+      auto& msg = msg_queue.front();
       logger.log(fmt::format("processing message: msg.size() = {}", msg.size()));
       for (auto& dl: msg) {
-        qmgt::process_queue.emplace(std::move(dl));
+        process_queue.emplace(std::move(dl));
       }
-      qmgt::msg_queue.pop();
+      msg_queue.pop();
     }
-    if (qmgt::finished_dls && qmgt::msg_queue.empty() && qmgt::process_queue.empty()) {
+    if (finished_dls && msg_queue.empty() && process_queue.empty()) {
       break; // normal finish
     }
 
@@ -191,32 +193,35 @@ void service_queue(write_fn_t& write_fn, std::size_t next_index,
 
     // now do the work in the process queue
     // there is no contention on this queue, and this is slow processing
-    logger.log(fmt::format("process_queue.size() = {}", qmgt::process_queue.size()));
-    while (!qmgt::process_queue.empty()) {
-      const auto& top = qmgt::process_queue.top();
+    logger.log(fmt::format("process_queue.size() = {}", process_queue.size()));
+    while (!process_queue.empty()) {
+      const auto& top = process_queue.top();
       if (top->index != next_index) {
         break; // must wait for an earlier batch to preserve the correct order
       }
       logger.log(fmt::format("service_queue: writing prefix = {}", top->prefix));
-      qmgt::write_lines(write_fn, *top);
-      qmgt::process_queue.pop();
+      write_lines(write_fn, *top);
+      process_queue.pop();
       next_index++;
-      qmgt::files_processed++;
+      files_processed++;
     }
-    qmgt::print_progress();
+    print_progress();
   }
   if (cli.progress) {
     std::cerr << "\n"; // clear line after progress if being shown, bit nasty
   }
 }
 
+} // namespace
+
+
 // main entry point for the download process
 void run(write_fn_t write_fn, std::size_t start_index_, bool testing_) {
   std::exception_ptr requests_exception;
   std::exception_ptr queuemgt_exception;
 
-  qmgt::start_time  = qmgt::clk::now(); // for progress
-  qmgt::start_index = start_index_;     // for progress
+  start_time  = clk::now(); // for progress
+  start_index = start_index_;     // for progress
   init_curl_and_events();
 
   std::thread::id que_thr_id;
@@ -253,8 +258,8 @@ void run(write_fn_t write_fn, std::size_t start_index_, bool testing_) {
   } // wait here until threads join
 
   // use temps to avoid short cct eval
-  const bool ex_requests = qmgt::handle_exception(requests_exception, req_thr_id);
-  const bool ex_queuemgt = qmgt::handle_exception(queuemgt_exception, que_thr_id);
+  const bool ex_requests = handle_exception(requests_exception, req_thr_id);
+  const bool ex_queuemgt = handle_exception(queuemgt_exception, que_thr_id);
   if (ex_requests || ex_queuemgt) {
     curl_and_event_cleanup();
     throw std::runtime_error("Thread exceptions thrown as above. Sorry, we are aborting. You can "

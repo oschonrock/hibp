@@ -30,15 +30,15 @@ namespace hibp::dnl {
 // management of the concurrent set of requests for a download this
 // file uses a slightly "C-style", painly because it is interfacing
 // with a 2x C-APIs, libcurl and libevent
-namespace req {
+namespace {
 
 // double indirection via unique_ptr. Strictly unecessary for address stability, but consistent with
 // other queues and non critical
 std::unordered_map<std::size_t, std::unique_ptr<download>> download_slots;
 
+// global to communicate with C callbacks
 CURLM* curl_multi_handle;
 event* timeout;
-
 event_base*     ebase;
 std::stop_token stoken;
 
@@ -251,7 +251,7 @@ int handle_socket_curl_cb(CURL* /*easy*/, curl_socket_t s, int action, void* /*u
   return 0;
 }
 
-} // namespace req
+} // namespace
 
 std::string curl_sync_get(const std::string& url) {
   CURL* curl = curl_easy_init();
@@ -281,51 +281,51 @@ void init_curl_and_events() {
     throw std::runtime_error("Error: Could not init curl\n");
   }
 
-  req::ebase   = event_base_new();
-  req::timeout = evtimer_new(req::ebase, req::timeout_event_cb, nullptr);
+  ebase   = event_base_new();
+  timeout = evtimer_new(ebase, timeout_event_cb, nullptr);
 
-  req::curl_multi_handle = curl_multi_init();
-  curl_multi_setopt(req::curl_multi_handle, CURLMOPT_PIPELINING, CURLPIPE_MULTIPLEX);
-  curl_multi_setopt(req::curl_multi_handle, CURLMOPT_SOCKETFUNCTION, req::handle_socket_curl_cb);
-  curl_multi_setopt(req::curl_multi_handle, CURLMOPT_TIMERFUNCTION, req::start_timeout_curl_cb);
+  curl_multi_handle = curl_multi_init();
+  curl_multi_setopt(curl_multi_handle, CURLMOPT_PIPELINING, CURLPIPE_MULTIPLEX);
+  curl_multi_setopt(curl_multi_handle, CURLMOPT_SOCKETFUNCTION, handle_socket_curl_cb);
+  curl_multi_setopt(curl_multi_handle, CURLMOPT_TIMERFUNCTION, start_timeout_curl_cb);
 }
 
-void run_event_loop(std::size_t start_index, bool testing_, std::stop_token stoken) {
-  req::next_index = start_index;
-  req::testing    = testing_;
-  req::fill_download_queue();
-  req::stoken = std::move(stoken);
-  event_base_dispatch(req::ebase);
+void run_event_loop(std::size_t start_index, bool testing_, std::stop_token stop_token) {
+  next_index = start_index;
+  testing    = testing_;
+  fill_download_queue();
+  stoken = std::move(stop_token);
+  event_base_dispatch(ebase);
   logger.log("event_base_dispatch() completed");
   finished_downloads();
 }
 
 void shutdown_curl_and_events() {
-  if (auto res = curl_multi_cleanup(req::curl_multi_handle); res != CURLM_OK) {
+  if (auto res = curl_multi_cleanup(curl_multi_handle); res != CURLM_OK) {
     std::cerr << fmt::format("error: curl_multi_cleanup: '{}'\n", curl_multi_strerror(res));
   }
 
-  event_free(req::timeout);
-  event_base_free(req::ebase);
+  event_free(timeout);
+  event_base_free(ebase);
 
   libevent_global_shutdown();
   curl_global_cleanup();
 }
 
 void curl_and_event_cleanup() {
-  event_base_loopbreak(req::ebase);
+  event_base_loopbreak(ebase);
 
-  for (auto& dl_item: req::download_slots) {
+  for (auto& dl_item: download_slots) {
     auto& dl = dl_item.second;
     if (dl->easy != nullptr) {
-      if (auto res = curl_multi_remove_handle(req::curl_multi_handle, dl->easy); res != CURLM_OK) {
+      if (auto res = curl_multi_remove_handle(curl_multi_handle, dl->easy); res != CURLM_OK) {
         std::cerr << fmt::format("error in curl_multi_remove_handle(): '{}'\n",
                                  curl_multi_strerror(res));
       }
       curl_easy_cleanup(dl->easy);
     }
   }
-  req::download_slots.clear(); // more efficient to clear all at once
+  download_slots.clear(); // more efficient to clear all at once
   shutdown_curl_and_events();
 }
 } // namespace hibp::dnl
