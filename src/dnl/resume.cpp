@@ -17,7 +17,7 @@ namespace hibp::dnl {
 
 // utility function for --resume
 template <pw_type PwType>
-std::size_t get_last_prefix(const std::string& filename, bool testing) {
+std::size_t get_last_prefix(const std::string& filename, bool testing) { // NOLINT static/annon ns
   auto filesize = std::filesystem::file_size(filename);
   if (auto tailsize = filesize % sizeof(PwType); tailsize != 0) {
     std::cerr << fmt::format("db_file '{}' size was not a multiple of {}, trimmed off {} bytes.\n",

@@ -7,6 +7,8 @@
 #include <iostream>
 #include <string>
 
+namespace {
+
 struct cli_config_t {
   std::string input_filename;
   bool        sort_by_count = false;
@@ -54,6 +56,7 @@ std::string sort_db(const cli_config_t& cli) {
   }
   return sorted_filename;
 }
+} // namespace
 
 int main(int argc, char* argv[]) {
   cli_config_t cli;

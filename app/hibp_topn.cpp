@@ -23,6 +23,8 @@
 #include <string>
 #include <vector>
 
+namespace {
+
 struct cli_config_t {
   std::string output_filename;
   std::string input_filename;
@@ -126,6 +128,7 @@ void build_topn(const cli_config_t& cli) {
   }
   std::cout << fmt::format("{:>8.3}\n", duration_cast<fsecs>(clk::now() - start));
 }
+} // namespace
 
 int main(int argc, char* argv[]) {
   cli_config_t cli;

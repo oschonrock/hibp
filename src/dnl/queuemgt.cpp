@@ -134,7 +134,7 @@ bool handle_exception(const std::exception_ptr& exception_ptr, std::thread::id t
   return false;
 }
 
-}  // namespace
+} // namespace
 
 // msg API called by requests thread
 void enqueue_downloads_for_writing(enq_msg_t&& msg) {
@@ -181,12 +181,13 @@ void service_queue(write_fn_t& write_fn, std::size_t next_index,
       auto& msg = msg_queue.front();
       logger.log(fmt::format("processing message: msg.size() = {}", msg.size()));
       for (auto& dl: msg) {
-        process_queue.emplace(std::move(dl));
+        process_queue.emplace(std::move(dl)); // moving the uniqptrs & ownership over
       }
       msg_queue.pop();
     }
     if (finished_dls && msg_queue.empty() && process_queue.empty()) {
-      break; // normal finish
+      lk.unlock(); // ensure no lock on exit, just for clarity, would happen in ~lk anyway
+      break;       // normal finish
     }
 
     lk.unlock(); // free up other thread to pass us more messages
@@ -214,14 +215,13 @@ void service_queue(write_fn_t& write_fn, std::size_t next_index,
 
 } // namespace
 
-
 // main entry point for the download process
 void run(write_fn_t write_fn, std::size_t start_index_, bool testing_) {
   std::exception_ptr requests_exception;
   std::exception_ptr queuemgt_exception;
 
-  start_time  = clk::now(); // for progress
-  start_index = start_index_;     // for progress
+  start_time  = clk::now();   // for progress
+  start_index = start_index_; // for progress
   init_curl_and_events();
 
   std::thread::id que_thr_id;

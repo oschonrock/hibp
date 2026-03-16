@@ -26,7 +26,9 @@
 
 namespace hibp::srv {
 
-auto respond(int count, auto req) {
+namespace {
+
+auto respond(int count, auto req) { // NOLINT copied
   const std::string content_type = cli.json ? "application/json" : "text/plain";
 
   auto response = req->create_response().append_header(
@@ -53,10 +55,10 @@ auto search_and_respond(flat_file::database<PwType>& db, const PwType& needle, a
     }
   }
   const int count = maybe_ppw ? maybe_ppw->count : -1;
-  return respond(count, req);
+  return respond(count, req); // NOLINT copied
 }
 
-auto bad_request(const std::string& msg, auto req) {
+auto bad_request(const std::string& msg, auto req) { // NOLINT copied
   return req->create_response(restinio::status_bad_request())
       .set_body(msg + "\n")
       .connection_close()
@@ -64,7 +66,7 @@ auto bad_request(const std::string& msg, auto req) {
 }
 
 auto fail_missing_db_for_format(auto req, const std::string& option, const std::string& endpoint) {
-  return bad_request("You need to pass " + option + " for a " + endpoint + " request.", req);
+  return bad_request("You need to pass " + option + " for a " + endpoint + " request.", req); // NOLINT copied
 }
 
 void uniqefy_plain(std::string& plain_password) {
@@ -87,14 +89,14 @@ auto handle_plain_search(flat_file::database<PwType>& sha1_db, std::string plain
     // note that sha1t64 can also be constructed from sha1 text hash
     needle = PwType{SHA1{}(plain_password)};
   }
-  return search_and_respond<PwType>(sha1_db, needle, req);
+  return search_and_respond<PwType>(sha1_db, needle, req); // NOLINT copied
 }
 
 template <hibp::binfuse_filter_source_type FilterType>
 auto handle_filter_search(FilterType& filter, std::uint64_t needle, auto req) {
   const bool result = filter.contains(needle);
   const int  count  = result ? 1 : -1; // stay consistent with other dbs
-  return respond(count, req);
+  return respond(count, req); // NOLINT copied
 }
 
 template <hibp::binfuse_filter_source_type FilterType>
@@ -104,11 +106,11 @@ auto handle_plain_filter_search(FilterType& filter, std::string plain_password, 
   // TODO this is ineffecient, use binary SHA1 directly
   hibp::pawned_pw_sha1t64 pw{SHA1{}(plain_password)};
   auto                    needle = hibp::bytearray_cast<std::uint64_t>(pw.hash.data());
-  return handle_filter_search(filter, needle, req);
+  return handle_filter_search(filter, needle, req); // NOLINT copied
 }
 
 template <hibp::binfuse_filter_source_type FilterType>
-auto handle_hash_filter_search(FilterType& filter, const std::string& password, auto req) {
+auto handle_hash_filter_search(FilterType& filter, const std::string& password, auto req) { // NOLINT copied
   if (!is_valid_hash<pawned_pw_sha1t64>(password)) {
     return bad_request("Invalid hash provided. Check type of hash.", req);
   }
@@ -118,7 +120,7 @@ auto handle_hash_filter_search(FilterType& filter, const std::string& password, 
 }
 
 template <pw_type PwType>
-auto handle_hash_search(flat_file::database<PwType>& db, const std::string& password, auto req) {
+auto handle_hash_search(flat_file::database<PwType>& db, const std::string& password, auto req) { // NOLINT copied
 
   if (!is_valid_hash<PwType>(password)) {
     return bad_request("Invalid hash provided. Check type of hash.", req);
@@ -133,7 +135,7 @@ auto get_router(const std::string& sha1_db_filename, const std::string& ntlm_db_
                 const std::string& binfuse16_filter_filename,
                 const std::string& binfuse8_filter_filename) {
   auto router = std::make_unique<restinio::router::express_router_t<>>();
-  router->http_get(R"(/check/:format/:password)", [&](auto req, auto params) {
+  router->http_get(R"(/check/:format/:password)", [&](auto req, auto params) { // NOLINT copied + complexity
     try {
       // unique db object (ie set of buffers and pointers) per thread and per db file supplied
       using sha1_db_t = flat_file::database<pawned_pw_sha1>;
@@ -223,12 +225,13 @@ auto get_router(const std::string& sha1_db_filename, const std::string& ntlm_db_
     }
   });
 
-  router->non_matched_request_handler([](auto req) {
+  router->non_matched_request_handler([](auto req) { // NOLINT copied
     return req->create_response(restinio::status_not_found()).connection_close().done();
   });
 
   return router;
 }
+} // namespace
 
 void run_server() {
   // Launching a server with custom traits.

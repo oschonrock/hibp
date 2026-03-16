@@ -147,11 +147,11 @@ void process_curl_messages() {
     throw std::runtime_error("stop requested by queuemgt thread");
   }
 
-  enq_msg_t msg;
+  enq_msg_t messages;
   while ((message = curl_multi_info_read(curl_multi_handle, &pending)) != nullptr) {
     switch (message->msg) {
     case CURLMSG_DONE:
-      process_curl_done_msg(message, msg);
+      process_curl_done_msg(message, messages);
       break;
 
     default:
@@ -159,8 +159,8 @@ void process_curl_messages() {
       break;
     }
   }
-  if (!msg.empty()) {
-    enqueue_downloads_for_writing(std::move(msg));
+  if (!messages.empty()) {
+    enqueue_downloads_for_writing(std::move(messages)); // hand over ownership, avoid copy
   }
   fill_download_queue();
 }
