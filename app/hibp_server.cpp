@@ -12,6 +12,8 @@
 #include <stdexcept>
 #include <string>
 
+namespace {
+
 void define_options(CLI::App& app, hibp::srv::cli_config_t& cli) {
 
   app.add_option("--sha1-db", cli.sha1_db_filename,
@@ -59,10 +61,13 @@ void define_options(CLI::App& app, hibp::srv::cli_config_t& cli) {
                              cli.toc_bits))
       ->check(CLI::Range(15, 25));
 }
+} // namespace
 
 namespace hibp::srv {
 cli_config_t cli;
 } // namespace hibp::srv
+
+namespace {
 
 template <hibp::pw_type PwType>
 void prep_db(const std::string& db_filename, bool toc, unsigned toc_bits) {
@@ -96,6 +101,7 @@ void prep_sources(const hibp::srv::cli_config_t& cli) {
     prep_filter<binfuse::sharded_filter16_source>(cli.binfuse16_filter_filename);
   }
 }
+} // namespace
 
 int main(int argc, char* argv[]) {
   using hibp::srv::cli;

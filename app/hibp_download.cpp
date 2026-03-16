@@ -18,6 +18,8 @@
 #include <stdexcept>
 #include <string>
 
+namespace {
+
 void define_options(CLI::App& app, hibp::dnl::cli_config_t& cli) {
 
   app.add_option("output_db_filename", cli.output_db_filename,
@@ -170,6 +172,7 @@ void check_options(const hibp::dnl::cli_config_t& cli) {
                                          cli.output_db_filename));
   }
 }
+} // namespace
 
 namespace hibp::dnl {
 thread_logger logger;

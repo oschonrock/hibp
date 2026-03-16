@@ -16,9 +16,6 @@
 
 namespace hibp {
 
-template <unsigned HashSize>
-struct pawned_pw;
-
 namespace detail {
 
 constexpr std::byte make_nibble(char c) {

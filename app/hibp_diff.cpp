@@ -12,6 +12,8 @@ struct cli_config_t {
   bool        ntlm = false;
 };
 
+namespace {
+
 void define_options(CLI::App& app, cli_config_t& cli) {
 
   app.add_option("db_file_old", cli.db_file_old,
@@ -24,6 +26,7 @@ void define_options(CLI::App& app, cli_config_t& cli) {
 
   app.add_flag("--ntlm", cli.ntlm, "Use ntlm hashes rather than sha1.");
 }
+} // namespace
 
 int main(int argc, char* argv[]) {
   cli_config_t cli;

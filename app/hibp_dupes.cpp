@@ -9,7 +9,8 @@
 #include <fmt/format.h>
 #include <iostream>
 #include <string>
-// #include <unordered_set>
+
+namespace {
 
 struct cli_config_t {
   std::string db_filename;
@@ -46,6 +47,7 @@ void run_search(const cli_config_t& cli) {
     last = prefix;
   }
 }
+} // namespace
 
 int main(int argc, char* argv[]) {
   cli_config_t cli;

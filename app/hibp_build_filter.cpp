@@ -9,10 +9,7 @@
 #include <exception>
 #include <filesystem>
 #include <fmt/format.h>
-#include <fstream>
-#include <ios>
 #include <iostream>
-#include <stdexcept>
 #include <string>
 
 struct cli_config_t {
@@ -23,6 +20,8 @@ struct cli_config_t {
   bool        verify = true;
   std::size_t limit  = -1; // ie max
 };
+
+namespace {
 
 void define_options(CLI::App& app, cli_config_t& cli) {
 
@@ -38,16 +37,6 @@ void define_options(CLI::App& app, cli_config_t& cli) {
   // app.add_flag("--ntlm", cli.ntlm, "Use ntlm hashes rather than sha1.");
 
   app.add_flag("-f,--force", cli.force, "Overwrite any existing output file!");
-}
-
-std::ifstream get_input_stream(const std::string& input_filename) {
-  auto input_stream = std::ifstream(input_filename);
-  if (!input_stream) {
-    throw std::runtime_error(fmt::format("Error opening '{}' for reading. Because: \"{}\".\n",
-                                         input_filename,
-                                         std::strerror(errno))); // NOLINT errno
-  }
-  return input_stream;
 }
 
 void build(const cli_config_t& cli) {
@@ -69,6 +58,7 @@ void build(const cli_config_t& cli) {
   }
   sharded_filter.stream_finalize();
 }
+} // namespace
 
 int main(int argc, char* argv[]) {
   cli_config_t cli;

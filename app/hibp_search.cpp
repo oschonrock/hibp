@@ -17,6 +17,8 @@
 #include <string>
 #include <type_traits>
 
+namespace {
+
 struct cli_config_t {
   std::string db_filename;
   std::string plain_text_password;
@@ -104,6 +106,7 @@ void run_search(const cli_config_t& cli) {
   else
     std::cout << "not found\n";
 }
+} // namespace
 
 int main(int argc, char* argv[]) {
   cli_config_t cli;

@@ -26,6 +26,8 @@ struct cli_config_t {
   std::size_t limit           = -1; // ie max
 };
 
+namespace  {
+  
 void define_options(CLI::App& app, cli_config_t& cli) {
 
   app.add_flag("--txt-to-bin", cli.txt_to_bin,
@@ -171,6 +173,7 @@ void convert(const cli_config_t& cli) {
     std::cerr << "Done.\n";
   }
 }
+} // namespace
 
 int main(int argc, char* argv[]) {
   cli_config_t cli;
