@@ -242,6 +242,7 @@ std::vector<std::string> sort_into_chunks(typename database<ValueType>::const_it
     std::cerr << fmt::format("sorting [{:12d},{:12d}) => {:s}\n", start, end, chunk_filename);
 
     std::vector<ValueType> objs;
+    objs.reserve(end - start);
     std::copy(first + start, first + end, std::back_inserter(objs));
     std::sort(
 #if HIBP_USE_PSTL && __cpp_lib_parallel_algorithm
