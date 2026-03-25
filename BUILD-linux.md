@@ -9,7 +9,7 @@ On rpm system, the package names may vary slightly. The only runtime
 dependencies are libcurl and libevent (plus libtbb if you compile with
 `-DHIBP_WITH_PSTL`).
 
-## Install Dependencies
+### Install Dependencies
 
 ```bash
 sudo apt install build-essential cmake curl ninja-build ccache git libcurl4-openssl-dev libevent-dev ruby libtbb-dev
@@ -24,3 +24,9 @@ cd ../..
 # optional: for compiling with clang also:
 sudo apt install clang gcc-14 g++-14  # need gcc-14 because clang tries to use its stdlibc++ version
 ```
+
+## Arch Linux
+
+sudo pacman -S base-devel cmake curl ninja ruby libevent
+
+then continue as above with `git clone`
