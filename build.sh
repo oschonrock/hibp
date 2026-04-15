@@ -180,8 +180,6 @@ GEN_CMD=(
 [[ -n "$VERBOSE" ]] && echo "${GEN_CMD[@]}"
 "${GEN_CMD[@]}" && GEN_RET=$? || GEN_RET=$?
 
-[[ $GEN_RET -eq 0 ]] && rm -f ./compile_commands.json && ln -s "$BUILD_DIR/compile_commands.json" .
-
 [[ -n "$GENERATEONLY" ]] && exit $GEN_RET
 
 BUILD_CMD=(

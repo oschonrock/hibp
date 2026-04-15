@@ -4,14 +4,14 @@
 #include "gtest/gtest.h"
 #include <cstddef>
 #include <filesystem>
+#include <optional>
 #include <random>
 #include <sstream>
 #include <type_traits>
 
 template <hibp::pw_type PwType>
 void run_search(bool toc, unsigned toc_bits = 0) { // NOLINT complexity
-  auto testdatadir =
-      std::filesystem::canonical(std::filesystem::current_path() / "data");
+  auto testdatadir = std::filesystem::canonical(std::filesystem::current_path() / "data");
 
   std::filesystem::path db_path;
 
@@ -45,8 +45,8 @@ void run_search(bool toc, unsigned toc_bits = 0) { // NOLINT complexity
     if (toc) {
       std::optional<PwType> maybe_ppw = hibp::toc_search<PwType>(db, needle, toc_bits);
       EXPECT_TRUE(maybe_ppw);
-      EXPECT_EQ(*maybe_ppw, needle);
-      EXPECT_EQ(maybe_ppw->count, needle.count);
+      EXPECT_EQ(*maybe_ppw, needle);             // NOLINT unchecked access
+      EXPECT_EQ(maybe_ppw->count, needle.count); // NOLINT unchecked access
     } else {
       auto iter = std::lower_bound(db.begin(), db.end(), needle);
       EXPECT_NE(iter, db.end());

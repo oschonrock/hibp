@@ -66,7 +66,7 @@ extern std::unordered_map<std::thread::id, std::string> thrnames;
 struct thread_logger {
   void log(const std::string& msg) const {
     if (debug) {
-      const std::lock_guard lk(cerr_mutex);
+      const std::scoped_lock lk(cerr_mutex);
       // can't portably use high resolution clock here
       auto timestamp = std::chrono::system_clock::now();
       std::cerr << fmt::format("{:%Y-%m-%d %H:%M:%S} thread: {:>9}: {}\n", timestamp,

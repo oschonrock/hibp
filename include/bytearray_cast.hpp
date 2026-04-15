@@ -1,7 +1,7 @@
+#include <bit>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
-#include <bit>
 
 namespace hibp {
 

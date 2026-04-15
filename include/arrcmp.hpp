@@ -116,7 +116,7 @@ using largest_vector = std::conditional_t<
     std::conditional_t<avx2 && N >= sizeof(__m256i), __m256i,
                        std::conditional_t<sse && N >= sizeof(__m128i), __m128i, std::uint64_t>>>;
 
-template <typename std::size_t N>
+template <std::size_t N>
 constexpr std::size_t next_size() noexcept {
   if constexpr (N > sizeof(std::uint64_t)) {
     return sizeof(largest_vector<N>);
@@ -163,7 +163,7 @@ constexpr std::uint64_t vector_cmp(const std::byte* a, const std::byte* b) noexc
     const auto sb = _mm_loadu_si128(reinterpret_cast<const __m128i*>(b)); // NOLINT reincast
     const auto sc = _mm_cmpeq_epi8(sa, sb);
     // careful about casting and integer size during `not`!
-    const std::uint16_t mask = ~static_cast<std::uint16_t>(_mm_movemask_epi8(sc));
+    const std::uint16_t mask = ~static_cast<std::uint16_t>(_mm_movemask_epi8(sc)); // NOLINT conversion
     return mask;
   } else if constexpr (std::same_as<T, __m256i>) {
     const auto sa = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(a)); // NOLINT reincast
@@ -241,7 +241,7 @@ struct equal {
 };
 
 template <std::size_t N, typename Comp>
-constexpr typename Comp::return_t array_compare(const std::byte* a, const std::byte* b,
+constexpr Comp::return_t array_compare(const std::byte* a, const std::byte* b,
                                                 Comp comp) noexcept {
   if constexpr (N == 0) {
     return Comp::equality_value;
@@ -254,7 +254,7 @@ constexpr typename Comp::return_t array_compare(const std::byte* a, const std::b
 }
 
 template <std::size_t N, typename Comp>
-constexpr typename Comp::return_t array_compare(const std::array<std::byte, N>& a,
+constexpr Comp::return_t array_compare(const std::array<std::byte, N>& a,
                                                 const std::array<std::byte, N>& b,
                                                 Comp                            comp) noexcept {
   return array_compare<N>(a.data(), b.data(), comp);

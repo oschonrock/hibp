@@ -27,25 +27,24 @@
 #define MD4_H
 
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
-  
-#define	MD4_DIGEST_LENGTH		16
+
+#define MD4_DIGEST_LENGTH 16 // NOLINT #define in C-code
 
 /* Any 32-bit or wider unsigned integer data type will do */
-typedef unsigned int MD4_u32plus;
+typedef unsigned int MD4_u32plus; // NOLINT typedef in C-code
 
-typedef struct {
-	MD4_u32plus lo, hi;
-	MD4_u32plus a, b, c, d;
-	unsigned char buffer[64];
-	MD4_u32plus block[16];
+typedef struct { // NOLINT typedef in C-code
+  MD4_u32plus   lo, hi;
+  MD4_u32plus   a, b, c, d;
+  unsigned char buffer[64];
+  MD4_u32plus   block[16];
 } MD4_CTX;
 
-extern void MD4_Init(MD4_CTX *ctx);
-extern void MD4_Update(MD4_CTX *ctx, const void *data, unsigned long size);
-extern void MD4_Final(unsigned char *result, MD4_CTX *ctx);
+extern void MD4_Init(MD4_CTX* ctx);
+extern void MD4_Update(MD4_CTX* ctx, const void* data, unsigned long size);
+extern void MD4_Final(unsigned char* result, MD4_CTX* ctx);
 
 #endif
 

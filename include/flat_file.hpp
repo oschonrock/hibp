@@ -267,8 +267,8 @@ void merge_sorted_chunks(const std::vector<std::string>& chunk_filenames,
 
   struct chunk {
     flat_file::database<ValueType>                          db;
-    typename flat_file::database<ValueType>::const_iterator current;
-    typename flat_file::database<ValueType>::const_iterator end;
+    flat_file::database<ValueType>::const_iterator current;
+    flat_file::database<ValueType>::const_iterator end;
 
     explicit chunk(std::string filename, std::size_t buf_size)
         : db(std::move(filename), buf_size), current(db.begin()), end(db.end()) {}

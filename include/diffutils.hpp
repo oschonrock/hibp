@@ -1,5 +1,4 @@
 #include "hibp.hpp"
-#include <cstdlib>
 #include <filesystem>
 #include <ostream>
 

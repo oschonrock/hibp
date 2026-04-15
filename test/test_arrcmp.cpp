@@ -18,7 +18,7 @@ std::array<std::byte, sizeof...(Ts)> make_bytes(Ts&&... args) noexcept {
 }
 
 template <std::size_t N>
-void test() {
+void test() { // NOLINT complexity
   static_assert(N != 0, "cannot make or compare empty arrays");
 
   auto bytes = make_bytes(0x00, 0x01, 0x02, 0x7f, 0x80, 0x81, 0xfd, 0xfe, 0xff);

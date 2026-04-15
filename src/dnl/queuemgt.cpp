@@ -87,7 +87,7 @@ void print_progress() {
     auto elapsed_trunc = floor<std::chrono::seconds>(elapsed);
     auto elapsed_sec   = duration_cast<std::chrono::duration<double>>(elapsed).count();
 
-    const std::lock_guard lk(cerr_mutex);
+    const std::scoped_lock lk(cerr_mutex);
     auto                  files_todo = cli.index_limit - start_index;
     std::cerr << fmt::format("Elapsed: {:%H:%M:%S}  Progress: {} / {} files  {:.1f}MB/s  {:5.1f}%  "
                              "  Write queue size: {:4d}\r",
@@ -139,7 +139,7 @@ bool handle_exception(const std::exception_ptr& exception_ptr, std::thread::id t
 // msg API called by requests thread
 void enqueue_downloads_for_writing(enq_msg_t&& msg) {
   {
-    const std::lock_guard lk(msgmutex);
+    const std::scoped_lock lk(msgmutex);
     auto                  msg_size = msg.size();
     msg_queue.emplace(std::move(msg));
     logger.log(fmt::format("enqueue_downloads_for_writing(): "
@@ -153,7 +153,7 @@ void enqueue_downloads_for_writing(enq_msg_t&& msg) {
 // msg API called by requests thread
 void finished_downloads() {
   {
-    const std::lock_guard lk(msgmutex);
+    const std::scoped_lock lk(msgmutex);
     finished_dls = true;
     logger.log("finished_downloads(): acquired lock, "
                "set finished_dls = true, "

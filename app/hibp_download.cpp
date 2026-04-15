@@ -1,5 +1,5 @@
-#include "bytearray_cast.hpp"
 #include "binfuse/sharded_filter.hpp"
+#include "bytearray_cast.hpp"
 #include "dnl/queuemgt.hpp"
 #include "dnl/resume.hpp"
 #include "dnl/shared.hpp"
@@ -7,6 +7,7 @@
 #include "hibp.hpp"
 #include <CLI/CLI.hpp>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <exception>
@@ -100,20 +101,20 @@ std::size_t get_start_index(const hibp::dnl::cli_config_t& cli) {
 }
 
 void launch_stream(const hibp::dnl::cli_config_t& cli) {
-  std::size_t             start_index = get_start_index(cli);
+  const std::size_t start_index = get_start_index(cli);
 
-  std::ios_base::openmode mode        = cli.txt_out ? std::ios_base::out : std::ios_base::binary;
+  std::ios_base::openmode mode = cli.txt_out ? std::ios_base::out : std::ios_base::binary;
   if (cli.resume) {
     mode |= std::ios_base::app;
   }
-  
+
   auto output_db_stream = std::ofstream(cli.output_db_filename, mode);
   if (!output_db_stream) {
     throw std::runtime_error(fmt::format("Error opening '{}' for writing. Because: \"{}\".",
                                          cli.output_db_filename,
                                          std::strerror(errno))); // NOLINT errno
   }
-  
+
   if (cli.txt_out) {
     auto tw = hibp::dnl::text_writer(output_db_stream);
     hibp::dnl::run([&](const std::string& line) { tw.write(line); }, start_index, cli.testing);

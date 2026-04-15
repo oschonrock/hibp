@@ -2,7 +2,6 @@
 #include "flat_file.hpp"
 #include "hibp.hpp"
 #include <algorithm>
-#include <cstdlib>
 #include <filesystem>
 #include <fmt/chrono.h> // IWYU pragma: keep
 #include <fmt/format.h>

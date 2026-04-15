@@ -1,5 +1,6 @@
 #include "bytearray_cast.hpp"
 #include "binfuse.hpp"
+#include "binfuse/sharded_filter.hpp"
 #include "flat_file.hpp"
 #include "hibp.hpp"
 #include "ntlm.hpp"
@@ -8,7 +9,6 @@
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
-#include <cstdlib>
 #include <exception>
 #include <fmt/format.h>
 #include <iostream>

@@ -17,7 +17,7 @@ namespace fs = std::filesystem;
 auto get_router(const fs::path& static_dir) {
   auto router = std::make_unique<restinio::router::express_router_t<>>();
 
-  router->http_get("/:file", [static_dir](auto req, auto params) {
+  router->http_get("/:file", [static_dir](auto req, auto params) { // NOLINT req copied
     const fs::path requested_path(params["file"]);
 
     const auto qp = restinio::parse_query(req->header().query());
@@ -38,7 +38,7 @@ auto get_router(const fs::path& static_dir) {
     return req->create_response(restinio::status_not_found()).connection_close().done();
   });
 
-  router->non_matched_request_handler([](auto req) {
+  router->non_matched_request_handler([](auto req) { // NOLINT req copied
     std::cerr << "404: Unmatched Request: '" << req->header().path() << "'\n";
     return req->create_response(restinio::status_not_found()).connection_close().done();
   });

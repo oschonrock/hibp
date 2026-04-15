@@ -4,7 +4,6 @@
 #include "sha1.h"
 #include <CLI/CLI.hpp>
 #include <cstdint>
-#include <cstdio>
 #include <cstdlib>
 #include <exception>
 #include <filesystem>

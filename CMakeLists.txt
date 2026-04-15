@@ -238,4 +238,10 @@ endif(HIBP_TEST)
 
 install(TARGETS hibp_download hibp_sort hibp_search hibp_convert hibp_server hibp_topn RUNTIME)
 
+execute_process(
+  COMMAND ${CMAKE_COMMAND} -E copy
+  ${CMAKE_BINARY_DIR}/compile_commands.json
+  ${CMAKE_SOURCE_DIR}/compile_commands.json
+)
+
 

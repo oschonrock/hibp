@@ -8,6 +8,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 template <hibp::pw_type PwType>
 class DiffTest : public testing::Test {
