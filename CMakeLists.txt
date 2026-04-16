@@ -194,7 +194,12 @@ target_compile_options(hibp_download PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_download PRIVATE CLI11 curl event hibp flat_file
   fmt ${CMAKE_THREAD_LIBS_INIT} binfuse)
 
-add_subdirectory(ext/binfuse)
+FetchContent_Declare(
+  binfuse
+  GIT_REPOSITORY https://github.com/oschonrock/binfuse.git
+  GIT_TAG v2.0.1
+)
+FetchContent_MakeAvailable(binfuse)
 
 add_executable(hibp_build_filter app/hibp_build_filter.cpp)
 set_target_properties(hibp_build_filter PROPERTIES OUTPUT_NAME hibp-build-filter)
@@ -250,10 +255,10 @@ endif(HIBP_TEST)
 
 install(TARGETS hibp_download hibp_sort hibp_search hibp_convert hibp_server hibp_topn RUNTIME)
 
-execute_process(
-  COMMAND ${CMAKE_COMMAND} -E copy
-  ${CMAKE_BINARY_DIR}/compile_commands.json
-  ${CMAKE_SOURCE_DIR}/compile_commands.json
+# copy compile_commands.json from the build dir to the source dir
+add_custom_target(copy_compile_commands ALL
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different
+  "${CMAKE_BINARY_DIR}/compile_commands.json"
+  "${CMAKE_SOURCE_DIR}/compile_commands.json"
+  COMMENT "Copying compile_commands.json to source root"
 )
-
-
