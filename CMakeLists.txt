@@ -57,7 +57,13 @@ if (NOT MSVC)
   target_compile_options(sha1 INTERFACE -Wno-sign-conversion)
 endif()
 
-add_subdirectory(ext/fmt EXCLUDE_FROM_ALL)
+FetchContent_Declare(
+  fmt
+  GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+  GIT_TAG 12.1.0
+)
+
+FetchContent_MakeAvailable(fmt)
 
 add_library(arrcmp INTERFACE)
 target_include_directories(arrcmp INTERFACE include)
@@ -77,7 +83,7 @@ endif()
 add_library(flat_file INTERFACE)
 target_include_directories(flat_file INTERFACE include)
 target_compile_features(flat_file INTERFACE cxx_std_20)
-target_link_libraries(flat_file INTERFACE fmt::fmt)
+target_link_libraries(flat_file INTERFACE fmt)
 
 if (HIBP_WITH_PSTL)
   if (MSVC)
@@ -116,31 +122,31 @@ add_library(toc src/toc.cpp)
 target_compile_features(toc PRIVATE cxx_std_20)
 target_include_directories(toc PRIVATE include)
 target_compile_options(toc PRIVATE -Wno-ignored-attributes) # non-sensical warning from gcc?
-target_link_libraries(toc PRIVATE hibp flat_file fmt::fmt)
+target_link_libraries(toc PRIVATE hibp flat_file fmt)
 
 add_library(diffutils src/diffutils.cpp)
 target_compile_features(diffutils PRIVATE cxx_std_20)
 target_include_directories(diffutils PRIVATE include)
-target_link_libraries(diffutils PRIVATE hibp flat_file fmt::fmt)
+target_link_libraries(diffutils PRIVATE hibp flat_file fmt)
 target_compile_options(diffutils PRIVATE -Wno-ignored-attributes) # non-sensical warning from gcc?
 
 add_executable(hibp_search app/hibp_search.cpp)
 set_target_properties(hibp_search PROPERTIES OUTPUT_NAME hibp-search)
 target_compile_features(hibp_search PRIVATE cxx_std_20)
 target_compile_options(hibp_search PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_search PRIVATE CLI11 sha1 ntlm hibp toc flat_file fmt::fmt)
+target_link_libraries(hibp_search PRIVATE CLI11 sha1 ntlm hibp toc flat_file fmt)
 
 add_executable(hibp_dupes app/hibp_dupes.cpp)
 set_target_properties(hibp_dupes PROPERTIES OUTPUT_NAME hibp-dupes)
 target_compile_features(hibp_dupes PRIVATE cxx_std_20)
 target_compile_options(hibp_dupes PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_dupes PRIVATE CLI11 sha1 hibp flat_file fmt::fmt)
+target_link_libraries(hibp_dupes PRIVATE CLI11 sha1 hibp flat_file fmt)
 
 add_executable(hibp_diff app/hibp_diff.cpp src/toc.cpp)
 set_target_properties(hibp_diff PROPERTIES OUTPUT_NAME hibp-diff)
 target_compile_features(hibp_diff PRIVATE cxx_std_20)
 target_compile_options(hibp_diff PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_diff PRIVATE CLI11 hibp flat_file diffutils fmt::fmt)
+target_link_libraries(hibp_diff PRIVATE CLI11 hibp flat_file diffutils fmt)
 
 find_package(Threads)
 
@@ -148,27 +154,27 @@ add_executable(hibp_server app/hibp_server.cpp src/srv/server.cpp)
 set_target_properties(hibp_server PROPERTIES OUTPUT_NAME hibp-server)
 target_compile_options(hibp_server PRIVATE ${PROJECT_COMPILE_OPTIONS})
 if (MINGW)
-  target_link_libraries(hibp_server PRIVATE CLI11 sha1 ntlm hibp toc flat_file binfuse fmt::fmt restinio gdi32 wsock32 ws2_32)
+  target_link_libraries(hibp_server PRIVATE CLI11 sha1 ntlm hibp toc flat_file binfuse fmt restinio gdi32 wsock32 ws2_32)
 else()
-  target_link_libraries(hibp_server PRIVATE CLI11 sha1 ntlm hibp toc flat_file binfuse fmt::fmt restinio ${CMAKE_THREAD_LIBS_INIT})
+  target_link_libraries(hibp_server PRIVATE CLI11 sha1 ntlm hibp toc flat_file binfuse fmt restinio ${CMAKE_THREAD_LIBS_INIT})
 endif()
 
 add_executable(hibp_sort app/hibp_sort.cpp)
 set_target_properties(hibp_sort PROPERTIES OUTPUT_NAME hibp-sort)
 target_compile_options(hibp_sort PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_sort PRIVATE CLI11 hibp flat_file fmt::fmt)
+target_link_libraries(hibp_sort PRIVATE CLI11 hibp flat_file fmt)
 
 add_executable(hibp_topn app/hibp_topn.cpp)
 set_target_properties(hibp_topn PROPERTIES OUTPUT_NAME hibp-topn)
 target_compile_features(hibp_topn PRIVATE cxx_std_20)
 target_compile_options(hibp_topn PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_topn PRIVATE CLI11 sha1 hibp flat_file fmt::fmt)
+target_link_libraries(hibp_topn PRIVATE CLI11 sha1 hibp flat_file fmt)
 
 add_executable(hibp_convert app/hibp_convert.cpp)
 set_target_properties(hibp_convert PROPERTIES OUTPUT_NAME hibp-convert)
 target_compile_features(hibp_convert PRIVATE cxx_std_20)
 target_compile_options(hibp_convert PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_convert PRIVATE CLI11 sha1 hibp flat_file fmt::fmt)
+target_link_libraries(hibp_convert PRIVATE CLI11 sha1 hibp flat_file fmt)
 
 add_executable(hibp_download
   app/hibp_download.cpp
@@ -180,7 +186,7 @@ set_target_properties(hibp_download PROPERTIES OUTPUT_NAME hibp-download)
 target_compile_features(hibp_download PRIVATE cxx_std_20)
 target_compile_options(hibp_download PRIVATE ${PROJECT_COMPILE_OPTIONS})
 target_link_libraries(hibp_download PRIVATE CLI11 curl event hibp flat_file
-  fmt::fmt ${CMAKE_THREAD_LIBS_INIT} binfuse)
+  fmt ${CMAKE_THREAD_LIBS_INIT} binfuse)
 
 add_subdirectory(ext/binfuse)
 
@@ -188,13 +194,13 @@ add_executable(hibp_build_filter app/hibp_build_filter.cpp)
 set_target_properties(hibp_build_filter PROPERTIES OUTPUT_NAME hibp-build-filter)
 target_compile_features(hibp_build_filter PRIVATE cxx_std_20)
 target_compile_options(hibp_build_filter PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_build_filter PRIVATE CLI11 sha1 hibp flat_file fmt::fmt binfuse)
+target_link_libraries(hibp_build_filter PRIVATE CLI11 sha1 hibp flat_file fmt binfuse)
 
 add_executable(hibp_query_filter app/hibp_query_filter.cpp)
 set_target_properties(hibp_query_filter PROPERTIES OUTPUT_NAME hibp-query-filter)
 target_compile_features(hibp_query_filter PRIVATE cxx_std_20)
 target_compile_options(hibp_query_filter PRIVATE ${PROJECT_COMPILE_OPTIONS})
-target_link_libraries(hibp_query_filter PRIVATE CLI11 sha1 hibp flat_file fmt::fmt binfuse)
+target_link_libraries(hibp_query_filter PRIVATE CLI11 sha1 hibp flat_file fmt binfuse)
 
 
 # precompiled headers
@@ -223,9 +229,9 @@ if(HIBP_TEST)
   add_executable(mock_api_server test/mock_api_server.cpp)
   target_compile_options(mock_api_server PRIVATE ${PROJECT_COMPILE_OPTIONS})
   if (MINGW)
-    target_link_libraries(mock_api_server PRIVATE fmt::fmt restinio gdi32 wsock32 ws2_32)
+    target_link_libraries(mock_api_server PRIVATE fmt restinio gdi32 wsock32 ws2_32)
   else()
-    target_link_libraries(mock_api_server PRIVATE fmt::fmt restinio ${CMAKE_THREAD_LIBS_INIT})
+    target_link_libraries(mock_api_server PRIVATE fmt restinio ${CMAKE_THREAD_LIBS_INIT})
   endif()
 
   get_property(all_targets DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY BUILDSYSTEM_TARGETS)
