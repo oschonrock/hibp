@@ -48,8 +48,15 @@ set(CMAKE_POLICY_DEFAULT_CMP0077 NEW) # for restioni which has an option()
 set(BUILD_STATIC_LIBS ON)
 set(BUILD_SHARED_LIBS OFF)
 
+include(FetchContent)
+
 set(CLI11_PRECOMPILED ON) # improves compile speed by ~2x
-add_subdirectory(ext/CLI11)
+FetchContent_Declare(
+  CLI11
+  GIT_REPOSITORY https://github.com/CLIUtils/CLI11.git
+  GIT_TAG v2.6.2
+)
+FetchContent_MakeAvailable(CLI11)
 
 add_library(sha1 ext/hash-library/sha1.cpp)
 target_include_directories(sha1 INTERFACE ext/hash-library)
@@ -62,7 +69,6 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/fmtlib/fmt.git
   GIT_TAG 12.1.0
 )
-
 FetchContent_MakeAvailable(fmt)
 
 add_library(arrcmp INTERFACE)
